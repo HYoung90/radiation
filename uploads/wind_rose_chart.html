@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wind Rose Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div style="width: 80%; margin: auto;">
+        <canvas id="windRoseChart"></canvas>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('windRoseChart').getContext('2d');
+        const windData = {{ wind_data | tojson }}; // 서버에서 전달된 데이터
+
+        const labels = Object.keys(windData);
+        const dataValues = Object.values(windData);
+
+        const windRoseChart = new Chart(ctx, {
+            type: 'polarArea',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Wind Direction Frequencies',
+                    data: dataValues,
+                    backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    r: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

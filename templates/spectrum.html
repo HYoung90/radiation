@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spectrum Upload</title>
+    <style>
+        /* 드래그 앤 드롭 영역 스타일 */
+        #drop-area {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            text-align: center;
+            margin: 20px;
+            border-radius: 10px;
+        }
+
+        /* 버튼 스타일 추가 */
+        .navigation-buttons {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+        .navigation-buttons button {
+            padding: 10px 15px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            transition: background-color 0.3s;
+        }
+        .navigation-buttons button:hover {
+            background-color: #0056b3;
+        }
+
+        /* 핵종 정보 표시 스타일 */
+        #nuclide-info {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 18px;
+        }
+
+        /* 핵종 정보 테이블 스타일 */
+        table {
+            width: 100%;
+            margin-top: 20px;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid #ccc;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div id="drop-area">
+        <h2>Drag and Drop CSV File Here</h2>
+        <input type="file" id="fileElem" accept=".csv" style="display:none;" />
+        <label for="fileElem">or click to select a file</label>
+    </div>
+    <div id="output"></div>
+    <img id="spectrum-plot" style="display: none;" />
+    <div id="nuclide-info"></div> <!-- 핵종 정보 표시 영역 -->
+
+    <div class="navigation-buttons">
+        <button onclick="location.reload()">새로고침</button> <!-- 새로고침 버튼 -->
+        <button onclick="history.back()">뒤로가기</button> <!-- 뒤로가기 버튼 -->
+    </div>
+
+    <script>
+        let dropArea = document.getElementById('drop-area');
+
+        dropArea.addEventListener('dragover', (event) => {
+            event.preventDefault();
+            dropArea.style.backgroundColor = '#e0e0e0'; // Change color on drag over
+        });
+
+        dropArea.addEventListener('dragleave', () => {
+            dropArea.style.backgroundColor = '#ffffff'; // Revert color
+        });
+
+        dropArea.addEventListener('drop', (event) => {
+            event.preventDefault();
+            dropArea.style.backgroundColor = '#ffffff'; // Revert color
+            let files = event.dataTransfer.files;
+            if (files.length) {
+                uploadFile(files[0]);
+            }
+        });
+
+        dropArea.addEventListener('click', () => {
+            document.getElementById('fileElem').click(); // Trigger file input click
+        });
+
+        document.getElementById('fileElem').addEventListener('change', (event) => {
+            let files = event.target.files;
+            if (files.length) {
+                uploadFile(files[0]);
+            }
+        });
+
+        function uploadFile(file) {
+            let formData = new FormData();
+            formData.append('file', file);
+
+            fetch('/upload_spectrum', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.plot_url) {
+                    document.getElementById('spectrum-plot').src = data.plot_url; // Show the plot
+                    document.getElementById('spectrum-plot').style.display = 'block';
+                    document.getElementById('output').innerText = data.message; // Show success message
+                    showNuclideInfo(data.nuclide, data.nuclide_info_table); // 핵종 정보를 표시하는 함수 호출
+                } else {
+                    document.getElementById('output').innerText = data.error; // Show error message
+                }
+            })
+            .catch(error => {
+                document.getElementById('output').innerText = 'Error: ' + error;
+            });
+        }
+
+        // 핵종 정보 표시 함수
+        function showNuclideInfo(nuclide, nuclideInfoTable) {
+            document.getElementById('nuclide-info').innerText = `이 스펙트럼에서 탐지된 핵종: ${nuclide}`; // 핵종 이름 표시
+
+            // 핵종 정보 테이블 생성
+            let tableHTML = '<table><tr><th>핵종</th><th>물리적 반감기</th><th>생물학적 반감기</th><th>유효 반감기</th><th>감마선 에너지</th><th>설명</th></tr>';
+            for (const key of Object.keys(nuclideInfoTable)) {
+                if (nuclide.includes(key)) {  // 탐지된 핵종에 대해서만 정보 표시
+                    const info = nuclideInfoTable[key];
+                    tableHTML += `<tr>
+                        <td>${key}</td>
+                        <td>${info.physical_half_life}</td>
+                        <td>${info.biological_half_life}</td>
+                        <td>${info.effective_half_life}</td>
+                        <td>${info.gamma_energy}</td>
+                        <td>${info.description}</td>
+                    </tr>`;
+                }
+            }
+            tableHTML += '</table>';
+            document.getElementById('nuclide-info').innerHTML += tableHTML; // 테이블 추가
+        }
+
+
+    </script>
+</body>
+</html>

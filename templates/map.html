@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>원자력 발전소 기상 정보</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        /* 기존 스타일 유지 */
+        body {
+            background-color: #f3f4f6; /* 부드러운 배경색 */
+            font-family: Arial, sans-serif;
+        }
+        #map {
+            height: 600px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* 지도에 그림자 추가 */
+            margin-bottom: 20px; /* 지도와 버튼 사이 간격 추가 */
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); /* 4열로 구성 */
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .grid-item {
+            background-color: #ffffff; /* 그리드 아이템 배경색 */
+            padding: 20px;
+            border-radius: 10px;
+            text-align: left; /* 왼쪽 정렬 */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            font-size: 16px;
+        }
+        .grid-item h5 {
+            margin-bottom: 10px;
+            font-size: 18px;
+            color: #333; /* 제목 색상 */
+        }
+        .grid-item p {
+            font-size: 14px;
+            color: #555; /* 본문 색상 */
+        }
+        .analysis-button {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+        .analysis-button a {
+            font-size: 18px;
+            padding: 15px;
+            text-align: center;
+            color: black;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: bold;
+            border: 2px solid #cccccc;
+            background-color: #e8f4f2; /* 이전 부드러운 색상 */
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .analysis-button a:hover {
+            background-color: #d1e7dd; /* 마우스 오버 시 부드러운 색상 */
+            box-shadow: 0 6px 8px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+        .header-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            background-color: #f5f5f5;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* 헤더에 그림자 추가 */
+        }
+        .header-logo img {
+            height: 180px; /* 로고 크기 확대 */
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .header-logo img:hover {
+            transform: scale(1.05); /* 로고에 hover 시 확대 효과 */
+        }
+        .title-container {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .title-container h1 {
+            font-size: 36px; /* 글씨 크기 확대 */
+            margin: 0;
+            color: #000000;
+        }
+        .refresh-icon {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            justify-content: flex-end;
+            height: 180px; /* 로고 크기에 맞춰 높이 증가 */
+            font-size: 18px; /* 시간 정보 크기 */
+            color: #333; /* 시간 정보 색상 */
+            font-weight: bold;
+        }
+
+        /* 커스텀 팝업 스타일 */
+        .leaflet-popup-content-wrapper {
+            background-color: #ffffff;
+            color: #333;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 10px;
+        }
+
+        .leaflet-popup-tip-container {
+            display: none;
+        }
+
+        .leaflet-popup-close-button {
+            color: #555;
+            font-size: 16px;
+        }
+
+        .custom-popup-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <div class="header-container">
+            <div class="header-logo">
+                <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="CCRC Logo" onclick="location.reload()">
+            </div>
+            <div class="title-container">
+                <h1 id="title">원자력 발전소 기상 정보</h1>
+            </div>
+            <div class="refresh-icon">
+                <span id="currentTime"></span>
+            </div>
+        </div>
+
+        <div id="map"></div>
+
+<div class="analysis-button">
+    <a href="/analysis1" class="analysis">토양 방사능</a>
+    <a href="/analysis2" class="analysis">대기 중 방사능</a>
+    <a href="/analysis4" class="analysis">수중 방사능</a>
+    <a href="/busan_radiation" class="radiation wide">부산광역시 환경방사선량 데이터</a>
+    <a href="/nuclear_radiation" class="nuclear wide">원자력 발전소 주변 방사선량 데이터</a>
+    <a href="/ASOS" class="new-data wide">대피 경로 설정</a>
+    <a href="/spectrum" class="spectrum-upload wide">방사성 핵종 스텍트럼 분석</a> <!-- 기존 버튼 유지 -->
+    <a href="/radiation_summary" class="summary wide">주간 방사선량 데이터</a> <!-- 새로 추가된 방사선 요약 버튼 -->
+</div>
+
+
+        <!-- 기상 최신 데이터 표시 공간 -->
+        <div class="weather-container">
+            <h2 class="mb-4">최근 기상 데이터</h2>
+            <div class="grid-container" id="weatherGridContainer">
+                <!-- 여기서부터 각 발전소의 데이터를 표시하는 그리드 아이템이 추가됩니다. -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        function updateCurrentTime() {
+            var now = new Date();
+            var formattedDateTime = now.toLocaleString(); // Includes date and time
+            document.getElementById('currentTime').textContent = formattedDateTime;
+        }
+
+        updateCurrentTime();
+        setInterval(updateCurrentTime, 1000); // Update every second
+
+        var map = L.map('map').setView([36.5, 127.5], 7);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://carto.com/">CARTO</a> | &copy; OpenStreetMap contributors',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(map);
+
+        var regions = {
+            "KR": [35.3213, 129.2941, "고리 원자력발전소"],
+            "WS": [35.7131, 129.4775, "월성 원자력발전소"],
+            "YK": [35.4165, 126.4178, "한빛 원자력발전소"],
+            "UJ": [37.0941, 129.3819, "한울 원자력발전소"],
+            "SU": [35.3376, 129.3115, "새울 원자력발전소"],
+        };
+
+        for (var region in regions) {
+            var marker = L.marker([regions[region][0], regions[region][1]]).addTo(map)
+                .bindPopup('<div class="custom-popup-title"><a href="/' + region + '" style="text-decoration:none;color:black;">' + regions[region][2] + '</a></div>');
+
+            marker.on('click', function() {
+                this.openPopup();
+            });
+        }
+
+        function loadLatestWeatherData() {
+            const weatherGridContainer = document.getElementById("weatherGridContainer");
+            weatherGridContainer.innerHTML = "";  // 기존 내용을 지우기
+            const plantNames = {
+                "KR": "고리 원자력발전소",
+                "WS": "월성 원자력발전소",
+                "YK": "한빛 원자력발전소",
+                "UJ": "한울 원자력발전소",
+                "SU": "새울 원자력발전소"
+            };
+
+            for (let region in plantNames) {
+                fetch(`/api/data/${region}/latest`)  // 수정된 엔드포인트 호출
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log(`Received latest data for region ${region}:`, data);  // 데이터 확인
+                        if (data.time) { // 단일 객체 확인
+                            const gridItem = document.createElement("div");
+                            gridItem.className = "grid-item";
+                            gridItem.innerHTML = `
+                                <h5>${plantNames[region]}</h5>
+                                <p><strong>Time:</strong> ${data.time || 'N/A'}</p>
+                                <p><strong>Temperature:</strong> ${data.temperature || 'N/A'}°C</p>
+                                <p><strong>Humidity:</strong> ${data.humidity || 'N/A'}%</p>
+                                <p><strong>Rainfall:</strong> ${data.rainfall || '0 '}mm</p>
+                                <p><strong>Windspeed:</strong> ${data.windspeed || '0 '}m/s</p>
+                                <p><strong>Winddirection:</strong> ${data.winddirection || 'N/A'}°</p>
+                                <p><strong>Stability:</strong> ${data.stability || 'N/A'}</p>
+                            `;
+                            weatherGridContainer.appendChild(gridItem);
+                        } else {
+                            console.error(`Unexpected data format for region ${region}:`, data);
+                        }
+                    })
+                    .catch(error => {
+                        console.error(`Error fetching latest weather data for region ${region}:`, error);
+                    });
+            }
+        }
+
+        loadLatestWeatherData();
+    </script>
+</body>
+</html>

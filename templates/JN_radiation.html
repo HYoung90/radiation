@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>전라남도 환경방사선량 데이터</title>
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css">
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid #dee2e6;
+        }
+        th {
+            background-color: #f8f9fa;
+            text-align: center;
+        }
+        td {
+            text-align: center;
+        }
+        th, td {
+            padding: 10px;
+        }
+        .btn-group {
+            margin-bottom: 15px;
+        }
+        .btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+        .btn-info {
+            background-color: #17a2b8;
+        }
+        .btn-success {
+            background-color: #28a745;
+        }
+        .btn:hover {
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">전라남도 환경방사선량 데이터</h1>
+
+        <div class="btn-group">
+            <a href="/" class="btn btn-secondary">Back to Main</a>
+            <button id="refreshData" class="btn btn-info">Refresh Data</button>
+            <a href="/export_jn_radiation_csv" class="btn btn-success">Export as CSV</a>
+        </div>
+
+        <table id="radiationTable" class="display">
+            <thead>
+                <tr>
+                    <th>측정 시간</th>
+                    <th>위치 이름</th>
+                    <th>위도</th>
+                    <th>경도</th>
+                    <th>방사선량 (nSv/h)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- 서버에서 데이터를 동적으로 채웁니다 -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- JS 라이브러리 -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
+
+    <script>
+        $(document).ready(function() {
+            // 데이터 테이블 초기화
+            var table = $('#radiationTable').DataTable({
+                order: [[0, 'desc']] // 처음에 테이블을 시간 기준으로 내림차순 정렬
+            });
+
+            // 서버에서 데이터 가져와서 테이블에 채우기
+            function loadRadiationData() {
+                $.ajax({
+                    url: '/api/jn_radiation', // 전라남도 환경방사선량 데이터 API 엔드포인트
+                    method: 'GET',
+                    success: function(data) {
+                        table.clear().draw();
+                        data.sort((a, b) => new Date(b.rcvTime) - new Date(a.rcvTime)); // 데이터를 내림차순 정렬
+                        data.forEach(function(item) {
+                            table.row.add([
+                                item.rcvTime,
+                                item.radName,
+                                `${parseFloat(item.latitude).toFixed(2)}`,
+                                `${parseFloat(item.longitude).toFixed(2)}`,
+                                `${parseFloat(item.DoseRateNSv).toFixed(2)} nSv/h`
+                            ]).draw(false);
+                        });
+                    }
+                });
+            }
+
+            // 페이지 로드 시 데이터 가져오기
+            loadRadiationData();
+
+            // 새로고침 버튼 클릭 시 데이터 새로고침
+            $('#refreshData').click(function() {
+                loadRadiationData();
+            });
+        });
+    </script>
+</body>
+</html>

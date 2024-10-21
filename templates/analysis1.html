@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analysis 1 Data</title>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css">
+    <style>
+        /* 기존 CSS 유지 */
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            margin: 50px;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #f9f9f9;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+            padding: 12px;
+            text-align: left;
+        }
+        td {
+            padding: 12px;
+            text-align: left;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .btn-group {
+            margin-bottom: 15px;
+        }
+        .btn {
+            display: inline-block;
+            margin: 10px 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+        .btn-back {
+            background-color: #6c757d;
+        }
+        .btn-back:hover {
+            background-color: #5a6268;
+        }
+        .btn-refresh {
+            background-color: #17a2b8;
+        }
+        .btn-refresh:hover {
+            background-color: #117a8b;
+        }
+        .btn-download {
+            background-color: #28a745; /* 다운로드 버튼 색상 */
+        }
+        .btn-download:hover {
+            background-color: #218838;
+        }
+        .btn-upload {
+            background-color: #ffc107; /* 업로드 버튼 색상 */
+        }
+        .btn-upload:hover {
+            background-color: #e0a800;
+        }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .filter-group {
+            margin-bottom: 20px;
+        }
+        .filter-group label {
+            font-weight: bold;
+        }
+        /* 파일 선택 버튼 숨기기 스타일 */
+        #file-upload {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="page-header">
+            <h1>[2세부] 중앙대학교 Data</h1>
+            <div class="btn-group">
+                <a href="/" class="btn btn-back">처음으로</a>
+                <button class="btn btn-refresh" onclick="location.reload();">새로고침</button>
+                <button class="btn btn-download" onclick="downloadCSV()">CSV로 다운로드</button>
+                <!-- 파일 선택 버튼 -->
+                <label for="file-upload" class="btn btn-upload">CSV로 업로드</label>
+                <input id="file-upload" type="file" accept=".csv" onchange="uploadCSV(event)">
+            </div>
+        </div>
+
+        <div class="filter-group">
+            <label for="dateFilter">Filter by Date:</label>
+            <input type="date" id="dateFilter">
+            <button class="btn" onclick="filterByDate()">Apply Filter</button>
+        </div>
+
+        <table id="weatherTable" class="display">
+            <thead>
+                <tr>
+                    <th>측정 시간</th>
+                    <th>X</th>
+                    <th>Y</th>
+                    <th>Energy range (Mev)</th>
+                    <th>Radiation Dose Rate (nSv/h)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if data %}
+                    {% for entry in data %}
+                    <tr>
+                        <td>{{ entry.checkTime }}</td>
+                        <td>{{ entry.x }}</td>
+                        <td>{{ entry.y }}</td>
+                        <td>{{ entry['Energy range (Mev)'] }}</td> <!-- 필드명 일치 확인 -->
+                        <td>{{ entry.radiation }}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="5">No data available for this region.</td> <!-- colspan=5으로 수정 -->
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#weatherTable').DataTable({
+                "paging": true,
+                "lengthChange": false,
+                "searching": false,
+                "ordering": false,
+                "info": true,
+                "autoWidth": false,
+                "order": [[0, 'desc']],
+                "pageLength": 20
+            });
+        });
+
+        function downloadCSV() {
+            const date = document.getElementById('dateFilter').value;
+            let url = "/export_analysis1_csv";  // 문자열로 수정
+            if (date) {
+                url += `?date=${date}`;
+            }
+            window.location.href = url;
+        }
+
+        function filterByDate() {
+            const date = document.getElementById('dateFilter').value;
+            if (date) {
+                window.location.href = `/analysis1?date=${date}`;
+            } else {
+                alert("Please select a date to filter.");
+            }
+        }
+
+        function uploadCSV(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                fetch('/upload_analysis1_csv', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())  // JSON 응답으로 변경
+                .then(data => {
+                    if (data.message) {
+                        alert(data.message);
+                        location.reload();  // 업로드 후 페이지를 새로고침합니다.
+                    } else if (data.error) {
+                        alert(data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to upload CSV');
+                });
+            }
+        }
+    </script>
+</body>
+</html>

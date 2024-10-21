@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analysis 2 Data</title>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css">
+    <style>
+        /* 기존 스타일 유지 */
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            margin: 50px;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #f9f9f9;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+            padding: 12px;
+            text-align: left;
+        }
+        td {
+            padding: 12px;
+            text-align: left;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .btn-group {
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: flex-end; /* 버튼을 우측으로 정렬 */
+            gap: 10px;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            font-size: 16px;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .btn:hover {
+            opacity: 0.9;
+        }
+        .btn-back {
+            background-color: #6c757d;
+        }
+        .btn-back:hover {
+            background-color: #5a6268;
+        }
+        .btn-refresh {
+            background-color: #17a2b8;
+        }
+        .btn-refresh:hover {
+            background-color: #117a8b;
+        }
+        .btn-download {
+            background-color: #28a745; /* 다운로드 버튼 색상 */
+        }
+        .btn-download:hover {
+            background-color: #218838;
+        }
+        .btn-upload {
+            background-color: #ffc107; /* 업로드 버튼 색상 */
+        }
+        .btn-upload:hover {
+            background-color: #e0a800;
+        }
+        .filter-group {
+            margin-bottom: 20px;
+        }
+        .filter-group label {
+            font-weight: bold;
+        }
+        .upload-group {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="page-header">
+            <h1>[3세부] 미래와도전 Data</h1>
+            <div class="btn-group">
+                <a href="/" class="btn btn-back">Back to Main</a>
+                <button class="btn btn-refresh" onclick="location.reload();">Refresh Data</button>
+                <button class="btn btn-download" onclick="downloadCSV()">Export as CSV</button>
+                <label for="csvUpload" class="btn btn-upload">Upload CSV</label>
+                <input type="file" id="csvUpload" accept=".csv" style="display:none;" onchange="uploadCSV(event)">
+            </div>
+        </div>
+
+        <div class="filter-group">
+            <label for="dateFilter">Filter by Date:</label>
+            <input type="date" id="dateFilter">
+            <button class="btn" onclick="filterByDate()">Apply Filter</button>
+        </div>
+
+        <table id="weatherTable" class="display">
+            <thead>
+                <tr>
+                    <th>측정시간</th>
+                    <th>위도</th>
+                    <th>경도</th>
+                    <th>고도 (m)</th>
+                    <th>풍속 (m/s)</th>
+                    <th>풍향 (°)</th>
+                    <th>방사선량 (nSv/h)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if data %}
+                    {% for entry in data %}
+                    <tr>
+                        <td>{{ entry.checkTime }}</td>
+                        <td>{{ entry.lat }}</td>
+                        <td>{{ entry.lng }}</td>
+                        <td>{{ entry.altitude }}</td>
+                        <td>{{ entry.windSpeed }}</td>
+                        <td>{{ entry.windDir }}</td>
+                        <td>{{ entry.radiation }}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7">No data available for this region.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#weatherTable').DataTable({
+                "paging": true,
+                "lengthChange": false,
+                "searching": false,
+                "ordering": false,
+                "info": true,
+                "autoWidth": false,
+                "order": [[0, 'desc']],
+                "pageLength": 20
+            });
+        });
+
+        function downloadCSV() {
+            const date = document.getElementById('dateFilter').value;
+            // 분석2의 내보내기 라우트는 '/export_analysis2_csv'입니다.
+            let url = `/export_analysis2_csv`;
+            if (date) {
+                url += `?date=${date}`; // 필요한 경우 date 필터링을 추가합니다.
+            }
+            window.location.href = url;
+        }
+
+        function filterByDate() {
+            const date = document.getElementById('dateFilter').value;
+            if (date) {
+                // 분석2의 데이터는 특정 region에 국한되지 않을 수 있습니다.
+                window.location.href = `/analysis2?date=${date}`;
+            } else {
+                alert("Please select a date to filter.");
+            }
+        }
+
+        function uploadCSV(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                fetch('/upload_analysis2_csv', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.text())
+                .then(data => {
+                    alert(data);
+                    location.reload();  // 업로드 후 페이지를 새로고침합니다.
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to upload CSV');
+                });
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,316 @@
+2024-10-17 14:10:41,699 INFO:Radiation averages calculation scheduler started.
+2024-10-21 07:09:58,148 INFO:Radiation averages manual processing started.
+2024-10-21 07:09:58,163 INFO:Radiation Stats Data Count for 2024-10-20: 0
+2024-10-21 07:09:58,163 INFO:radiation_stats 컬렉션에 2024-10-20 날짜의 데이터가 없습니다.
+2024-10-21 07:09:58,168 INFO:**Daily Radiation Averages Report**
+
+Date: 2024-10-19
+
+**Region:** WS
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09283578431372536 μSv/h
+Percentage Increase: -100.0%
+
+**Region:** KR
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09988206388206385 μSv/h
+Percentage Increase: -100.0%
+
+**Region:** YK
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.10727599999999979 μSv/h
+Percentage Increase: -100.0%
+
+**Region:** UJ
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.12272671568627452 μSv/h
+Percentage Increase: -100.0%
+
+**Region:** SU
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09673529411764704 μSv/h
+Percentage Increase: -100.0%
+
+2024-10-21 07:09:58,169 INFO:Daily radiation averages report 생성 완료.
+2024-10-21 07:09:58,169 INFO:Manual processing 완료.
+2024-10-21 07:12:53,269 INFO:Radiation averages manual processing started.
+2024-10-21 07:12:53,303 INFO:Radiation Stats Data Count for 2024-10-20: 5
+2024-10-21 07:12:53,305 INFO:강우 유무에 따른 평균 방사선 데이터가 daily_average 컬렉션에 저장되었습니다.
+2024-10-21 07:12:53,312 INFO:**Daily Radiation Averages Report**
+
+Date: 2024-10-21
+
+**Region:** YK
+Rain Avg: 0.10716213768116033 μSv/h
+No Rain Avg: 0.0 μSv/h
+Percentage Increase: -%
+
+**Region:** WS
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09141666666666698 μSv/h
+Percentage Increase: -100.0%
+
+**Region:** KR
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09851822916666622 μSv/h
+Percentage Increase: -100.0%
+
+**Region:** UJ
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.11777517361111116 μSv/h
+Percentage Increase: -100.0%
+
+**Region:** SU
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09467633928571374 μSv/h
+Percentage Increase: -100.0%
+
+2024-10-21 07:12:53,312 INFO:Daily radiation averages report 생성 완료.
+2024-10-21 07:12:53,312 INFO:Manual processing 완료.
+2024-10-21 07:13:08,902 INFO:Radiation averages manual processing started.
+2024-10-21 07:13:08,917 INFO:Radiation Stats Data Count for 2024-10-20: 5
+2024-10-21 07:13:08,920 INFO:강우 유무에 따른 평균 방사선 데이터가 daily_average 컬렉션에 저장되었습니다.
+2024-10-21 07:13:08,926 INFO:**Daily Radiation Averages Report**
+
+Date: 2024-10-21
+
+**Region:** YK
+Rain Avg: 0.10716213768116033 μSv/h
+No Rain Avg: 0.0 μSv/h
+Percentage Increase: -%
+
+**Region:** WS
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09141666666666698 μSv/h
+Percentage Increase: -100.0%
+
+**Region:** KR
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09851822916666622 μSv/h
+Percentage Increase: -100.0%
+
+**Region:** UJ
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.11777517361111116 μSv/h
+Percentage Increase: -100.0%
+
+**Region:** SU
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09467633928571374 μSv/h
+Percentage Increase: -100.0%
+
+2024-10-21 07:13:08,926 INFO:Daily radiation averages report 생성 완료.
+2024-10-21 07:13:08,926 INFO:Manual processing 완료.
+2024-10-21 07:24:36,684 INFO:Radiation averages manual processing started.
+2024-10-21 07:24:36,699 INFO:Radiation Stats Data Count for 2024-10-20: 5
+2024-10-21 07:24:36,701 INFO:강우 유무에 따른 평균 방사선 데이터가 daily_average 컬렉션에 저장되었습니다.
+2024-10-21 07:24:36,707 INFO:**Daily Radiation Averages Report**
+
+Date: 2024-10-21
+
+**Region:** YK
+Rain Avg: 0.10716213768116033 μSv/h
+No Rain Avg: 0.0 μSv/h
+Percentage Increase: -%
+
+**Region:** WS
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09141666666666698 μSv/h
+Percentage Increase: -100.0%
+
+**Region:** KR
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09851822916666622 μSv/h
+Percentage Increase: -100.0%
+
+**Region:** UJ
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.11777517361111116 μSv/h
+Percentage Increase: -100.0%
+
+**Region:** SU
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09467633928571374 μSv/h
+Percentage Increase: -100.0%
+
+2024-10-21 07:24:36,708 INFO:Daily radiation averages report 생성 완료.
+2024-10-21 07:24:36,708 INFO:Manual processing 완료.
+2024-10-21 07:25:12,414 INFO:Radiation averages manual processing started.
+2024-10-21 07:25:12,429 INFO:Radiation Stats Data Count for 2024-10-20: 5
+2024-10-21 07:25:12,432 INFO:강우 유무에 따른 평균 방사선 데이터가 daily_average 컬렉션에 저장되었습니다.
+2024-10-21 07:25:12,437 INFO:**Daily Radiation Averages Report**
+
+Date: 2024-10-21
+
+**Region:** YK
+Rain Avg: 0.10716213768116033 μSv/h
+No Rain Avg: 0.0 μSv/h
+Percentage Increase: -%
+
+**Region:** WS
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09141666666666698 μSv/h
+Percentage Increase: -100.0%
+
+**Region:** KR
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09851822916666622 μSv/h
+Percentage Increase: -100.0%
+
+**Region:** UJ
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.11777517361111116 μSv/h
+Percentage Increase: -100.0%
+
+**Region:** SU
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09467633928571374 μSv/h
+Percentage Increase: -100.0%
+
+2024-10-21 07:25:12,437 INFO:Daily radiation averages report 생성 완료.
+2024-10-21 07:25:12,437 INFO:Manual processing 완료.
+2024-10-21 07:25:50,905 INFO:Radiation averages manual processing started.
+2024-10-21 07:25:50,919 INFO:Radiation Stats Data Count for 2024-10-20: 5
+2024-10-21 07:25:50,922 INFO:강우 유무에 따른 평균 방사선 데이터가 daily_average 컬렉션에 저장되었습니다.
+2024-10-21 07:25:50,927 INFO:**Daily Radiation Averages Report**
+
+Date: 2024-10-21
+
+**Region:** YK
+Rain Avg: 0.10716213768116033 μSv/h
+No Rain Avg: 0.0 μSv/h
+Percentage Increase: -%
+
+**Region:** WS
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09141666666666698 μSv/h
+Percentage Increase: -100.0%
+
+**Region:** KR
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09851822916666622 μSv/h
+Percentage Increase: -100.0%
+
+**Region:** UJ
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.11777517361111116 μSv/h
+Percentage Increase: -100.0%
+
+**Region:** SU
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09467633928571374 μSv/h
+Percentage Increase: -100.0%
+
+2024-10-21 07:25:50,928 INFO:Daily radiation averages report 생성 완료.
+2024-10-21 07:25:50,928 INFO:Manual processing 완료.
+2024-10-21 07:30:03,040 INFO:Radiation averages manual processing started.
+2024-10-21 07:30:03,044 INFO:MongoDB 연결 성공
+2024-10-21 07:30:03,054 INFO:Radiation Stats Data Count for 2024-10-20: 5
+2024-10-21 07:30:03,078 INFO:강우 유무에 따른 평균 방사선 데이터가 daily_average 컬렉션에 저장되었습니다.
+2024-10-21 07:30:03,081 INFO:MongoDB 연결 성공
+2024-10-21 07:30:03,085 INFO:*Daily Radiation Averages Report*
+
+Date: 2024-10-21
+
+*Region:* YK
+Rain Avg: 0.10716213768116033 μSv/h
+No Rain Avg: 0.0 μSv/h
+Percentage Increase: -%
+
+*Region:* WS
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09141666666666698 μSv/h
+Percentage Increase: -100.0%
+
+*Region:* KR
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09851822916666622 μSv/h
+Percentage Increase: -100.0%
+
+*Region:* UJ
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.11777517361111116 μSv/h
+Percentage Increase: -100.0%
+
+*Region:* SU
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09467633928571374 μSv/h
+Percentage Increase: -100.0%
+
+
+2024-10-21 07:30:03,085 INFO:Daily radiation averages report 생성 완료.
+2024-10-21 07:30:03,086 INFO:Manual processing 완료.
+2024-10-21 07:30:46,159 INFO:Radiation averages manual processing started.
+2024-10-21 07:30:46,163 INFO:MongoDB 연결 성공
+2024-10-21 07:30:46,174 INFO:Radiation Stats Data Count for 2024-10-20: 5
+2024-10-21 07:30:46,177 INFO:강우 유무에 따른 평균 방사선 데이터가 daily_average 컬렉션에 저장되었습니다.
+2024-10-21 07:30:46,179 INFO:MongoDB 연결 성공
+2024-10-21 07:30:46,184 INFO:*Daily Radiation Averages Report*
+
+Date: 2024-10-21
+
+*Region:* YK
+Rain Avg: 0.10716213768116033 μSv/h
+No Rain Avg: 0.0 μSv/h
+Percentage Increase: -%
+
+*Region:* WS
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09141666666666698 μSv/h
+Percentage Increase: -100.0%
+
+*Region:* KR
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09851822916666622 μSv/h
+Percentage Increase: -100.0%
+
+*Region:* UJ
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.11777517361111116 μSv/h
+Percentage Increase: -100.0%
+
+*Region:* SU
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09467633928571374 μSv/h
+Percentage Increase: -100.0%
+
+
+2024-10-21 07:30:46,184 INFO:Daily radiation averages report 생성 완료.
+2024-10-21 07:30:46,185 INFO:Manual processing 완료.
+2024-10-21 07:37:27,076 INFO:Radiation averages manual processing started.
+2024-10-21 07:37:27,080 INFO:MongoDB 연결 성공
+2024-10-21 07:37:27,091 INFO:Radiation Stats Data Count for 2024-10-20: 5
+2024-10-21 07:37:27,091 INFO:Unique rain values: {False, True}
+2024-10-21 07:37:27,093 INFO:강우 유무에 따른 평균 방사선 데이터가 regional_average 컬렉션에 저장되었습니다.
+2024-10-21 07:37:27,095 INFO:MongoDB 연결 성공
+2024-10-21 07:37:27,099 INFO:**Daily Radiation Averages Report**
+
+Date: 2024-10-21
+
+**Region:** YK
+Rain Avg: 0.10716213768116033 μSv/h
+No Rain Avg: 0.0 μSv/h
+Percentage Increase: -%
+
+**Region:** WS
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09141666666666698 μSv/h
+Percentage Increase: -100.0%
+
+**Region:** KR
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09851822916666622 μSv/h
+Percentage Increase: -100.0%
+
+**Region:** UJ
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.11777517361111116 μSv/h
+Percentage Increase: -100.0%
+
+**Region:** SU
+Rain Avg: 0.0 μSv/h
+No Rain Avg: 0.09467633928571374 μSv/h
+Percentage Increase: -100.0%
+
+2024-10-21 07:37:27,099 INFO:Daily radiation averages report 생성 완료.
+2024-10-21 07:37:27,100 INFO:Manual processing 완료.

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ plant_name }} 기상 정보</title>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css">
+    <style>
+        /* 기존 스타일 유지 */
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            margin: 50px;
+            max-width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #f9f9f9;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+            padding: 12px;
+            text-align: left;
+        }
+        td {
+            padding: 12px;
+            text-align: left;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .btn-group {
+            margin-bottom: 15px;
+        }
+        .btn {
+            display: inline-block;
+            margin: 10px 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .btn-back {
+            background-color: #6c757d; /* 돌아가기 버튼 색상 */
+        }
+        .btn-back:hover {
+            background-color: #5a6268; /* 돌아가기 버튼 hover */
+        }
+        .btn-refresh {
+            background-color: #17a2b8; /* 새로고침 버튼 색상 */
+        }
+        .btn-refresh:hover {
+            background-color: #117a8b; /* 새로고침 버튼 hover */
+        }
+        .btn-csv {
+            background-color: #dc3545; /* CSV 다운로드 버튼 색상 */
+        }
+        .btn-csv:hover {
+            background-color: #c82333; /* CSV 다운로드 버튼 hover */
+        }
+        .btn-windrose {
+            background-color: #6f42c1; /* 바람장미도 버튼 색상 */
+        }
+        .btn-windrose:hover {
+            background-color: #5a32a0; /* 바람장미도 버튼 hover */
+        }
+        .btn-apply {
+            background-color: #007bff; /* 적용 버튼 색상 */
+            color: white;
+        }
+        .btn-apply:hover {
+            background-color: #0056b3; /* 적용 버튼 hover */
+        }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .date-filter {
+            margin-top: 20px;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="page-header">
+            <h1>{{ plant_name }} 기상 정보</h1>
+            <div class="btn-group" style="margin-left: auto;">
+                <a href="/" class="btn btn-back">처음으로</a>
+                <button class="btn btn-refresh" onclick="location.reload();">새로고침</button>
+                <button class="btn btn-csv" onclick="downloadCSV()">CSV로 다운</button>
+                <a href="/windRose/{{ region }}" class="btn btn-windrose">바람장미도</a>
+            </div>
+        </div>
+
+        <!-- 날짜 필터 -->
+        <div class="date-filter">
+            <label for="start-date">시작 날짜:</label>
+            <input type="date" id="start-date" name="start-date">
+            <label for="end-date">종료 날짜:</label>
+            <input type="date" id="end-date" name="end-date">
+            <button class="btn btn-apply" onclick="applyDateFilter()">적용</button>
+        </div>
+
+        <table id="weatherTable" class="display">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Temperature (°C)</th>
+                    <th>Humidity (%)</th>
+                    <th>Rainfall (mm)</th>
+                    <th>Windspeed (m/s)</th>
+                    <th>Winddirection (°)</th>
+                    <th>Air Stability</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- 데이터 표시 -->
+                {% if data %}
+                    {% for entry in data %}
+                    <tr>
+                        <td>{{ entry.time }}</td>
+                        <td>{{ entry.temperature }}</td>
+                        <td>{{ entry.humidity }}</td>
+                        <td>{{ entry.rainfall }}</td>
+                        <td>{{ entry.windspeed }}</td>
+                        <td>{{ entry.winddirection }}</td>
+                        <td>{{ entry.stability }}</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7">No data available for this region.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
+
+    <script>
+        $(document).ready(function() {
+            $('#weatherTable').DataTable({
+                "paging": true,
+                "lengthChange": false,
+                "searching": false,
+                "ordering": false,
+                "info": true,
+                "autoWidth": false,
+                "order": [[0, 'desc']],
+                "pageLength": 20
+            });
+        });
+
+        function downloadCSV() {
+            const region = "{{ region }}"; // 서버 측에서 제공하는 정확한 변수를 사용
+            let url = `/export_csv/${region}`;
+            window.location.href = url;
+        }
+
+        function applyDateFilter() {
+            const region = "{{ region }}";
+            const startDate = document.getElementById('start-date').value;
+            const endDate = document.getElementById('end-date').value;
+
+            if (!startDate || !endDate) {
+                alert('시작 날짜와 종료 날짜를 모두 선택해주세요.');
+                return;
+            }
+
+            // AJAX 요청 보내기
+            fetch(`/api/data/${region}/filtered?start=${startDate}&end=${endDate}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // DataTable 인스턴스 가져오기
+                    const table = $('#weatherTable').DataTable();
+
+                    // 기존 데이터 지우기
+                    table.clear();
+
+                    // 새로운 데이터 추가
+                    data.forEach(entry => {
+                        table.row.add([
+                            entry.time,
+                            entry.temperature,
+                            entry.humidity,
+                            entry.rainfall,
+                            entry.windspeed,
+                            entry.winddirection,
+                            entry.stability
+                        ]);
+                    });
+
+                    // 변경사항 반영
+                    table.draw();
+                })
+                .catch(error => {
+                    console.error('Error applying date filter:', error);
+                    alert('데이터를 불러오는 데 실패했습니다. 다시 시도해주세요.');
+                });
+        }
+    </script>
+</body>
+</html>

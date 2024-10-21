@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ expl }}의 과거 방사선 데이터</title>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/datetime/1.1.0/css/dataTables.dateTime.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css">
+
+    <style>
+        /* 테이블 및 버튼 스타일 */
+        table.dataTable thead th, table.dataTable tbody td {
+            text-align: center;
+            vertical-align: middle;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        table, th, td {
+            border: 1px solid #dee2e6;
+        }
+        th {
+            background-color: #f8f9fa;
+            text-align: center;
+        }
+        td {
+            text-align: center;
+        }
+        th, td {
+            padding: 10px;
+        }
+
+        .btn-back, .btn-refresh, .btn-apply, .btn-clear {
+            margin-top: 15px;
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            margin-bottom: 20px;
+            color: white;
+        }
+
+        .btn-back {
+            background-color: #6c757d; /* 뒤로가기 버튼 색상 */
+        }
+        .btn-back:hover {
+            background-color: #5a6268;
+        }
+
+        .btn-refresh {
+            background-color: #17a2b8; /* 새로고침 버튼 색상 */
+        }
+        .btn-refresh:hover {
+            background-color: #117a8b;
+        }
+
+        .btn-apply {
+            background-color: #28a745; /* 적용 버튼 색상 */
+        }
+        .btn-apply:hover {
+            background-color: #218838;
+        }
+
+        .btn-clear {
+            background-color: #dc3545; /* 초기화 버튼 색상 */
+        }
+        .btn-clear:hover {
+            background-color: #c82333;
+        }
+
+        /* DatePicker 스타일 */
+        .date-range {
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* DatePicker Input 스타일 */
+        .date-range input {
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #dee2e6;
+            width: 150px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">{{ expl }}의 과거 방사선 데이터</h1>
+
+        <!-- 뒤로가기 및 리프레시 버튼 -->
+        <a href="javascript:history.back()" class="btn-back">뒤로가기</a>
+        <button id="refreshButton" class="btn-refresh">새로고침</button>
+
+        <!-- Date range picker with Apply and Clear buttons -->
+        <div class="date-range">
+            <label for="minDate">시작일: </label>
+            <input type="text" id="minDate" name="minDate" placeholder="시작 날짜">
+            <label for="maxDate">종료일: </label>
+            <input type="text" id="maxDate" name="maxDate" placeholder="종료 날짜">
+            <button id="applyFilter" class="btn-apply">적용</button>
+            <button id="clearFilter" class="btn-clear">초기화</button>
+        </div>
+
+        <!-- 과거 데이터 테이블 -->
+        <table id="backupRadiationHistoryTable" class="display">
+            <thead>
+                <tr>
+                    <th>측정 시간</th>
+                    <th>방사선량 (μSv/h)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- 서버에서 데이터를 동적으로 채웁니다 -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- JS 라이브러리 -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/datetime/1.1.0/js/dataTables.dateTime.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+
+    <script>
+        $(document).ready(function() {
+            var genName = "{{ genName }}";  // 발전소 이름
+            var expl = "{{ expl }}";  // 선택된 측정 지점 설명
+
+            // 발전소 이름을 코드로 변환
+            var genNameMapping = {
+                "고리 원자력발전소": "KR",
+                "월성 원자력발전소": "WS",
+                "한빛 원자력발전소": "YK",
+                "한울 원자력발전소": "UJ",
+                "새울 원자력발전소": "SU"
+            };
+
+            var mappedGenName = genNameMapping[genName] || genName;  // 매핑이 없으면 원래 genName 사용
+
+            var table = $('#backupRadiationHistoryTable').DataTable({
+                order: [[0, 'desc']],
+                searching: false,  // 검색 기능 비활성화
+                paging: true,
+            });
+
+            // 달력 설정
+            $('#minDate').datepicker({
+                dateFormat: "yy-mm-dd",
+                changeMonth: true,
+                changeYear: true,
+            });
+
+            $('#maxDate').datepicker({
+                dateFormat: "yy-mm-dd",
+                changeMonth: true,
+                changeYear: true,
+            });
+
+            // Helper function to parse date strings into Date objects
+            function parseDate(dateStr) {
+                if (!dateStr) return null;
+                // 날짜 문자열이 'yyyy-mm-dd' 또는 'yyyy-mm-dd HH:MM' 형식인지 확인
+                var datePart = dateStr.split(' ')[0];
+                var parts = datePart.split('-');
+                if (parts.length !== 3) return null;
+                return new Date(parts[0], parts[1] - 1, parts[2]);
+            }
+
+            // Custom filter for date range
+            $.fn.dataTable.ext.search.push(
+                function(settings, data, dataIndex) {
+                    var min = $('#minDate').val();
+                    var max = $('#maxDate').val();
+                    var dateStr = data[0] || '';  // 첫 번째 열을 날짜로 간주
+
+                    var date = parseDate(dateStr);
+                    var minDate = parseDate(min);
+                    var maxDate = parseDate(max);
+
+                    // 로그 출력으로 확인
+                    console.log(`Filtering row: date=${date}, minDate=${minDate}, maxDate=${maxDate}`);
+
+                    if (minDate && date < minDate) {
+                        return false;
+                    }
+                    if (maxDate && date > maxDate) {
+                        return false;
+                    }
+                    return true;
+                }
+            );
+
+            // 백업 데이터를 가져와 테이블에 표시
+            function loadBackupRadiationHistory() {
+                $.ajax({
+                    url: `/api/nuclear_radiation/backup?genName=${encodeURIComponent(mappedGenName)}&expl=${encodeURIComponent(expl)}`,
+                    method: 'GET',
+                    success: function(data) {
+                        console.log("Backup radiation history data:", data);  // 로그 확인
+                        table.clear().draw();  // 테이블 초기화
+                        if (data.length === 0) {
+                            alert("해당 측정 지점에 대한 백업 데이터가 없습니다.");
+                            return;
+                        }
+
+                        data.forEach(function(item) {
+                            table.row.add([
+                                item.time,
+                                `${parseFloat(item.value).toFixed(3)} μSv/h`
+                            ]);
+                        });
+                        table.draw();
+                    },
+                    error: function(error) {
+                        console.error("Error fetching backup radiation history:", error);
+                        alert("백업 데이터를 불러오는 중 오류가 발생했습니다.");
+                    }
+                });
+            }
+
+            // 페이지 로드 시 백업 데이터 로드
+            loadBackupRadiationHistory();
+
+            // Apply 버튼 클릭 시 필터 적용
+            $('#applyFilter').on('click', function() {
+                table.draw(); // 필터링 적용
+            });
+
+            // Clear 버튼 클릭 시 필터 초기화
+            $('#clearFilter').on('click', function() {
+                // 날짜 필터 초기화
+                $('#minDate').val('');
+                $('#maxDate').val('');
+
+                // 테이블 필터링 초기화
+                table.draw();
+            });
+
+            // 리프레시 버튼 클릭 시 모든 데이터 다시 로드
+            $('#refreshButton').on('click', function() {
+                // 데이터 다시 로드
+                loadBackupRadiationHistory();
+            });
+        });
+    </script>
+</body>
+</html>
