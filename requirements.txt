@@ -18,7 +18,7 @@ Flask==3.0.3
 Flask-APScheduler==1.13.1
 Flask-Caching==2.3.0
 fonttools==4.54.0
-gunicorn==23.0.0
+gunicorn==23.1.0
 h11==0.14.0
 idna==3.8
 importlib_metadata==8.4.0
