@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ genName }} 바람장미도</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 50px;
+        }
+        .chart-container {
+            width: 100%;      /* 너비를 화면 가득으로 확장 */
+            height: 600px;    /* 원하는 높이로 조정 (예: 600px) */
+            margin: auto;
+        }
+        .btn-group {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: flex-end; /* 버튼을 오른쪽으로 정렬 */
+        }
+        .btn {
+            display: inline-block;
+            margin: 10px 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+            color: white;
+            background-color: #007bff;
+            border: none;
+            border-radius: 5px;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .btn-back {
+            background-color: #6c757d;
+        }
+        .btn-back:hover {
+            background-color: #5a6268;
+        }
+        /* 에러 메시지 스타일 */
+        .error-message {
+            color: red;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+        /* 캔버스가 부모 컨테이너를 꽉 채우도록 설정 */
+        #windRoseChart {
+            width: 100% !important;
+            height: 100% !important;
+        }
+    </style>
+</head>
+<body>
+    <h1 id="plantName">로딩 중...</h1>
+    <div class="btn-group">
+        <a href="/{{ genName }}" class="btn btn-back">뒤로가기</a>
+    </div>
+
+    {% if error %}
+        <p class="error-message">{{ error }}</p>
+    {% endif %}
+
+    <div class="chart-container">
+        <canvas id="windRoseChart"></canvas>
+    </div>
+
+    <script>
+        const ctx = document.getElementById('windRoseChart').getContext('2d');
+        const windData = {{ wind_data | tojson }}; // 서버에서 전달된 데이터
+
+        // 발전소 코드와 이름 매핑
+        const plantNames = {
+            "YK": "한빛 원자력발전소",
+            "KR": "고리 원자력발전소",
+            "WS": "월성 원자력발전소",
+            "UJ": "한울 원자력발전소",
+            "SU": "새울 원자력발전소"
+        };
+
+        // 발전소 이름 설정
+        const genName = "{{ genName }}";
+        const plantName = plantNames[genName] || '알 수 없는 발전소';
+        document.getElementById('plantName').textContent = plantName + ' 바람장미도';
+
+        // 바람 방향 16방위 순서
+        const windDirections = [
+            'N', 'NNE', 'NE', 'ENE',
+            'E', 'ESE', 'SE', 'SSE',
+            'S', 'SSW', 'SW', 'WSW',
+            'W', 'WNW', 'NW', 'NNW'
+        ];
+
+        // 풍속 범위와 색상 (높은 풍속부터 낮은 풍속)
+        const windSpeedBins = ["8.0+ m/s", "5.5-7.9 m/s", "3.4-5.4 m/s", "1.5-3.3 m/s", "0.5-1.4 m/s"];
+        const colors = {
+            "8.0+ m/s": 'rgba(153, 102, 255, 0.6)',      // 매우 강한 바람: 보라색
+            "5.5-7.9 m/s": 'rgba(255, 159, 64, 0.6)',   // 강한 바람: 주황색
+            "3.4-5.4 m/s": 'rgba(255, 206, 86, 0.6)',   // 보통 바람: 노란색
+            "1.5-3.3 m/s": 'rgba(75, 192, 192, 0.6)',   // 약한 바람: 청록색
+            "0.5-1.4 m/s": 'rgba(54, 162, 235, 0.6)'    // 매우 약한 바람: 파란색
+        };
+
+        // 레이블은 고정 16방위 순서
+        const labels = windDirections;
+        const datasets = [];
+
+        windSpeedBins.forEach(bin => {
+            const dataValues = labels.map(direction => {
+                if (windData[direction] && windData[direction][bin] !== undefined) {
+                    return windData[direction][bin];
+                } else {
+                    return 0;
+                }
+            });
+            datasets.push({
+                label: bin,
+                data: dataValues,
+                backgroundColor: colors[bin],
+                borderColor: 'rgba(255,255,255,1)',
+                borderWidth: 1,
+                hoverOffset: 0  // 호버 시 확대/축소 방지
+            });
+        });
+
+        // 차트 생성
+        const windRoseChart = new Chart(ctx, {
+            type: 'polarArea',
+            data: {
+                labels: labels,
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false, // 부모 컨테이너 크기에 맞춰 조정
+                animation: {
+                    animateRotate: true,
+                    animateScale: false
+                },
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            font: {
+                                size: 14
+                            },
+                            boxWidth: 20,
+                            padding: 20
+                        }
+                    },
+                    title: {
+                        display: true,
+                        text: '바람 방향별 풍속 비율 (%)'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return `${context.dataset.label}: ${context.raw}%`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0,
+                            callback: function(value) {
+                                return value + '%';
+                            }
+                        },
+                        grid: {
+                            color: '#e5e5e5'
+                        },
+                        angleLines: {
+                            color: '#e5e5e5'
+                        },
+                        pointLabels: {
+                            color: '#333',
+                            font: {
+                                size: 12
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

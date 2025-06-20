@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>방사선 비상 대응 의사결정 지원 시스템</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        /* 기존 스타일 유지 */
+        body {
+            background-color: #f3f4f6; /* 부드러운 배경색 */
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: row;
+            min-height: 100vh;
+            padding-right: 20px; /* 우측 여백 20px 추가 */
+            margin-left: 250px;  /* 사이드바 길이만큼 왼쪽 여백 추가 (사이드바 넓이 250px) */
+        }
+
+        #map {
+            height: 600px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* 지도에 그림자 추가 */
+            margin-bottom: 40px; /* 지도와 버튼 사이 간격 추가 */
+            flex-grow: 1;
+        }
+
+        /* 사이드바 스타일 */
+        .sidebar {
+            width: 250px;  /* 사이드바 넓이 */
+            background-color: #343a40;
+            padding-top: 20px;
+            color: white;
+            font-size: 18px;
+            text-align: center;
+            position: fixed;
+            height: 100%;
+            top: 0;
+            left: 0;
+            box-shadow: 4px 0 8px rgba(0, 0, 0, 0.1); /* 오른쪽 경계에 그림자 추가 */
+        }
+
+        .sidebar img {
+            width: 200px; /* 사이드바 이미지 크기 증가 */
+            margin-bottom: 30px; /* 이미지와 메뉴 항목 간 간격 */
+            cursor: pointer;
+        }
+
+        .sidebar a {
+            color: white;
+            padding: 15px;
+            text-decoration: none;
+            display: block;
+            transition: 0.3s;
+            white-space: normal; /* 텍스트가 길면 자동으로 줄바꿈 */
+            word-wrap: break-word; /* 긴 단어가 넘치지 않도록 설정 */
+            overflow-wrap: break-word; /* 텍스트가 너무 길어서 넘칠 경우 자동으로 줄바꿈 */
+        }
+
+        .sidebar a:hover {
+            background-color: #575757;
+            transform: translateX(5px);
+        }
+
+        .container {
+            margin-top: 20px;
+            flex-grow: 1;
+            padding-left: 20px; /* 좌측 여백 20px 추가 */
+            margin-right: 20px;  /* 우측 여백 20px 추가 */
+        }
+
+        .header-container {
+            display: flex;
+            flex-direction: column;      /* ← 중앙 세로정렬로 변경 */
+            align-items: center;         /* ← 중앙 세로정렬로 변경 */
+            justify-content: center;     /* ← 중앙정렬로 변경 */
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            background-color: #f5f5f5;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-logo img {
+            height: 180px; /* 로고 크기 확대 */
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .header-logo img:hover {
+            transform: scale(1.05); /* 로고에 hover 시 확대 효과 */
+        }
+
+        .title-container {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .title-container h1 {
+            font-size: 36px;
+            margin: 0;
+            color: #000000;
+            text-align: center;  /* ← 이 부분도 혹시 모르니 추가 */
+            width: 100%;
+        }
+
+        .refresh-icon {
+            font-size: 15px;   /* ← 18px에서 15px로 줄이기 (2~3pt 감소) */
+            color: #333;
+            font-weight: bold;
+            margin-top: 10px;   /* 제목과 시계 사이 살짝 간격 */
+            width: 100%;
+            display: flex;
+            justify-content: flex-end;  /* 시계를 오른쪽 끝으로 */
+        }
+
+        /* 기상 데이터 그리드 */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));  /* 그리드를 반응형으로 설정 */
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .grid-item {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            font-size: 14px;
+            text-align: left;
+            font-family: Arial, sans-serif;
+        }
+
+        .grid-item h5 {
+            margin-bottom: 10px;
+            font-size: 18px;
+            color: #333;
+        }
+
+        .grid-item p {
+            font-size: 14px;
+            color: #555;
+            margin: 5px 0;
+        }
+
+        .grid-item p strong {
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <!-- 사이드바 -->
+    <div class="sidebar">
+        <!-- 이미지로 방사선 데이터 제목 대체 -->
+        <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="방사선 데이터" onclick="location.reload()">
+        <a href="/radiation_summary">주간 방사선량 데이터</a> <!-- 순서 변경: 주간 방사선량 데이터 -->
+        <a href="/nuclear_radiation">원자력 발전소 주변 방사선량 데이터</a> <!-- 순서 변경 -->
+        <a href="/busan_radiation">부산 환경방사선량 데이터</a> <!-- 순서 변경 -->
+        <a href="{{ url_for('accident_select') }}">원자력 발전소 사고 판단</a>
+        <a href="{{ url_for('optimal_shelter_evaluation') }}">구호소 대피 적합도 평가</a>
+        <a href="/spectrum">방사성 핵종 스펙트럼 분석</a> <!-- 순서 변경 -->
+        <a href="/analysis1">토양 방사능 데이터</a> <!-- 순서 변경 -->
+        <a href="/analysis2">대기 중 방사능 데이터</a> <!-- 순서 변경 -->
+        <a href="/analysis4">수중 방사능 데이터</a> <!-- 순서 변경 -->
+    </div>
+
+    <!-- 컨텐츠 영역 -->
+    <div class="container mt-5">
+        <div class="header-container">
+            <div class="title-container">
+                <h1 id="title">방사선 비상 대응 의사결정 지원 시스템 </h1>
+            </div>
+            <div class="refresh-icon">
+                <span id="currentTime"></span>
+            </div>
+        </div>
+
+        <div id="map"></div>
+
+        <!-- 기상 최신 데이터 표시 공간 -->
+        <div class="weather-container">
+            <h2 class="mb-4">최근 기상 데이터</h2>
+            <div class="grid-container" id="weatherGridContainer">
+                <!-- 기상 데이터를 그리드 형식으로 추가할 공간 -->
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        function updateCurrentTime() {
+            var now = new Date();
+            var formattedDateTime = now.toLocaleString(); // Includes date and time
+            document.getElementById('currentTime').textContent = formattedDateTime;
+        }
+
+        updateCurrentTime();
+        setInterval(updateCurrentTime, 1000); // Update every second
+
+        var map = L.map('map').setView([36.5, 127.5], 7);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://carto.com/">CARTO</a> | &copy; OpenStreetMap contributors',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(map);
+
+        var regions = {
+            "KR": [35.3213, 129.2941, "고리 원자력발전소"],
+            "WS": [35.7131, 129.4775, "월성 원자력발전소"],
+            "YK": [35.4165, 126.4178, "한빛 원자력발전소"],
+            "UJ": [37.0941, 129.3819, "한울 원자력발전소"],
+            "SU": [35.3376, 129.3115, "새울 원자력발전소"],
+        };
+
+        for (var genName in regions) {
+            var marker = L.marker([regions[genName][0], regions[genName][1]]).addTo(map)
+                .bindPopup('<div class="custom-popup-title"><a href="/' + genName + '" style="text-decoration:none;color:black;">' + regions[genName][2] + '</a></div>');
+
+            marker.on('click', function() {
+                this.openPopup();
+            });
+        }
+
+        function loadLatestWeatherData() {
+            const weatherGridContainer = document.getElementById("weatherGridContainer");
+            weatherGridContainer.innerHTML = "";  // 기존 내용을 지우기
+            const plantNames = {
+                "KR": "고리 원자력발전소",
+                "WS": "월성 원자력발전소",
+                "YK": "한빛 원자력발전소",
+                "UJ": "한울 원자력발전소",
+                "SU": "새울 원자력발전소"
+            };
+
+            for (let genName in plantNames) {
+                fetch(`/api/data/${genName}/latest`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log(`Received latest data for genName ${genName}:`, data);
+                        if (data.time) {
+                            const gridItem = document.createElement("div");
+                            gridItem.className = "grid-item";
+                            gridItem.innerHTML = `
+                                <h5>${plantNames[genName]}</h5>
+                                <p><strong>Time:</strong> ${data.time || 'N/A'}</p>
+                                <p><strong>Temperature:</strong> ${data.temperature || 'N/A'}°C</p>
+                                <p><strong>Humidity:</strong> ${data.humidity || 'N/A'}%</p>
+                                <p><strong>Rainfall:</strong> ${data.rainfall || '0 '}mm</p>
+                                <p><strong>Windspeed:</strong> ${data.windspeed || '0 '}m/s</p>
+                                <p><strong>Winddirection:</strong> ${data.winddirection || 'N/A'}°</p>
+                                <p><strong>Stability:</strong> ${data.stability || 'N/A'}</p>
+                            `;
+                            weatherGridContainer.appendChild(gridItem);
+                        } else {
+                            console.error(`Unexpected data format for genName ${genName}:`, data);
+                        }
+                    })
+                    .catch(error => {
+                        console.error(`Error fetching latest weather data for genName ${genName}:`, error);
+                    });
+            }
+        }
+
+        loadLatestWeatherData();
+    </script>
+
+    <!-- 👇 이 부분부터 아래로 추가하세요 (</body> 바로 위에 삽입) -->
+
+    <!-- 챗봇 아이콘 -->
+    <div id="chat-icon" style="position: fixed; bottom: 24px; right: 24px; z-index: 1000; cursor: pointer;">
+      <img src="{{ url_for('static', filename='images/chat_icon.png') }}" alt="Chat" width="60" height="60">
+    </div>
+
+    <!-- 챗봇 창 -->
+    <div id="chat-box" style="display:none; position:fixed; bottom:100px; right:24px; width:300px; height:400px; background:white; border:1px solid #ccc; border-radius:10px; z-index:1000; box-shadow:0 4px 12px rgba(0,0,0,0.15); overflow:hidden; font-family: sans-serif;">
+      <header style="background:#007bff; color:white; padding:10px; font-weight:bold;">비상 대응 챗봇</header>
+      <div id="chat-messages" style="padding:10px; height:300px; overflow-y:auto; font-size:14px;"></div>
+      <div style="display:flex; border-top:1px solid #ccc;">
+        <input id="user-input" type="text" placeholder="질문을 입력하세요..." style="flex:1; padding:8px; border:none;">
+        <button onclick="sendMessage()" style="background:#007bff; color:white; border:none; padding:8px 12px;">전송</button>
+      </div>
+    </div>
+
+    <script>
+      const chatIcon = document.getElementById("chat-icon");
+      const chatBox = document.getElementById("chat-box");
+      const chatMessages = document.getElementById("chat-messages");
+
+      chatIcon.onclick = () => {
+        chatBox.style.display = (chatBox.style.display === "none") ? "block" : "none";
+      };
+
+      function sendMessage() {
+        const input = document.getElementById("user-input");
+        const message = input.value.trim();
+        if (!message) return;
+
+        chatMessages.innerHTML += `<div><strong>👤 사용자:</strong> ${message}</div>`;
+        input.value = "";
+
+        fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message })
+        })
+        .then(res => res.json())
+        .then(data => {
+          const answer = data.answer || "답변을 찾을 수 없습니다.";
+          chatMessages.innerHTML += `<div><strong>🤖 챗봇:</strong> ${answer}</div>`;
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        })
+        .catch(() => {
+          chatMessages.innerHTML += `<div><strong>🤖 챗봇:</strong> 오류가 발생했습니다.</div>`;
+        });
+      }
+    </script>
+</body>
+</html>

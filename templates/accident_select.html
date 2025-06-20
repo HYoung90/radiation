@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>발전소 선택</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            max-width: 600px;
+            margin-top: 50px;
+        }
+        .card {
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+        }
+        .btn-container { /* 버튼들을 묶는 컨테이너 */
+            margin-top: 20px;
+            text-align: center; /* 가운데 정렬 */
+        }
+        .btn {
+            margin: 0 10px; /* 좌우 여백 추가 */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h3>방사선 사고 유무 판단</h3>
+        <div class="card">
+            <label for="plant-select">발전소를 선택하세요:</label>
+            <select class="form-control" id="plant-select">
+                <option value="KR">고리 원자력발전소</option>
+                <option value="WS">월성 원자력발전소</option>
+                <option value="YK">한빛 원자력발전소</option>
+                <option value="UJ">한울 원자력발전소</option>
+                <option value="SU">새울 원자력발전소</option>
+            </select>
+            <div class="btn-container">
+                <button class="btn btn-primary" id="check-btn">사고 확인</button>
+                <button class="btn btn-secondary" onclick="location.href='/'">처음으로</button>
+                <button class="btn btn-secondary" onclick="history.back()">뒤로가기</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
+    <script>
+        document.getElementById('check-btn').addEventListener('click', function() {
+            const selectedPlant = document.getElementById('plant-select').value;
+
+            // 사고 유무 판단 페이지로 리디렉션
+            window.location.href = `/accident_result/${selectedPlant}`;
+        });
+    </script>
+</body>
+</html>

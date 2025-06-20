@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wind Rose Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        #windRoseChart { width: 90%; height: 500px; margin: 20px auto; }
+    </style>
+</head>
+<body>
+    <canvas id="windRoseChart"></canvas>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const genName = urlParams.get('genName') || 'KR'; // 기본값 'KR'
+
+        fetch(`/api/windrose/${genName}`) // genName으로 데이터 요청
+        .then(response => response.json())
+        .then(data => {
+            const ctx = document.getElementById('windRoseChart').getContext('2d');
+            const labels = data.directions;  // 방향
+            const frequencies = data.frequencies;  // 빈도수
+
+            const windRoseChart = new Chart(ctx, {
+                type: 'bar',  // 바람 장미도는 막대 차트로 그리기
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Wind Frequency',
+                        data: frequencies,
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',  // 범례 색상
+                        borderColor: 'rgba(75, 192, 192, 1)',  // 범례 테두리 색상
+                        borderWidth: 1,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                color: 'rgba(75, 192, 192, 1)'  // 범례 글자 색상
+                            }
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => console.error('Error loading wind rose data:', error));
+    </script>
+</body>
+</html>

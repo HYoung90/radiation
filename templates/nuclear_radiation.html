@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>원자력 발전소 주변 방사선량 데이터</title>
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css">
+    <!-- Leaflet CSS (지도용) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+        /* 기존 스타일 유지 */
+        #map {
+            height: 500px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        table, th, td {
+            border: 1px solid #dee2e6;
+        }
+        th {
+            background-color: #f8f9fa;
+            text-align: center;
+        }
+        td {
+            text-align: center;
+        }
+        th, td {
+            padding: 10px;
+        }
+        .btn-group {
+            margin-bottom: 15px;
+        }
+        .btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+        .btn-info {
+            background-color: #17a2b8;
+        }
+        .btn:hover {
+            opacity: 0.8;
+        }
+        .popup-button {
+            background-color: #007bff;
+            color: white;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+        }
+        .popup-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">원자력 발전소 주변 방사선량 데이터</h1>
+
+        <div class="btn-group">
+            <button id="refreshData" class="btn btn-info">새로고침</button>
+            <button class="btn btn-secondary" onclick="window.location.href='/'">처음으로</button>
+        </div>
+
+        <div id="map"></div> <!-- 지도 표시 영역 -->
+
+        <table id="radiationTable" class="display">
+            <thead>
+                <tr>
+                    <th>측정 시간</th>
+                    <th>발전소 이름</th>
+                    <th>측정 지역</th>
+                    <th>방사선량 (μSv/h)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- 서버에서 데이터를 동적으로 채웁니다 -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- JS 라이브러리 -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+    <script>
+        $(document).ready(function() {
+            var table = $('#radiationTable').DataTable({
+                searching: false,
+                order: [[3, 'desc']], // 방사선량 기준으로 초기 정렬
+                columns: [
+                    { data: 'time', title: '측정 시간' },
+                    { data: 'genName', title: '발전소 이름' },
+                    { data: 'expl', title: '측정 지역' },
+                    {
+                        data: 'max_value',
+                        title: '방사선량 (μSv/h)',
+                        render: function(data) {
+                            return data !== null ? `${data.toFixed(3)} μSv/h` : "N/A";
+                        }
+                    }
+                ]
+            });
+
+            // 지도 설정
+            var map = L.map('map').setView([36.5, 127.5], 7);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; <a href="https://carto.com/">CARTO</a> | &copy; OpenStreetMap contributors',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(map);
+
+            // 발전소 좌표
+            const plantCoordinates = {
+                "KR": { lat: 35.3213, lng: 129.2941, name: "고리 원자력발전소" },
+                "WS": { lat: 35.7131, lng: 129.4775, name: "월성 원자력발전소" },
+                "YK": { lat: 35.4165, lng: 126.4178, name: "한빛 원자력발전소" },
+                "UJ": { lat: 37.0941, lng: 129.3819, name: "한울 원자력발전소" },
+                "SU": { lat: 35.3376, lng: 129.3115, name: "새울 원자력발전소" }
+            };
+
+            // 마커 추가
+            Object.keys(plantCoordinates).forEach(function(key) {
+                var plant = plantCoordinates[key];
+                L.marker([plant.lat, plant.lng]).addTo(map)
+                    .bindPopup(`
+                        <b>${plant.name}</b><br>
+                        <button class="popup-button" onclick="window.location.href='/nuclear_radiation_history/${encodeURIComponent(plant.name)}'">과거 데이터 보기</button>
+                    `);
+            });
+
+            // 데이터를 가져와 테이블에 채우는 함수
+            function loadHighestRadiationData() {
+                table.clear();
+
+                $.ajax({
+                    url: '/api/nuclear_radiation/highest_per_plant',
+                    method: 'GET',
+                    success: function(data) {
+                        if (!Array.isArray(data)) {
+                            console.error("데이터 형식 오류:", data);
+                            return;
+                        }
+
+                        if (data.length === 0) {
+                            console.log("데이터가 없습니다.");
+                            return;
+                        }
+
+                        data.forEach(function(item) {
+                            var genKey = item._id.toUpperCase(); // 발전소 코드
+                            var plantName = plantCoordinates[genKey] ? plantCoordinates[genKey].name : "Unknown Plant";
+                            var radiationValue = parseFloat(item.max_value) || 0; // 최대 방사선량
+
+                            // 데이터를 테이블에 추가
+                            table.row.add({
+                                time: item.time, // 측정 시간
+                                genName: plantName,
+                                expl: item.expl, // 측정 지역
+                                max_value: radiationValue
+                            });
+                        });
+
+                        table.draw();
+                    },
+                    error: function() {
+                        console.error("최고 방사선량 정보를 불러오지 못했습니다.");
+                    }
+                });
+            }
+
+            loadHighestRadiationData(); // 최대 방사선량 데이터 로드
+            $('#refreshData').click(function() {
+                loadHighestRadiationData(); // 새로 고침 시 데이터 로드
+            });
+        });
+    </script>
+</body>
+</html>

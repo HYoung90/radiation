@@ -1,0 +1,10 @@
+2025-04-15 10:37:28,279 INFO:Radiation averages manual processing started.
+
+2025-04-15 10:37:28,284 INFO:MongoDB 연결 성공.
+2025-04-15 10:37:28,293 INFO:radiation_stats 컬렉션에서 0개의 레코드를 가져왔습니다.
+2025-04-15 10:37:28,293 INFO:radiation_stats 컬렉션에 데이터가 없습니다.
+2025-04-15 10:37:28,293 INFO:Manual processing 완료.
+
+2025-04-15 10:37:28,293 INFO:Scheduler 시작: 매일 새벽 6시에 평균 계산, 8시에 텔레그램으로 보고서를 전송합니다.
+
+2025-04-15 10:53:33,786 INFO:프로그램이 수동으로 종료되었습니다.

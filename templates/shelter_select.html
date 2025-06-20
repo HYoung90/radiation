@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>optimal_shelter_result</title>
+  <link rel="stylesheet"
+        href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+  <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/leaflet.js"></script>
+</head>
+<body class="p-2">
+  <div class="container">
+    <h1 class="my-4">{{ site }} 발전소 주변 – 최적 구호소 평가 결과</h1>
+    <a href="{{ url_for('optimal_shelter_evaluation') }}"
+       class="btn btn-secondary mb-3">&larr; 발전소 선택으로 돌아가기</a>
+
+    <h3>평가된 구호소 리스트 (TOPSIS 상위 5)</h3>
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>구호소명</th>
+          <th>주소</th>
+          <th>수용 인원</th>
+          <th>TOPSIS 점수</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sh in shelters %}
+        <tr>
+          <td>{{ sh.name }}</td>
+          <td>{{ sh.address }}</td>
+          <td>{{ sh.capacity }}</td>
+          <td>{{ "%.3f"|format(sh.topsis_score) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div id="map" style="height: 500px;"></div>
+    <script>
+      var map = L.map('map').setView([35.3, 129.2], 10);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(map);
+
+      {% for sh in shelters %}
+        L.marker([{{ sh.lat }}, {{ sh.lon }}]).addTo(map)
+         .bindPopup(
+           "<b>{{ sh.name }}</b><br>" +
+           "{{ sh.address }}<br>" +
+           "수용 인원: {{ sh.capacity }}<br>" +
+           "점수: {{ '%.3f'|format(sh.topsis_score) }}"
+         );
+      {% endfor %}
+    </script>
+  </div>
+</body>
+</html>
