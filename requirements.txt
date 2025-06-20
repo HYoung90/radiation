@@ -12,3 +12,4 @@ python-dateutil==2.9.0.post0
 pytz
 geopandas
 folium
+gunicorn
