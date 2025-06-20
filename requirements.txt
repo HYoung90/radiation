@@ -8,7 +8,7 @@ pandas
 matplotlib
 scipy
 numpy
-dateutil
+python-dateutil
 pytz
 geopandas
 folium
