@@ -43,13 +43,13 @@ cache = Cache(app, config={'CACHE_TYPE': 'null'})
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
 # MongoDB 연결
-load_dotenv() # .env 파일에서 환경 변수를 로드합니다.
-mongo_uri = os.getenv("MONGO_URI") # <-- 이렇게 변경합니다.
+load_dotenv() # .env 파일에서 환경 변수를 로드합니다. (로컬 개발용)
+mongo_uri = os.getenv("MONGO_URI") # <-- 이 부분이 수정되었습니다.
 if not mongo_uri: # 환경 변수가 설정되지 않았을 경우를 대비한 체크
-    raise ValueError("MONGO_URI environment variable not set!")
+    raise ValueError("MONGO_URI environment variable not set! Please set MONGO_URI in .env or your deployment environment.")
 client = MongoClient(mongo_uri)
 db = client['Data']
-users = db['users'] # 추가된 부분 확인
+users = db['users'] # 사용자 컬렉션
 
 # User 클래스 정의 바로 위나 아래에 추가
 def admin_required(f):
