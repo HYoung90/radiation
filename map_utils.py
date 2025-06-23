@@ -29,7 +29,13 @@ mapping_codes = {
     '한빛': 'YK',
     '한울': 'UJ'
 }
-client = MongoClient('mongodb://localhost:27017')
+mongo_uri = os.getenv("MONGO_URI")
+if not mongo_uri:
+    # 이 에러는 Railway에서 MONGO_URI가 올바르게 설정되었다면 발생하지 않아야 합니다.
+    # 하지만 만약을 대비해 에러 메시지를 좀 더 명확하게 할 수 있습니다.
+    raise ValueError("MONGO_URI environment variable not set in Railway! Check your service variables.")
+
+client = MongoClient(mongo_uri) # 이제 환경 변수에서 가져온 URI를 사용합니다.
 db = client['Data']
 col = db['NPP_weather']
 
