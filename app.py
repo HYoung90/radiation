@@ -44,7 +44,9 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 
 # MongoDB 연결
 load_dotenv() # .env 파일에서 환경 변수를 로드합니다.
-mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/") # 환경 변수 사용, 로컬 개발을 위한 기본값 설정
+mongo_uri = os.getenv("MONGO_URI") # <-- 이렇게 변경합니다.
+if not mongo_uri: # 환경 변수가 설정되지 않았을 경우를 대비한 체크
+    raise ValueError("MONGO_URI environment variable not set!")
 client = MongoClient(mongo_uri)
 db = client['Data']
 users = db['users'] # 추가된 부분 확인
