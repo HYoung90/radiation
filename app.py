@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 import os
 from pymongo import MongoClient, DESCENDING
 from pymongo.errors import PyMongoError
-from map_utils import power_plants, compute_top5_for
 from map_utils import power_plants, compute_top5_for, generate_topsis_map_html
 from utils import export_csv, upload_csv
 from chatbot_utils import get_best_match
@@ -28,6 +27,8 @@ import pytz
 from flask_login import LoginManager, UserMixin, login_user, user_logged_out,login_required, current_user
 from flask_bcrypt import Bcrypt
 from bson import ObjectId
+from functools import wraps
+from dotenv import load_dotenv # 이 줄이 없으면 추가
 
 app = Flask(__name__)
 
@@ -42,8 +43,21 @@ cache = Cache(app, config={'CACHE_TYPE': 'null'})
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
 # MongoDB 연결
-client = MongoClient("mongodb://localhost:27017/")
+load_dotenv() # .env 파일에서 환경 변수를 로드합니다.
+mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017/") # 환경 변수 사용, 로컬 개발을 위한 기본값 설정
+client = MongoClient(mongo_uri)
 db = client['Data']
+users = db['users'] # 추가된 부분 확인
+
+# User 클래스 정의 바로 위나 아래에 추가
+def admin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not current_user.is_authenticated or current_user.email != 'hyoung@dankook.ac.kr':
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated
+
 
 # 컬렉션 설정
 collection = db['NPP_weather']  # NPP_weather 컬렉션 (기존 데이터)
@@ -131,6 +145,8 @@ def get_radiation_data():
     logging.info(f"최근 데이터 {len(data)}개 가져왔습니다.")
     return data
 
+
+
 # 방사선 평균값 계산 (예시)
 def get_average_radiation():
     client = get_mongo_connection()
@@ -164,6 +180,28 @@ class User(UserMixin):
 @login_manager.user_loader
 def load_user(user_id):
     return User.get_by_id(user_id)
+
+
+@app.route('/admin/users/pending')
+@login_required
+@admin_required
+def list_pending_users():
+    pendings = users.find({'status': 'pending'}, {'password': 0})
+    return render_template('admin_pending.html', users=list(pendings))
+
+@app.route('/admin/users/<user_id>/approve', methods=['POST'])
+@login_required
+@admin_required
+def approve_user(user_id):
+    users.update_one({'_id': ObjectId(user_id)}, {'$set': {'status': 'approved'}})
+    return redirect(url_for('list_pending_users'))
+
+@app.route('/admin/users/<user_id>/reject', methods=['POST'])
+@login_required
+@admin_required
+def reject_user(user_id):
+    users.update_one({'_id': ObjectId(user_id)}, {'$set': {'status': 'rejected'}})
+    return redirect(url_for('list_pending_users'))
 
 
 # ---------------------------------------------------------------------
@@ -217,12 +255,15 @@ def get_filtered_weather_data(genName):
 
 
 # 기본 기상 데이터 페이지 (genName 기준으로)
-@app.route('/<genName>', methods=['GET', 'POST'])
+@app.route('/<genName>', methods=['GET'])  # POST 메서드 제거
 def region_data(genName):
     date_filter = request.args.get('date')
+    normalized_genName = genName.upper()
+    query = {"genName": normalized_genName}
 
-    # 기본 쿼리 설정: genName을 기준으로 쿼리 설정
-    query = {"genName": genName.upper()}  # genName을 기준으로 설정
+    # 기본적으로 가져올 데이터의 최대 개수 (초기 페이지 로드 시)
+    # 이 값을 조절하여 초기 로딩 시의 메모리 사용량을 제어합니다.
+    default_limit = 200  # 예시: 200개 최신 데이터만 가져오기 (필요에 따라 조절)
 
     if date_filter:
         try:
@@ -234,21 +275,28 @@ def region_data(genName):
             # MongoDB에서 날짜 필터링
             query["time"] = {"$gte": start_datetime, "$lte": end_datetime}
 
+            # 날짜로 필터링하는 경우에는 limit을 적용하지 않거나 (해당 날짜의 모든 데이터 필요),
+            # 아니면 페이지네이션을 적용해야 합니다. 여기서는 '해당 날짜의 모든 데이터'를 원한다고 가정하고 limit을 제거합니다.
+            data = list(backup_collection.find(query, {"_id": 0}).sort("time", DESCENDING))
+            logging.info(f"Filtered data for {normalized_genName} on {date_filter}: {len(data)} records.")
+
         except Exception as e:
             logging.error(f"Date parsing error: {e}")
-            # 날짜 필터가 잘못된 경우, 쿼리에서 time 필터 제거
+            # 날짜 필터가 잘못된 경우, 쿼리에서 time 필터 제거 후 default_limit 적용
             query.pop("time", None)
-
-    # 데이터 조회: 쿼리에 맞는 데이터 가져오기
-    data = list(backup_collection.find(query, {"_id": 0}).sort("time", DESCENDING))
+            data = list(backup_collection.find(query, {"_id": 0}).sort("time", DESCENDING).limit(default_limit))
+            logging.warning(f"Invalid date filter, showing latest {default_limit} records for {normalized_genName}.")
+    else:
+        # 날짜 필터가 없는 경우 (초기 페이지 로드)
+        # 최신 default_limit 개수의 데이터만 가져옵니다.
+        data = list(backup_collection.find(query, {"_id": 0}).sort("time", DESCENDING).limit(default_limit))
+        logging.info(f"No date filter, showing latest {default_limit} records for {normalized_genName}.")
 
     # 해당 발전소 이름 가져오기
-    plant_name = genName_mapping.get(genName.upper(), "Unknown Plant")
+    plant_name = genName_mapping.get(normalized_genName, "Unknown Plant")
 
     # 데이터를 템플릿으로 전달
-    return render_template('weather.html', region=genName.upper(), data=data, plant_name=plant_name)
-
-
+    return render_template('weather.html', region=normalized_genName, data=data, plant_name=plant_name)
 # 부산 방사선 데이터 API
 @app.route('/api/busan_radiation', methods=['GET'])
 @cache.cached(timeout=3600)
@@ -389,16 +437,22 @@ def get_highest_radiation():
 #==============================================================================
 # 로그인 파트
 # ---------------------------------------------------------------------
+
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-        # 이메일 중복 체크
-        if db['users'].find_one({'email': email}):
-            return render_template('signup.html', error='이미 등록된 이메일입니다.')
+        if users.find_one({'email': email}):
+            flash('이미 등록된 이메일입니다.', 'danger') # 변경
+            return render_template('signup.html') # error 파라미터 제거
         hashed_pw = bcrypt.generate_password_hash(password).decode('utf-8')
-        db['users'].insert_one({'email': email, 'password': hashed_pw})
+        users.insert_one({
+            'email': email,
+            'password': hashed_pw,
+            'status': 'pending'
+        })
+        flash('회원가입 요청이 성공적으로 처리되었습니다. 관리자 승인 후 로그인할 수 있습니다.', 'success') # 추가
         return redirect(url_for('login'))
     return render_template('signup.html')
 
@@ -407,15 +461,31 @@ def login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-        user_doc = db['users'].find_one({'email': email})
+        user_doc = users.find_one({'email': email})
         if user_doc and bcrypt.check_password_hash(user_doc['password'], password):
+            st = user_doc.get('status', 'pending')
+            if st == 'pending':
+                flash('관리자 승인 대기 중입니다.', 'warning') # 변경
+                return render_template('login.html') # error 파라미터 제거
+            if st == 'rejected':
+                flash('가입이 거부되었습니다. 문의해주세요.', 'danger') # 변경
+                return render_template('login.html') # error 파라미터 제거
             user = User(user_doc)
             login_user(user)
             next_page = request.form.get('next') or url_for('map_home')
+            flash(f'{user.email}님 환영합니다!', 'info') # 추가
             return redirect(next_page)
         else:
-            return render_template('login.html', error='이메일 또는 비밀번호가 올바르지 않습니다.')
+            flash('이메일 또는 비밀번호가 올바르지 않습니다.', 'danger') # 변경
+            return render_template('login.html') # error 파라미터 제거
     return render_template('login.html')
+
+@app.route('/logout')
+@login_required # 로그인된 사용자만 접근 가능하도록
+def logout():
+    logout_user()
+    flash('로그아웃 되었습니다.', 'info')
+    return redirect(url_for('login')) # 로그인 페이지로 리디렉션
 
 @app.route('/api/nuclear_radiation/highest_by_plant', methods=['GET'])
 def get_highest_radiation_by_plant():
@@ -1025,6 +1095,6 @@ def accident_result_page(genName):
 
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))  # 기본적으로 5000번 포트, 환경변수 PORT가 있으면 그 포트로 실행
-    app.run(host='0.0.0.0', port=port, debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port, debug=False) # debug=False로 변경 권장
 
