@@ -51,6 +51,15 @@ client = MongoClient(mongo_uri)
 db = client['Data']
 users = db['users'] # 사용자 컬렉션
 
+try:
+    test_password_for_hash = "hy0417".encode('utf-8')
+    hashed_hy0417_password = bcrypt.generate_password_hash(test_password_for_hash).decode('utf-8')
+    print(f"DEBUG: Generated Hashed Password for hy0417: {hashed_hy0417_password}")
+    logging.info(f"Generated Hashed Password: {hashed_hy0417_password}") # 로깅도 추가합니다.
+except Exception as e:
+    print(f"ERROR: Failed to generate bcrypt hash: {e}")
+    logging.error(f"Failed to generate bcrypt hash: {e}")
+
 # User 클래스 정의 바로 위나 아래에 추가
 def admin_required(f):
     @wraps(f)
