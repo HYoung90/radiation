@@ -464,24 +464,24 @@ def login():
         email = request.form['email']
         password = request.form['password']
         user_doc = users.find_one({'email': email})
-        if user_doc and bcrypt.check_password_hash(user_doc['password'], password):
+        # 여기에 password.encode('utf-8')이 추가되었습니다.
+        if user_doc and bcrypt.check_password_hash(user_doc['password'], password.encode('utf-8')):
             st = user_doc.get('status', 'pending')
             if st == 'pending':
-                flash('관리자 승인 대기 중입니다.', 'warning') # 변경
-                return render_template('login.html') # error 파라미터 제거
+                flash('관리자 승인 대기 중입니다.', 'warning')
+                return render_template('login.html')
             if st == 'rejected':
-                flash('가입이 거부되었습니다. 문의해주세요.', 'danger') # 변경
-                return render_template('login.html') # error 파라미터 제거
+                flash('가입이 거부되었습니다. 문의해주세요.', 'danger')
+                return render_template('login.html')
             user = User(user_doc)
             login_user(user)
             next_page = request.form.get('next') or url_for('map_home')
-            flash(f'{user.email}님 환영합니다!', 'info') # 추가
+            flash(f'{user.email}님 환영합니다!', 'info')
             return redirect(next_page)
         else:
-            flash('이메일 또는 비밀번호가 올바르지 않습니다.', 'danger') # 변경
-            return render_template('login.html') # error 파라미터 제거
+            flash('이메일 또는 비밀번호가 올바르지 않습니다.', 'danger')
+            return render_template('login.html')
     return render_template('login.html')
-
 @app.route('/logout')
 @login_required # 로그인된 사용자만 접근 가능하도록
 def logout():
