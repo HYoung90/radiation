@@ -19,7 +19,7 @@ from pymongo import MongoClient, DESCENDING
 from pymongo.errors import PyMongoError
 from map_utils import power_plants, compute_top5_for, generate_topsis_map_html
 from utils import export_csv, upload_csv
-from chatbot_utils import get_best_match
+#from chatbot_utils import get_best_match
 from flask import abort
 import numpy as np
 import json
@@ -658,22 +658,22 @@ def busan_radiation_page():
 def nuclear_radiation_page():
     return render_template('nuclear_radiation.html')
 
-@app.route("/chat", methods=["POST"])
-def chat():
-    user_input = request.json.get("message", "").strip()
-    if not user_input:
-        return jsonify({"answer": "질문을 입력해 주세요."})
-
-    try:
-        result = get_best_match(user_input)
-        return jsonify({
-            "quesion": result["question"],
-            "answer": result["answer"],
-            "similarity": result["score"]
-        })
-
-    except Exception as e:
-        return jsonify({"answer": f"오류가 발생했습니다: {str(e)}"})
+#@app.route("/chat", methods=["POST"])
+#def chat():
+#    user_input = request.json.get("message", "").strip()
+#   if not user_input:
+#        return jsonify({"answer": "질문을 입력해 주세요."})
+#
+#    try:
+#        result = get_best_match(user_input)
+#        return jsonify({
+#            "quesion": result["question"],
+#            "answer": result["answer"],
+#            "similarity": result["score"]
+#        })
+#
+#    except Exception as e:
+#        return jsonify({"answer": f"오류가 발생했습니다: {str(e)}"})
 
 
 # analysis1, analysis2, analysis3, analysis4에 대한 API 엔드포인트 추가
