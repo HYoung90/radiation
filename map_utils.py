@@ -10,14 +10,48 @@ import geopy.distance
 from pymongo import MongoClient
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.decomposition import PCA
-import logging # 로깅을 위한 import 추가
+import logging
 
 # ----------------------------
 # 설정 및 데이터 로드
 # ----------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# 발전소 좌표 및 MongoDB 설정
+# --- 수정된 부분 시작 ---
+# 지리 데이터 파일 경로 정의 (이제 'geojson' 폴더를 포함)
+REGIONS = {
+    '서울특별시': os.path.join(BASE_DIR, 'data', 'geojson', 'seoul.zip'),
+    '부산광역시': os.path.join(BASE_DIR, 'data', 'geojson', 'busan.zip'),
+    '대구광역시': os.path.join(BASE_DIR, 'data', 'geojson', 'daegu.zip'),
+    '인천광역시': os.path.join(BASE_DIR, 'data', 'geojson', 'incheon.zip'),
+    '광주광역시': os.path.join(BASE_DIR, 'data', 'geojson', 'gwangju.zip'),
+    '대전광역시': os.path.join(BASE_DIR, 'data', 'geojson', 'daejeon.zip'),
+    '울산광역시': os.path.join(BASE_DIR, 'data', 'geojson', 'ulsan.zip'),
+    '세종특별자치시': os.path.join(BASE_DIR, 'data', 'geojson', 'sejong.zip'),
+    '경기도': os.path.join(BASE_DIR, 'data', 'geojson', 'gyeonggi.zip'),
+    '강원특별자치도': os.path.join(BASE_DIR, 'data', 'geojson', 'gangwon.zip'),
+    '충청북도': os.path.join(BASE_DIR, 'data', 'geojson', 'chungbuk.zip'),
+    '충청남도': os.path.join(BASE_DIR, 'data', 'geojson', 'chungnam.zip'),
+    '전라북도': os.path.join(BASE_DIR, 'data', 'geojson', 'jeonbuk.zip'),
+    '전라남도': os.path.join(BASE_DIR, 'data', 'geojson', 'jeonnam.zip'),
+    '경상북도': os.path.join(BASE_DIR, 'data', 'geojson', 'gyeongbuk.zip'),
+    '경상남도': os.path.join(BASE_DIR, 'data', 'geojson', 'gyeongnam.zip'),
+    '제주특별자치도': os.path.join(BASE_DIR, 'data', 'geojson', 'jeju.zip')
+}
+POP_PATH = os.path.join(BASE_DIR, 'data', 'geojson', 'pop.xlsx')
+SHEL_PATH = os.path.join(BASE_DIR, 'data', 'geojson', 'shelter.xlsx')
+
+# 안정도 매핑 (이 부분은 이전과 동일)
+stab_map = {
+    'A': 0.2, 'B': 0.5, 'C': 0.8, 'D': 1.0, 'E': 1.2, 'F': 1.5
+}
+korean_to_category = {
+    '매우 불안정': 'A', '불안정': 'B', '약간 불안정': 'C',
+    '중립': 'D', '약간 안정': 'E', '안정': 'F'
+}
+# --- 수정된 부분 끝 ---
+
+# 발전소 좌표 및 MongoDB 설정 (이 부분은 이전과 동일)
 power_plants = {
     '고리': (35.321499, 129.291612),
     '월성': (35.713058, 129.475347),
@@ -31,31 +65,24 @@ mapping_codes = {
     '한울': 'UJ'
 }
 
-# 로깅 설정 (이 파일에서 직접 실행 시 로그를 볼 수 있도록 추가)
+# 로깅 설정 (이 부분은 이전과 동일)
 if not logging.root.handlers:
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-mongo_uri = os.getenv("MONGO_URI") # 또는 MY_MONGO_URI
+mongo_uri = os.getenv("MONGO_URI")
 if not mongo_uri:
     raise ValueError("MONGO_URI environment variable not set in Railway! Check your service variables.")
 
-# ----------- 추가된 코드: URI 문자열 정제 ------------
-# 문자열의 양 끝 공백 제거 및 앞에 붙은 '=' 제거
+# URI 문자열 정제 (이 부분은 이전과 동일)
 mongo_uri = mongo_uri.strip().lstrip('=').strip()
-# ----------------------------------------------------
-
-# ----------- 디버깅을 위한 추가 코드 (유지) ------------
 logging.info(f"DEBUG: Retrieved MONGO_URI (after clean): '{mongo_uri}' (Length: {len(mongo_uri)})")
-# --------------------------------------------------
 
-client = MongoClient(mongo_uri) # 이제 환경 변수에서 가져온 URI를 사용합니다.
+client = MongoClient(mongo_uri)
 db = client['Data']
 col = db['NPP_weather']
 
-# ... (나머지 코드는 동일) ...
-
 # ----------------------------
-# GeoDataFrame 로드 및 전처리
+# GeoDataFrame 로드 및 전처리 (이 부분은 이전과 동일)
 # ----------------------------
 def _load_geodata():
     gdfs = [gpd.read_file(p) for p in REGIONS.values()]
@@ -87,7 +114,7 @@ def _load_geodata():
 _GDF = _load_geodata()
 
 # ----------------------------
-# 기상 데이터 조회 및 유틸
+# 기상 데이터 조회 및 유틸 (이 부분은 이전과 동일)
 # ----------------------------
 def fetch_weather(plant):
     code = mapping_codes.get(plant)
@@ -132,7 +159,7 @@ def get_angle_width(stability_weight):
     return max(min_w, min(max_w, max_w - (stability_weight-0.2)*(max_w-min_w)/(1.5-0.2)))
 
 # ----------------------------
-# TOPSIS 맵 HTML 생성
+# TOPSIS 맵 HTML 생성 (이 부분은 이전과 동일)
 # ----------------------------
 def generate_topsis_map_html(plant):
     """
@@ -142,14 +169,11 @@ def generate_topsis_map_html(plant):
     if plant not in power_plants:
         raise KeyError(f"Unsupported plant '{plant}'")
     lat, lon = power_plants[plant]
-    # MongoDB에서 최신 풍향/풍속/안정도 가중치 가져오기
     wd, ws, sw = fetch_weather(plant)
 
-    # 1) 지도 초기화 (CartoDB Positron 스타일)
     m = folium.Map(location=[36.0, 127.5], zoom_start=8, tiles='cartodbpositron')
     MarkerCluster(name='구호소').add_to(m)
 
-    # 2) 발전소 아이콘 대신 풍향 화살표 추가
     bearing = (wd + 180) % 360
     angle_css = bearing
 
@@ -157,7 +181,6 @@ def generate_topsis_map_html(plant):
       <div style="
         display: inline-block;
         transform-origin: center center;
-        /* ① 회전 먼저 → ② 중앙 이동 */
         transform: rotate({angle_css}deg) translate(-50%, -50%);
         font-size: 36px;
         color: blue;
@@ -175,10 +198,9 @@ def generate_topsis_map_html(plant):
             icon_anchor=(25, 25)
         ),
         popup=f"{plant} 발전소 풍향: {wd}°",
-        z_index_offset=1000  # 폴리곤 위에 표시
+        z_index_offset=1000
     ).add_to(m)
 
-    # 3) sector 그리기
     width = get_angle_width(sw)
     coords = generate_sector(lat, lon, bearing, width)
     folium.Polygon(
@@ -192,7 +214,6 @@ def generate_topsis_map_html(plant):
     ).add_to(m)
 
 
-    # 4) TOPSIS 계산
     df = _GDF.copy()
     df['dist']       = df.apply(lambda r: _distance(lat, lon, r['centroid_lat'], r['centroid_lon']), axis=1)
     df = df[df['dist']<=120]
@@ -217,7 +238,6 @@ def generate_topsis_map_html(plant):
         for row in w_norm
     ]
 
-    # 5) 컬러맵 & GeoJson
     cm_top = cm.LinearColormap(['#313695', 'white', '#a50026'], index=[0, 0.5, 1],
                                vmin=0, vmax=1, caption='TOPSIS Score')
     folium.GeoJson(
@@ -234,7 +254,6 @@ def generate_topsis_map_html(plant):
     ).add_to(m)
     cm_top.add_to(m)
 
-    # 6) TOP5 마커
     for _, row in df.nlargest(5,'topsis').iterrows():
         folium.Marker(
             [row['centroid_lat'], row['centroid_lon']],
@@ -246,7 +265,7 @@ def generate_topsis_map_html(plant):
 
 
 # ----------------------------
-# TOP5 구호소 계산 함수
+# TOP5 구호소 계산 함수 (이 부분은 이전과 동일)
 # ----------------------------
 def compute_top5_for(plant):
     """
@@ -282,7 +301,7 @@ def compute_top5_for(plant):
     return [
         {
             'name': row['adm_nm'],
-            'address': row['adm_nm'],  # 필요시 실제 주소 컬럼으로 수정
+            'address': row['adm_nm'],
             'capacity': int(row['capacity_sum']),
             'topsis_score': round(float(row['topsis_score']), 3),
             'lat': float(row['centroid_lat']),
