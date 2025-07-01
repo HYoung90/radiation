@@ -38,8 +38,8 @@ REGIONS = {
     '경상남도': os.path.join(BASE_DIR, 'data', 'geojson', 'gyeongnam.zip'),
     '제주특별자치도': os.path.join(BASE_DIR, 'data', 'geojson', 'jeju.zip')
 }
-POP_PATH = os.path.join(BASE_DIR, 'data', 'geojson', 'pop.xlsx')
-SHEL_PATH = os.path.join(BASE_DIR, 'data', 'geojson', 'shelter.xlsx')
+POP_PATH = os.path.join(BASE_DIR, 'data', 'pop.xlsx')
+SHEL_PATH = os.path.join(BASE_DIR, 'data', 'shelter.xlsx')
 
 # 안정도 매핑 (이 부분은 이전과 동일)
 stab_map = {
