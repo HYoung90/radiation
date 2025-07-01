@@ -47,6 +47,11 @@ load_dotenv() # .env 파일에서 환경 변수를 로드합니다. (로컬 개�
 mongo_uri = os.getenv("MONGO_URI")
 if not mongo_uri: # 환경 변수가 설정되지 않았을 경우를 대비한 체크
     raise ValueError("MONGO_URI environment variable not set! Please set MONGO_URI in .env or your deployment environment.")
+
+# --- 이 줄을 추가해주세요 ---
+mongo_uri = mongo_uri.strip()
+# ---------------------------
+
 client = MongoClient(mongo_uri)
 db = client['Data']
 users = db['users'] # 사용자 컬렉션
