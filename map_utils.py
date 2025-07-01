@@ -35,41 +35,24 @@ mapping_codes = {
 if not logging.root.handlers:
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-mongo_uri = os.getenv("MONGO_URI")
+mongo_uri = os.getenv("MONGO_URI") # 또는 MY_MONGO_URI
 if not mongo_uri:
-    # 이 에러는 Railway에서 MONGO_URI가 올바르게 설정되었다면 발생하지 않아야 합니다.
-    # 하지만 만약을 대비해 에러 메시지를 좀 더 명확하게 할 수 있습니다.
     raise ValueError("MONGO_URI environment variable not set in Railway! Check your service variables.")
 
-# ----------- 디버깅을 위한 추가 코드 ------------
-logging.info(f"DEBUG: Retrieved MONGO_URI: '{mongo_uri}' (Length: {len(mongo_uri)})")
-# ---------------------------------------------
+# ----------- 추가된 코드: URI 문자열 정제 ------------
+# 문자열의 양 끝 공백 제거 및 앞에 붙은 '=' 제거
+mongo_uri = mongo_uri.strip().lstrip('=').strip()
+# ----------------------------------------------------
+
+# ----------- 디버깅을 위한 추가 코드 (유지) ------------
+logging.info(f"DEBUG: Retrieved MONGO_URI (after clean): '{mongo_uri}' (Length: {len(mongo_uri)})")
+# --------------------------------------------------
 
 client = MongoClient(mongo_uri) # 이제 환경 변수에서 가져온 URI를 사용합니다.
 db = client['Data']
 col = db['NPP_weather']
 
-# 데이터 파일 경로
-REGIONS = {
-    '부산광역시':  os.path.join(BASE_DIR, 'data', 'geojson', 'hangjeongdong_부산광역시.geojson'),
-    '울산광역시':  os.path.join(BASE_DIR, 'data', 'geojson', 'hangjeongdong_울산광역시.geojson'),
-    '경상북도':    os.path.join(BASE_DIR, 'data', 'geojson', 'hangjeongdong_경상북도.geojson'),
-    '전라남도':    os.path.join(BASE_DIR, 'data', 'geojson', 'hangjeongdong_전라남도.geojson'),
-    '전라북도':    os.path.join(BASE_DIR, 'data', 'geojson', 'hangjeongdong_전라북도.geojson'),
-    '경상남도':    os.path.join(BASE_DIR, 'data', 'geojson', 'hangjeongdong_경상남도.geojson'),
-    '대구광역시':  os.path.join(BASE_DIR, 'data', 'geojson', 'hangjeongdong_대구광역시.geojson'),
-    '광주광역시':  os.path.join(BASE_DIR, 'data', 'geojson', 'hangjeongdong_광주광역시.geojson'),
-    '강원특별자치도': os.path.join(BASE_DIR, 'data', 'geojson', 'hangjeongdong_강원도.geojson'),
-}
-POP_PATH  = os.path.join(BASE_DIR, 'data', 'population2.xlsx')
-SHEL_PATH = os.path.join(BASE_DIR, 'data', 'shelter.xlsx')
-
-# 안정도 카테고리 및 가중치
-korean_to_category = {
-    '심한 불안정':'A','불안정':'B','약간 불안정':'C','중립':'D',
-    '약간 안정':'E','안정':'F','심한 안정':'G'
-}
-stab_map = {'A':0.2,'B':0.4,'C':0.6,'D':0.8,'E':1.0,'F':1.2,'G':1.5}
+# ... (나머지 코드는 동일) ...
 
 # ----------------------------
 # GeoDataFrame 로드 및 전처리
