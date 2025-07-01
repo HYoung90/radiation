@@ -10,6 +10,7 @@ import geopy.distance
 from pymongo import MongoClient
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn.decomposition import PCA
+import logging # 로깅을 위한 import 추가
 
 # ----------------------------
 # 설정 및 데이터 로드
@@ -29,11 +30,20 @@ mapping_codes = {
     '한빛': 'YK',
     '한울': 'UJ'
 }
+
+# 로깅 설정 (이 파일에서 직접 실행 시 로그를 볼 수 있도록 추가)
+if not logging.root.handlers:
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 mongo_uri = os.getenv("MONGO_URI")
 if not mongo_uri:
     # 이 에러는 Railway에서 MONGO_URI가 올바르게 설정되었다면 발생하지 않아야 합니다.
     # 하지만 만약을 대비해 에러 메시지를 좀 더 명확하게 할 수 있습니다.
     raise ValueError("MONGO_URI environment variable not set in Railway! Check your service variables.")
+
+# ----------- 디버깅을 위한 추가 코드 ------------
+logging.info(f"DEBUG: Retrieved MONGO_URI: '{mongo_uri}' (Length: {len(mongo_uri)})")
+# ---------------------------------------------
 
 client = MongoClient(mongo_uri) # 이제 환경 변수에서 가져온 URI를 사용합니다.
 db = client['Data']
