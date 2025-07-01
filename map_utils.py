@@ -17,31 +17,22 @@ import logging
 # ----------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# --- 수정된 부분 시작 ---
-# 지리 데이터 파일 경로 정의 (이제 'geojson' 폴더를 포함)
+# !!! --- 고객님의 원래 데이터 파일 경로와 파일명으로 정확히 반영 --- !!!
 REGIONS = {
-    '서울특별시': os.path.join(BASE_DIR, 'data', 'geojson', 'seoul.zip'),
-    '부산광역시': os.path.join(BASE_DIR, 'data', 'geojson', 'busan.zip'),
-    '대구광역시': os.path.join(BASE_DIR, 'data', 'geojson', 'daegu.zip'),
-    '인천광역시': os.path.join(BASE_DIR, 'data', 'geojson', 'incheon.zip'),
-    '광주광역시': os.path.join(BASE_DIR, 'data', 'geojson', 'gwangju.zip'),
-    '대전광역시': os.path.join(BASE_DIR, 'data', 'geojson', 'daejeon.zip'),
-    '울산광역시': os.path.join(BASE_DIR, 'data', 'geojson', 'ulsan.zip'),
-    '세종특별자치시': os.path.join(BASE_DIR, 'data', 'geojson', 'sejong.zip'),
-    '경기도': os.path.join(BASE_DIR, 'data', 'geojson', 'gyeonggi.zip'),
-    '강원특별자치도': os.path.join(BASE_DIR, 'data', 'geojson', 'gangwon.zip'),
-    '충청북도': os.path.join(BASE_DIR, 'data', 'geojson', 'chungbuk.zip'),
-    '충청남도': os.path.join(BASE_DIR, 'data', 'geojson', 'chungnam.zip'),
-    '전라북도': os.path.join(BASE_DIR, 'data', 'geojson', 'jeonbuk.zip'),
-    '전라남도': os.path.join(BASE_DIR, 'data', 'geojson', 'jeonnam.zip'),
-    '경상북도': os.path.join(BASE_DIR, 'data', 'geojson', 'gyeongbuk.zip'),
-    '경상남도': os.path.join(BASE_DIR, 'data', 'geojson', 'gyeongnam.zip'),
-    '제주특별자치도': os.path.join(BASE_DIR, 'data', 'geojson', 'jeju.zip')
+    '부산광역시':  os.path.join(BASE_DIR, 'data', 'geojson', 'hangjeongdong_부산광역시.geojson'),
+    '울산광역시':  os.path.join(BASE_DIR, 'data', 'geojson', 'hangjeongdong_울산광역시.geojson'),
+    '경상북도':    os.path.join(BASE_DIR, 'data', 'geojson', 'hangjeongdong_경상북도.geojson'),
+    '전라남도':    os.path.join(BASE_DIR, 'data', 'geojson', 'hangjeongdong_전라남도.geojson'),
+    '전라북도':    os.path.join(BASE_DIR, 'data', 'geojson', 'hangjeongdong_전라북도.geojson'),
+    '경상남도':    os.path.join(BASE_DIR, 'data', 'geojson', 'hangjeongdong_경상남도.geojson'),
+    '대구광역시':  os.path.join(BASE_DIR, 'data', 'geojson', 'hangjeongdong_대구광역시.geojson'),
+    '광주광역시':  os.path.join(BASE_DIR, 'data', 'geojson', 'hangjeongdong_광주광역시.geojson'),
+    '강원특별자치도': os.path.join(BASE_DIR, 'data', 'geojson', 'hangjeongdong_강원도.geojson'),
 }
-POP_PATH = os.path.join(BASE_DIR, 'data', 'pop.xlsx')
+POP_PATH  = os.path.join(BASE_DIR, 'data', 'population2.xlsx')
 SHEL_PATH = os.path.join(BASE_DIR, 'data', 'shelter.xlsx')
 
-# 안정도 매핑 (이 부분은 이전과 동일)
+# 안정도 매핑 (이 부분은 기상 데이터 처리에 필요하여 유지)
 stab_map = {
     'A': 0.2, 'B': 0.5, 'C': 0.8, 'D': 1.0, 'E': 1.2, 'F': 1.5
 }
@@ -49,7 +40,8 @@ korean_to_category = {
     '매우 불안정': 'A', '불안정': 'B', '약간 불안정': 'C',
     '중립': 'D', '약간 안정': 'E', '안정': 'F'
 }
-# --- 수정된 부분 끝 ---
+# !!! --- 고객님의 원래 데이터 파일 경로와 파일명으로 정확히 반영 끝 --- !!!
+
 
 # 발전소 좌표 및 MongoDB 설정 (이 부분은 이전과 동일)
 power_plants = {
@@ -82,10 +74,23 @@ db = client['Data']
 col = db['NPP_weather']
 
 # ----------------------------
-# GeoDataFrame 로드 및 전처리 (이 부분은 이전과 동일)
+# GeoDataFrame 로드 및 전처리
 # ----------------------------
 def _load_geodata():
-    gdfs = [gpd.read_file(p) for p in REGIONS.values()]
+    gdfs = []
+    for region_name, path in REGIONS.items(): # REGIONS 딕셔너리의 모든 요소를 순회
+        try:
+            gdf_region = gpd.read_file(path)
+            gdfs.append(gdf_region)
+        except Exception as e:
+            logging.error(f"Error loading geodata for {region_name} from {path}: {e}")
+            # 특정 지역 파일 로드 실패 시에도 다른 파일은 계속 로드 시도
+            # 필요에 따라 raise Exception(e) 등으로 오류를 전파할 수도 있습니다.
+            pass # 또는 오류가 발생하면 빈 GeoDataFrame 추가: gdfs.append(gpd.GeoDataFrame())
+
+    if not gdfs: # 모든 GeoDataFrame 로드 실패 시
+        raise ValueError("No GeoDataFrames could be loaded. Check file paths and existence.")
+
     gdf = pd.concat(gdfs, ignore_index=True)
 
     pop_df = pd.read_excel(POP_PATH)
