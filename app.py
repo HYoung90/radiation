@@ -48,8 +48,11 @@ mongo_uri = os.getenv("MONGO_URI")
 if not mongo_uri: # 환경 변수가 설정되지 않았을 경우를 대비한 체크
     raise ValueError("MONGO_URI environment variable not set! Please set MONGO_URI in .env or your deployment environment.")
 
-# --- 이 줄을 추가해주세요 ---
 mongo_uri = mongo_uri.strip()
+
+# --- 이 줄을 추가해주세요 ---
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s') # 로깅 설정이 없다면 추가
+logging.info(f"DEBUG: MONGO_URI repr in app.py: {repr(mongo_uri)}")
 # ---------------------------
 
 client = MongoClient(mongo_uri)
