@@ -8,7 +8,7 @@ import schedule  # 스케줄러 모듈
 import time  # 스케줄 실행 대기 시간 조절을 위한 모듈
 
 # .env 파일에서 환경 변수 불러오기
-load_dotenv("telegram_config.env") # telegram_config.env 파일 명시
+#load_dotenv("telegram_config.env") # telegram_config.env 파일 명시
 
 # 로깅 설정 (stdout으로 강제하여 모든 출력이 동일하게 처리되도록 설정)
 logging.basicConfig(

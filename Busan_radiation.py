@@ -15,7 +15,7 @@ from telegram_notifier import send_telegram_message
 from datetime import datetime # datetime 모듈 추가 (로그 및 시간 처리용)
 
 # 환경 변수 로드
-load_dotenv("telegram_config.env")
+#load_dotenv("telegram_config.env")
 
 # 로그 설정
 logging.basicConfig(

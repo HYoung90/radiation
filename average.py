@@ -9,7 +9,7 @@ from datetime import datetime, timedelta # timedelta 추가
 import requests # 텔레그램 메시지 전송 함수 내부에서 사용
 
 # 환경 변수 로드 (telegram_config.env 파일을 사용)
-load_dotenv("telegram_config.env")
+#load_dotenv("telegram_config.env")
 
 # 텔레그램 설정
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_AVERAGE_COUNT_TOKEN")

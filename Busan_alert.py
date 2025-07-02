@@ -11,7 +11,7 @@ import atexit # atexit 모듈 추가
 from datetime import datetime, timedelta # datetime, timedelta 모듈 추가
 
 # 환경 변수 로드
-load_dotenv("telegram_config.env") # .env 파일에서 로드
+#load_dotenv("telegram_config.env") # .env 파일에서 로드
 
 # 로그 설정 (파일과 콘솔 모두 출력)
 logging.basicConfig(
