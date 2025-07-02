@@ -168,14 +168,3 @@ def close_mongodb_connection():
 
 atexit.register(close_mongodb_connection)
 
-
-if __name__ == "__main__":
-    logging.info("Busan_alert.py 스크립트 시작")
-    print("Busan_alert.py 스크립트 시작")
-
-    # 스크립트 시작 시 즉시 한 번 실행
-    scheduled_alert_task()
-
-    while True:
-        schedule.run_pending()
-        time.sleep(1)

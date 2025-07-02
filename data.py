@@ -218,14 +218,3 @@ def close_mongodb_connection():
 
 atexit.register(close_mongodb_connection)
 
-
-if __name__ == "__main__":
-    logging.info("data.py 스크립트 시작")
-    print("data.py 스크립트 시작")
-
-    # 스크립트 시작 시 즉시 한 번 실행
-    automated_process()
-
-    while True:
-        schedule.run_pending()
-        time.sleep(1)

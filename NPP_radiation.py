@@ -210,15 +210,3 @@ schedule.every(15).minutes.do(scheduled_task)
 # 매일 자정(0시 0분)에 백업 실행
 schedule.every().day.at("00:00").do(backup_existing_data)
 
-
-if __name__ == "__main__":
-    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    logging.info(f"NPP_radiation.py 스크립트 시작 (현재 시간: {current_time})")
-    print(f"NPP_radiation.py 스크립트 시작 (현재 시간: {current_time})")
-
-    # 스크립트 시작 시 즉시 한 번 실행
-    scheduled_task()
-
-    while True:
-        schedule.run_pending()
-        time.sleep(1)

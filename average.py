@@ -283,13 +283,3 @@ def automate():
 # 스케줄 설정
 schedule.every().day.at("08:00").do(automate) # 매일 오전 8시에 실행
 
-if __name__ == "__main__":
-    logging.info("average.py 스크립트 시작")
-    print("average.py 스크립트 시작")
-
-    # 스크립트 시작 시 즉시 한 번 실행 (테스트 및 초기 데이터 생성용)
-    automate()
-
-    while True:
-        schedule.run_pending()
-        time.sleep(1)
