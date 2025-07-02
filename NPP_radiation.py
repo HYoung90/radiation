@@ -16,9 +16,6 @@ from dotenv import load_dotenv
 from datetime import datetime
 from telegram_notifier import send_telegram_message
 
-# 환경 변수 로드
-load_dotenv("telegram_config.env") # 환경 변수 파일명 명시 (프로젝트 루트에 위치할 경우)
-
 # 로그 설정
 logging.basicConfig(
     filename="nuclear_radiation_data_fetch.log",
