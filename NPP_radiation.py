@@ -12,7 +12,7 @@ import time
 import os
 import sys # sys 모듈 추가 (get_mongo_connection에서 sys.exit 사용)
 import atexit # atexit 모듈 추가 (MongoDB 연결 종료용)
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from datetime import datetime
 from telegram_notifier import send_telegram_message
 

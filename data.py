@@ -1,6 +1,6 @@
 import logging
 from pymongo import MongoClient
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 import os
 import sys  # sys 모듈 추가
 from datetime import datetime, timedelta  # 현재 시간 출력을 위한 모듈 추가, timedelta 추가

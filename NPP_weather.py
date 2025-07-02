@@ -7,7 +7,7 @@ import time
 import atexit
 import sys
 import os
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 from datetime import datetime
 from telegram_notifier import send_telegram_message  # 텔레그램 알림 통합
 

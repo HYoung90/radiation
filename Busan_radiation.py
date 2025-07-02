@@ -10,7 +10,7 @@ import time
 import atexit
 import sys
 import os
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 from telegram_notifier import send_telegram_message
 from datetime import datetime # datetime 모듈 추가 (로그 및 시간 처리용)
 

@@ -5,7 +5,7 @@ import requests
 import schedule
 import time
 import os
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 import sys # sys 모듈 추가
 import atexit # atexit 모듈 추가
 from datetime import datetime, timedelta # datetime, timedelta 모듈 추가

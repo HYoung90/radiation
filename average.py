@@ -3,7 +3,7 @@ import time
 from pymongo import MongoClient, DESCENDING
 import logging
 import os
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 import sys # sys 모듈 추가 (get_mongo_connection에서 sys.exit 사용)
 from datetime import datetime, timedelta # timedelta 추가
 import requests # 텔레그램 메시지 전송 함수 내부에서 사용
