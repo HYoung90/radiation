@@ -1,1 +1,1 @@
-worker: python NPP_weather.py 
+worker: python main.py 
