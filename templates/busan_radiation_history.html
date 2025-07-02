@@ -3,58 +3,176 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>부산 방사선 데이터</title>
+    <title>{{ locNm }} 방사선 데이터</title>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css">
     <style>
+        /* 전체 페이지 스타일 */
         body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
+            font-family: 'Segoe UI', 'Arial', sans-serif; /* 현대적인 폰트 */
+            background-color: #f0f2f5; /* 부드러운 배경색 */
+            margin: 0;
+            padding: 20px; /* body padding 추가 */
+            color: #333;
+            line-height: 1.6;
         }
-        h1 {
-            font-size: 2em;
-            color: #343a40;
-            text-align: center;
-            margin-bottom: 30px;
+
+        /* 컨테이너 스타일 */
+        .container {
+            max-width: 1200px; /* 컨테이너 최대 너비 설정 */
+            margin: 20px auto; /* 중앙 정렬 및 상하 여백 */
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px; /* 모서리 둥글게 */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); /* 그림자 */
         }
-        .btn-back, .btn-refresh {
+
+        /* 헤더/제목 스타일 */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .page-header h1 {
+            font-size: 2.2em; /* 제목 크기 */
+            color: #2c3e50; /* 제목 색상 */
+            margin: 0; /* 기본 마진 제거 */
+            text-align: left; /* 왼쪽 정렬 유지 */
+        }
+
+        /* 버튼 그룹 스타일 */
+        .btn-group-header { /* 헤더 내 버튼 그룹 */
+            margin-bottom: 0; /* 페이지 헤더 내부에 있으므로 마진 제거 */
+            display: flex;
+            justify-content: flex-end; /* 오른쪽 정렬 */
+            gap: 10px; /* 버튼 간격 추가 */
+        }
+
+        /* 공통 버튼 스타일 */
+        .btn {
             display: inline-block;
-            padding: 10px 20px;
-            font-size: 16px;
-            color: white;
-            background-color: #6c757d;
+            padding: 12px 22px; /* 버튼 패딩 조정 */
+            font-size: 0.95em; /* 버튼 폰트 크기 조정 */
             border: none;
-            border-radius: 5px;
+            border-radius: 6px; /* 버튼 모서리 둥글게 */
             cursor: pointer;
             text-decoration: none;
-            margin-bottom: 20px;
-            transition: background-color 0.3s ease;
-        }
-        .btn-back:hover, .btn-refresh:hover {
-            background-color: #5a6268;
-        }
-        table.dataTable {
-            margin-top: 20px;
-            width: 100%;
-        }
-        table.dataTable thead th {
-            background-color: #007bff;
+            margin: 0; /* btn-group에서 간격 처리하므로 개별 마진 제거 */
+            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
             color: white;
-        }
-        table.dataTable tbody td {
-            padding: 10px;
+            min-width: 120px; /* 버튼 최소 너비 */
             text-align: center;
         }
-        #radiationChart {
-            margin-top: 50px;
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        /* 버튼 색상 */
+        .btn-back {
+            background-color: #34495e; /* 어두운 청회색 */
+        }
+        .btn-back:hover {
+            background-color: #2c3e50; /* Hover 시 더 어둡게 */
+        }
+
+        .btn-refresh {
+            background-color: #007bff; /* 파란색 계열 */
+        }
+        .btn-refresh:hover {
+            background-color: #0056b3;
+        }
+
+        /* 테이블 스타일 */
+        #radiationHistoryTable {
+            width: 100% !important; /* DataTables 너비 문제 해결 */
+            border-collapse: collapse;
+            margin-top: 30px;
+            font-size: 1.0em;
+            background-color: #ffffff; /* 테이블 배경색 */
+            border-radius: 8px;
+            overflow: hidden; /* 둥근 모서리 적용을 위해 */
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); /* 테이블 그림자 */
+        }
+
+        #radiationHistoryTable thead th {
+            background-color: #6c757d; /* 헤더 배경색 */
+            color: white;
+            padding: 15px;
+            text-align: center;
+            border-bottom: 2px solid #5a6268;
+            font-weight: 600;
+        }
+
+        #radiationHistoryTable tbody td {
+            padding: 12px 15px;
+            text-align: center;
+            vertical-align: middle;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        #radiationHistoryTable tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        #radiationHistoryTable tbody tr:hover {
+            background-color: #e2f4f8;
+            cursor: pointer;
+        }
+
+        /* DataTables 페이지네이션 스타일 */
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            padding: 8px 15px;
+            margin: 0 4px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+            color: #333 !important;
+            text-decoration: none;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+            background-color: #e9ecef;
+            color: #000 !important;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+            background-color: #007bff !important;
+            color: white !important;
+            border-color: #007bff !important;
+        }
+        .dataTables_wrapper .dataTables_paginate {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        /* 차트 스타일 */
+        .chart-container {
+            position: relative;
+            height: 55vh; /* 뷰포트 높이의 55%로 변경 */
+            width: 100%;
+            margin: 30px auto; /* 위아래 간격 추가 및 중앙 정렬 */
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            box-sizing: border-box; /* 패딩 포함 크기 계산 */
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>{{ locNm }} 방사선 데이터</h1>
-        <div>
-            <a href="javascript:history.back()" class="btn-back">뒤로가기</a>
-            <button class="btn-refresh" id="refreshData">새로고침</button>
+        <div class="page-header">
+            <h1>{{ locNm }} 방사선 데이터</h1>
+            <div class="btn-group-header">
+                <a href="javascript:history.back()" class="btn btn-back">뒤로가기</a>
+                <button class="btn btn-refresh" id="refreshData">새로고침</button>
+            </div>
         </div>
 
         <table id="radiationHistoryTable" class="display">
@@ -66,12 +184,12 @@
                 </tr>
             </thead>
             <tbody>
-                <!-- 서버에서 데이터를 동적으로 채웁니다 -->
-            </tbody>
+                </tbody>
         </table>
 
-        <!-- 차트를 표시할 캔버스 -->
-        <canvas id="radiationChart" width="400" height="200"></canvas>
+        <div class="chart-container">
+            <canvas id="radiationChart"></canvas>
+        </div>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
@@ -82,7 +200,28 @@
             var table = $('#radiationHistoryTable').DataTable({
                 order: [[0, 'desc']], // 시간 기준 내림차순 정렬
                 pageLength: 12,        // 한 페이지에 표시할 항목 수 설정
-                lengthMenu: [ [24, 50, 100, -1], [24, 50, 100, "All"] ] // 페이지 길이 옵션 설정
+                lengthMenu: [ [24, 50, 100, -1], [24, 50, 100, "All"] ], // 페이지 길이 옵션 설정
+                "language": { // DataTables 언어를 한글로 설정
+                    "emptyTable": "데이터가 없습니다.",
+                    "zeroRecords": "검색 결과 없음",
+                    "info": "총 _TOTAL_개 항목 중 _START_에서 _END_ 표시",
+                    "infoEmpty": "표시할 항목 없음",
+                    "infoFiltered": "(_MAX_개 항목 중 필터링됨)",
+                    "loadingRecords": "로딩 중...",
+                    "processing": "처리 중...",
+                    "paginate": {
+                        "first": "처음",
+                        "last": "마지막",
+                        "next": "다음",
+                        "previous": "이전"
+                    },
+                    "aria": {
+                        "sortAscending": ": 오름차순 정렬",
+                        "sortDescending": ": 내림차순 정렬"
+                    },
+                    "search": "검색:",
+                    "lengthMenu": "페이지 당 _MENU_개 보기"
+                }
             });
 
             var radiationChart; // 그래프 변수를 전역에서 사용
@@ -107,12 +246,14 @@
                             data.forEach(function(item) {
                                 labels.push(item.checkTime); // 날짜를 라벨로 사용
                                 radiationValues.push(parseFloat(item.data)); // 방사선 데이터를 그래프에 표시
-                                rainfallValues.push(parseFloat(item.aveRainData)); // 강우량 데이터를 그래프에 표시
+                                // 강수량 데이터가 null 또는 undefined일 경우 0으로 처리 (차트 오류 방지)
+                                rainfallValues.push(item.aveRainData !== undefined && item.aveRainData !== null ? parseFloat(item.aveRainData) : 0);
 
                                 table.row.add([
                                     item.checkTime,
                                     `${parseFloat(item.data).toFixed(2)} nSv/h`,
-                                    `${parseFloat(item.aveRainData).toFixed(2)} mm`
+                                    // 강수량 데이터가 null 또는 undefined일 경우 'N/A'로 표시
+                                    item.aveRainData !== undefined && item.aveRainData !== null ? `${parseFloat(item.aveRainData).toFixed(2)} mm` : 'N/A'
                                 ]).draw(false);
                             });
 
@@ -160,6 +301,7 @@
                     },
                     options: {
                         responsive: true,
+                        maintainAspectRatio: false, // 컨테이너에 맞춰 크기 조절
                         scales: {
                             x: {
                                 title: {
@@ -211,6 +353,16 @@
                                 grid: {
                                     drawOnChartArea: false  // 방사선량과 강우량 축의 그리드가 겹치지 않도록 함
                                 }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
                             }
                         }
                     }

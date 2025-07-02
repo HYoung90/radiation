@@ -6,187 +6,294 @@
     <title>{{ genName }} 바람장미도</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
     <style>
+        /* 전체 페이지 스타일 */
         body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin: 50px;
+            font-family: 'Segoe UI', 'Arial', sans-serif; /* 현대적인 폰트 */
+            background-color: #f0f2f5; /* 부드러운 배경색 */
+            margin: 0;
+            padding: 20px; /* body padding 추가 */
+            color: #333;
+            line-height: 1.6;
         }
-        .chart-container {
-            width: 100%;      /* 너비를 화면 가득으로 확장 */
-            height: 600px;    /* 원하는 높이로 조정 (예: 600px) */
-            margin: auto;
+
+        /* 컨테이너 스타일 */
+        .container {
+            max-width: 1200px; /* 컨테이너 최대 너비 설정 */
+            margin: 20px auto; /* 중앙 정렬 및 상하 여백 */
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px; /* 모서리 둥글게 */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); /* 그림자 */
         }
-        .btn-group {
-            margin-bottom: 20px;
+
+        /* 헤더/제목 스타일 */
+        .page-header {
             display: flex;
-            justify-content: flex-end; /* 버튼을 오른쪽으로 정렬 */
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #ddd;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
         }
+
+        .page-header h1 {
+            font-size: 2.2em; /* 제목 크기 */
+            color: #2c3e50; /* 제목 색상 */
+            margin: 0; /* 기본 마진 제거 */
+            text-align: left; /* 왼쪽 정렬 유지 */
+        }
+
+        /* 버튼 그룹 스타일 */
+        .btn-group-header { /* 헤더 내 버튼 그룹 */
+            margin-bottom: 0; /* 페이지 헤더 내부에 있으므로 마진 제거 */
+            display: flex;
+            justify-content: flex-end; /* 오른쪽 정렬 */
+            gap: 10px; /* 버튼 간격 추가 */
+        }
+
+        /* 공통 버튼 스타일 */
         .btn {
             display: inline-block;
-            margin: 10px 5px;
-            padding: 10px 20px;
-            font-size: 16px;
-            color: white;
-            background-color: #007bff;
+            padding: 12px 22px; /* 버튼 패딩 조정 */
+            font-size: 0.95em; /* 버튼 폰트 크기 조정 */
             border: none;
-            border-radius: 5px;
-            text-decoration: none;
+            border-radius: 6px; /* 버튼 모서리 둥글게 */
             cursor: pointer;
+            text-decoration: none;
+            margin: 0; /* btn-group에서 간격 처리하므로 개별 마진 제거 */
+            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            color: white;
+            min-width: 120px; /* 버튼 최소 너비 */
+            text-align: center;
         }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        /* 버튼 색상 */
         .btn-back {
-            background-color: #6c757d;
+            background-color: #34495e; /* 어두운 청회색 */
         }
         .btn-back:hover {
-            background-color: #5a6268;
+            background-color: #2c3e50; /* Hover 시 더 어둡게 */
         }
-        /* 에러 메시지 스타일 */
-        .error-message {
-            color: red;
-            font-weight: bold;
-            margin-bottom: 20px;
+
+        .btn-refresh {
+            background-color: #007bff; /* 파란색 계열 */
         }
+        .btn-refresh:hover {
+            background-color: #0056b3;
+        }
+
+        /* 차트 컨테이너 스타일 */
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 600px; /* 고정 높이 또는 vh 단위로 조절 */
+            margin: 30px auto; /* 위아래 간격 추가 및 중앙 정렬 */
+            background-color: #ffffff;
+            padding: 20px; /* 차트와 컨테이너 경계 사이 패딩 */
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            box-sizing: border-box; /* 패딩 포함 크기 계산 */
+        }
+
         /* 캔버스가 부모 컨테이너를 꽉 채우도록 설정 */
         #windRoseChart {
             width: 100% !important;
             height: 100% !important;
         }
+
+        /* 에러 메시지 스타일 */
+        .error-message {
+            color: #dc3545; /* 빨간색 오류 메시지 */
+            font-weight: bold;
+            text-align: center;
+            margin-top: 20px;
+            font-size: 1.1em;
+        }
     </style>
 </head>
 <body>
-    <h1 id="plantName">로딩 중...</h1>
-    <div class="btn-group">
-        <a href="/{{ genName }}" class="btn btn-back">뒤로가기</a>
-    </div>
+    <div class="container">
+        <div class="page-header">
+            <h1 id="plantName">로딩 중...</h1>
+            <div class="btn-group-header">
+                <a href="javascript:history.back()" class="btn btn-back">뒤로가기</a>
+                <button class="btn btn-refresh" onclick="location.reload();">새로고침</button>
+            </div>
+        </div>
 
-    {% if error %}
-        <p class="error-message">{{ error }}</p>
-    {% endif %}
+        {% if error %}
+            <p class="error-message">{{ error }}</p>
+        {% endif %}
 
-    <div class="chart-container">
-        <canvas id="windRoseChart"></canvas>
+        <div class="chart-container">
+            <canvas id="windRoseChart"></canvas>
+            <p id="noDataMessage" class="error-message" style="display: none;">데이터를 불러오지 못했습니다. (데이터 없음)</p>
+        </div>
     </div>
 
     <script>
-        const ctx = document.getElementById('windRoseChart').getContext('2d');
-        const windData = {{ wind_data | tojson }}; // 서버에서 전달된 데이터
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('windRoseChart').getContext('2d');
+            const windData = {{ wind_data | tojson }}; // 서버에서 전달된 데이터
 
-        // 발전소 코드와 이름 매핑
-        const plantNames = {
-            "YK": "한빛 원자력발전소",
-            "KR": "고리 원자력발전소",
-            "WS": "월성 원자력발전소",
-            "UJ": "한울 원자력발전소",
-            "SU": "새울 원자력발전소"
-        };
+            // 발전소 코드와 이름 매핑
+            const plantNames = {
+                "YK": "한빛 원자력발전소",
+                "KR": "고리 원자력발전소",
+                "WS": "월성 원자력발전소",
+                "UJ": "한울 원자력발전소",
+                "SU": "새울 원자력발전소"
+            };
 
-        // 발전소 이름 설정
-        const genName = "{{ genName }}";
-        const plantName = plantNames[genName] || '알 수 없는 발전소';
-        document.getElementById('plantName').textContent = plantName + ' 바람장미도';
+            // 발전소 이름 설정
+            const genName = "{{ genName }}";
+            const plantName = plantNames[genName] || '알 수 없는 발전소';
+            document.getElementById('plantName').textContent = plantName + ' 바람장미도';
 
-        // 바람 방향 16방위 순서
-        const windDirections = [
-            'N', 'NNE', 'NE', 'ENE',
-            'E', 'ESE', 'SE', 'SSE',
-            'S', 'SSW', 'SW', 'WSW',
-            'W', 'WNW', 'NW', 'NNW'
-        ];
+            // windData가 비어있는지 확인하고, 비어있으면 차트 대신 메시지 표시
+            const isWindDataEmpty = Object.keys(windData).length === 0 ||
+                                    Object.values(windData).every(dir => Object.keys(dir).length === 0);
 
-        // 풍속 범위와 색상 (높은 풍속부터 낮은 풍속)
-        const windSpeedBins = ["8.0+ m/s", "5.5-7.9 m/s", "3.4-5.4 m/s", "1.5-3.3 m/s", "0.5-1.4 m/s"];
-        const colors = {
-            "8.0+ m/s": 'rgba(153, 102, 255, 0.6)',      // 매우 강한 바람: 보라색
-            "5.5-7.9 m/s": 'rgba(255, 159, 64, 0.6)',   // 강한 바람: 주황색
-            "3.4-5.4 m/s": 'rgba(255, 206, 86, 0.6)',   // 보통 바람: 노란색
-            "1.5-3.3 m/s": 'rgba(75, 192, 192, 0.6)',   // 약한 바람: 청록색
-            "0.5-1.4 m/s": 'rgba(54, 162, 235, 0.6)'    // 매우 약한 바람: 파란색
-        };
-
-        // 레이블은 고정 16방위 순서
-        const labels = windDirections;
-        const datasets = [];
-
-        windSpeedBins.forEach(bin => {
-            const dataValues = labels.map(direction => {
-                if (windData[direction] && windData[direction][bin] !== undefined) {
-                    return windData[direction][bin];
-                } else {
-                    return 0;
-                }
-            });
-            datasets.push({
-                label: bin,
-                data: dataValues,
-                backgroundColor: colors[bin],
-                borderColor: 'rgba(255,255,255,1)',
-                borderWidth: 1,
-                hoverOffset: 0  // 호버 시 확대/축소 방지
-            });
-        });
-
-        // 차트 생성
-        const windRoseChart = new Chart(ctx, {
-            type: 'polarArea',
-            data: {
-                labels: labels,
-                datasets: datasets
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false, // 부모 컨테이너 크기에 맞춰 조정
-                animation: {
-                    animateRotate: true,
-                    animateScale: false
-                },
-                plugins: {
-                    legend: {
-                        position: 'right',
-                        labels: {
-                            usePointStyle: true,
-                            pointStyle: 'circle',
-                            font: {
-                                size: 14
-                            },
-                            boxWidth: 20,
-                            padding: 20
-                        }
-                    },
-                    title: {
-                        display: true,
-                        text: '바람 방향별 풍속 비율 (%)'
-                    },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return `${context.dataset.label}: ${context.raw}%`;
-                            }
-                        }
-                    }
-                },
-                scales: {
-                    r: {
-                        beginAtZero: true,
-                        ticks: {
-                            precision: 0,
-                            callback: function(value) {
-                                return value + '%';
-                            }
-                        },
-                        grid: {
-                            color: '#e5e5e5'
-                        },
-                        angleLines: {
-                            color: '#e5e5e5'
-                        },
-                        pointLabels: {
-                            color: '#333',
-                            font: {
-                                size: 12
-                            }
-                        }
-                    }
-                }
+            if (isWindDataEmpty) {
+                document.getElementById('windRoseChart').style.display = 'none';
+                document.getElementById('noDataMessage').style.display = 'block';
+                return; // 차트 생성 로직을 건너뜜
             }
+
+            // 바람 방향 16방위 순서 (시계방향)
+            const windDirections = [
+                'N', 'NNE', 'NE', 'ENE',
+                'E', 'ESE', 'SE', 'SSE',
+                'S', 'SSW', 'SW', 'WSW',
+                'W', 'WNW', 'NW', 'NNW'
+            ];
+
+            // 풍속 범위와 색상 매핑 (이전 요청의 그라데이션에 맞춤)
+            const windSpeedBins = ["0.5-1.4 m/s", "1.5-3.3 m/s", "3.4-5.4 m/s", "5.5-7.9 m/s", "8.0+ m/s"];
+            const colors = {
+                // 낮은 속도 -> 높은 속도 순으로 파랑 -> 초록 -> 노랑 -> 주황 -> 빨강
+                "0.5-1.4 m/s": 'rgba(0, 100, 200, 0.8)',   // Dark Blue
+                "1.5-3.3 m/s": 'rgba(0, 180, 200, 0.8)',   // Teal / Light Blue
+                "3.4-5.4 m/s": 'rgba(100, 200, 50, 0.8)',  // light Green
+                "5.5-7.9 m/s": 'rgba(255, 200, 0, 0.8)',   // Orange / Yellow
+                "8.0+ m/s": 'rgba(255, 0, 0, 0.8)'         // Red
+            };
+
+            const borderColors = { // 테두리 색상은 불투명하게
+                "0.5-1.4 m/s": 'rgba(0, 100, 200, 1)',
+                "1.5-3.3 m/s": 'rgba(0, 180, 200, 1)',
+                "3.4-5.4 m/s": 'rgba(100, 200, 50, 1)',
+                "5.5-7.9 m/s": 'rgba(255, 200, 0, 1)',
+                "8.0+ m/s": 'rgba(255, 0, 0, 1)'
+            };
+
+
+            const labels = windDirections;
+            const datasets = [];
+
+            // 각 풍속 구간별 데이터셋 생성
+            windSpeedBins.forEach(bin => {
+                const dataValues = labels.map(direction => {
+                    // windData[direction]이 존재하고, 해당 bin의 값이 있으면 사용, 없으면 0
+                    if (windData[direction] && windData[direction][bin] !== undefined) {
+                        return windData[direction][bin];
+                    } else {
+                        return 0;
+                    }
+                });
+                datasets.push({
+                    label: bin,
+                    data: dataValues,
+                    backgroundColor: colors[bin], /* 단일 색상으로 지정 */
+                    borderColor: borderColors[bin], /* 정의된 테두리 색상 사용 */
+                    borderWidth: 1,
+                    hoverOffset: 0
+                });
+            });
+
+            // 차트 생성
+            const windRoseChart = new Chart(ctx, {
+                type: 'polarArea',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        animateRotate: true,
+                        animateScale: true
+                    },
+                    startAngle: -90, // 북쪽(N)이 캔버스 상단을 향하도록 시작 각도 조정 (-90도 = 270도)
+                    plugins: {
+                        legend: {
+                            display: false // 범례를 숨김
+                        },
+                        title: {
+                            display: true,
+                            text: '바람 방향별 풍속 비율 (%)',
+                            font: {
+                                size: 18,
+                                weight: 'bold',
+                                color: '#333'
+                            },
+                            padding: {
+                                top: 10,
+                                bottom: 20
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    // 툴팁 레이블에 방향과 풍속 구간 정보 포함
+                                    const direction = context.label;
+                                    const value = context.raw.toFixed(2);
+                                    return `${direction} - ${context.dataset.label}: ${value}%`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        r: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0,
+                                callback: function(value) {
+                                    return value + '%';
+                                },
+                                color: '#666', // 눈금 텍스트 색상
+                                font: {
+                                    size: 12
+                                },
+                                backdropColor: 'rgba(255, 255, 255, 0.75)', // 눈금 배경색 투명하게
+                                z: 1 // 눈금 텍스트가 다른 요소 위에 오도록 설정
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)', // 그리드 선 색상
+                                lineWidth: 1
+                            },
+                            angleLines: {
+                                color: 'rgba(0, 0, 0, 0.1)', // 각도 선 색상
+                                lineWidth: 1
+                            },
+                            pointLabels: {
+                                color: '#333', // 방향 레이블 색상
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            }
+                        }
+                    }
+                }
+            });
         });
     </script>
 </body>

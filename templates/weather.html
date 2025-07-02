@@ -5,146 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ plant_name }} 기상 정보</title>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.css"> <!-- jQuery UI CSS -->
-    <style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.min.css"> <style>
         /* 전체 페이지 스타일 */
         body {
-            font-family: 'Arial', sans-serif;
-            background-color: #f8f9fa;
+            font-family: 'Segoe UI', 'Arial', sans-serif; /* 현대적인 폰트 */
+            background-color: #f0f2f5; /* 부드러운 배경색 */
             margin: 0;
-            padding: 0;
+            padding: 20px; /* body padding 추가 */
             color: #333;
+            line-height: 1.6;
         }
 
         /* 컨테이너 스타일 */
         .container {
-            margin: 50px auto;
             max-width: 1200px;
-            padding-right: 20px;
-        }
-
-            /* 테이블 스타일 */
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-top: 30px;
-                background-color: #f1f3f5; /* 밝은 회색으로 변경 */
-            }
-
-            table, th, td {
-                border: 1px solid #dee2e6; /* 경계선 색상 */
-                text-align: center;
-            }
-
-            th {
-                background-color: #495057; /* 어두운 회색 */
-                color: white;
-                padding: 12px;
-            }
-
-            td {
-                padding: 12px;
-                color: #555;
-            }
-
-            tr:nth-child(even) {
-                background-color: #e9ecef; /* 밝은 회색 */
-            }
-
-            tr:hover {
-                background-color: #dee2e6; /* 마우스 호버 시 밝은 회색으로 */
-            }
-
-        /* 버튼 그룹 스타일 */
-        .btn-group {
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: flex-start;
-            gap: 10px; /* 버튼 간격 추가 */
-        }
-
-        .btn {
-            padding: 12px 25px; /* 동일한 padding 적용 */
-            font-size: 18px; /* 동일한 font-size 적용 */
-            color: white;
-            border: none;
-            border-radius: 5px;
-            text-decoration: none;
-            cursor: pointer;
-            transition: background-color 0.3s, transform 0.2s ease-in-out;
-            min-width: 150px; /* 버튼 크기 일관성 위해 min-width 설정 */
-            text-align: center; /* 텍스트 중앙 정렬 */
-        }
-
-            /* 버튼 색상 (어두운 회색 계열로 변경) */
-            .btn-back {
-                background-color: #343a40; /* 어두운 회색 */
-            }
-
-            .btn-back:hover {
-                background-color: #495057; /* Hover 시 색상 조금 더 밝게 */
-            }
-
-            .btn-refresh {
-                background-color: #343a40; /* 어두운 회색 계열 */
-            }
-
-            .btn-refresh:hover {
-                background-color: #495057; /* Hover 시 어두운 회색으로 */
-            }
-
-            .btn-csv {
-                background-color: #343a40; /* 어두운 회색 계열 */
-            }
-
-            .btn-csv:hover {
-                background-color: #495057; /* Hover 시 어두운 회색으로 */
-            }
-
-            .btn-windrose {
-                background-color: #343a40; /* 어두운 회색 계열 */
-            }
-
-            .btn-windrose:hover {
-                background-color: #495057; /* Hover 시 어두운 회색으로 */
-            }
-
-
-        .btn-apply {
-            background-color: #007bff;
-            color: white;
-        }
-
-        .btn-apply:hover {
-            background-color: #0056b3;
-            transform: scale(1.05);
-        }
-
-        /* 날짜 필터 스타일 */
-        .date-filter {
-            margin-top: 20px;
-            text-align: right;
-        }
-
-        .date-filter label {
-            font-size: 14px;
-            margin-right: 10px;
-        }
-
-        .date-filter input {
-            padding: 8px;
-            font-size: 14px;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-            margin-right: 10px;
-        }
-
-        /* 차트 스타일 */
-        .chart-container {
-            position: relative;
-            height: 40vh;
-            width: 80vw;
-            margin: 20px auto;
+            margin: 20px auto; /* 중앙 정렬 */
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px; /* 모서리 둥글게 */
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); /* 그림자 */
         }
 
         /* 헤더 스타일 */
@@ -158,33 +37,213 @@
         }
 
         .page-header h1 {
-            font-size: 36px;
-            color: #343a40;
+            font-size: 2.2em; /* 제목 크기 */
+            color: #2c3e50; /* 제목 색상 */
+            margin: 0; /* 기본 마진 제거 */
+            text-align: left; /* 왼쪽 정렬 유지 */
         }
+
+        /* 버튼 그룹 스타일 */
+        .btn-group {
+            margin-bottom: 0; /* 페이지 헤더 내부에 있으므로 마진 제거 */
+            display: flex;
+            justify-content: flex-end; /* 오른쪽 정렬 */
+            gap: 10px; /* 버튼 간격 추가 */
+        }
+
+        /* 공통 버튼 스타일 */
+        .btn {
+            display: inline-block;
+            padding: 12px 22px; /* 버튼 패딩 조정 */
+            font-size: 0.95em; /* 버튼 폰트 크기 조정 */
+            border: none;
+            border-radius: 6px; /* 버튼 모서리 둥글게 */
+            cursor: pointer;
+            text-decoration: none;
+            margin: 0; /* btn-group에서 간격 처리하므로 개별 마진 제거 */
+            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            color: white;
+            min-width: 120px; /* 버튼 최소 너비 */
+            text-align: center;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        /* 버튼 색상 (어두운 회색 계열 유지) */
+        .btn-back,
+        .btn-csv,
+        .btn-windrose {
+            background-color: #34495e; /* 어두운 청회색 */
+        }
+
+        .btn-back:hover,
+        .btn-csv:hover,
+        .btn-windrose:hover {
+            background-color: #2c3e50; /* Hover 시 더 어둡게 */
+        }
+
+        .btn-refresh {
+            background-color: #34495e; /* 파란색 계열 */
+        }
+        .btn-refresh:hover {
+            background-color: #0056b3;
+        }
+
+        /* 날짜 필터 영역 스타일 - 이전 파일의 스타일 적용 */
+        .date-filter-section { /* 기존 .date-filter를 이 클래스로 변경 */
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f7f9fa; /* 필터 섹션 배경색 */
+            border-radius: 8px;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.04);
+        }
+
+        .date-filter-section label {
+            font-weight: bold;
+            color: #495057;
+            white-space: nowrap;
+        }
+
+        .date-filter-section input[type="text"] {
+            padding: 10px 15px;
+            font-size: 1em;
+            border-radius: 5px;
+            border: 1px solid #ced4da;
+            width: 160px;
+            box-sizing: border-box;
+        }
+        .date-filter-section input[type="text"]:focus {
+            border-color: #80bdff;
+            outline: 0;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+
+        /* Datepicker 달력 아이콘 버튼 스타일 */
+        .ui-datepicker-trigger {
+            margin-left: 5px;
+            vertical-align: middle;
+            cursor: pointer;
+            border: none;
+            background: none;
+            padding: 0;
+        }
+        .ui-datepicker-trigger img {
+            width: 24px;
+            height: 24px;
+            opacity: 0.7; /* 아이콘 투명도 */
+            transition: opacity 0.2s ease;
+        }
+        .ui-datepicker-trigger:hover img {
+            opacity: 1; /* 호버 시 불투명하게 */
+        }
+
+        /* 날짜 필터 적용 및 초기화 버튼 스타일 - 새로고침 버튼 색상과 동일하게 */
+        .btn-filter-apply,
+        .btn-filter-clear {
+            background-color: #34495e; /* 새로고침 버튼과 동일한 파란색 */
+            color: white; /* 텍스트 색상 흰색으로 유지 */
+        }
+        .btn-filter-apply:hover,
+        .btn-filter-clear:hover {
+            background-color: #0056b3; /* 새로고침 버튼과 동일한 hover 색상 */
+        }
+
 
         /* DataTable 스타일 */
-        #weatherTable_wrapper {
+        #weatherTable {
+            width: 100% !important;
+            border-collapse: collapse;
             margin-top: 30px;
+            font-size: 1.0em;
+            background-color: #ffffff; /* 테이블 배경색 */
+            border-radius: 8px;
+            overflow: hidden; /* 둥근 모서리 적용을 위해 */
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); /* 테이블 그림자 */
         }
 
-        .dataTables_wrapper .dataTables_filter {
-            display: none;
+        #weatherTable thead th {
+            background-color: #6c757d; /* 헤더 배경색 */
+            color: white;
+            padding: 15px;
+            text-align: center;
+            border-bottom: 2px solid #5a6268;
+            font-weight: 600;
         }
 
+        #weatherTable tbody td {
+            padding: 12px 15px;
+            text-align: center;
+            vertical-align: middle;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        #weatherTable tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        #weatherTable tbody tr:hover {
+            background-color: #e2f4f8;
+            cursor: pointer;
+        }
+
+        /* DataTable 정보 텍스트, 검색 필드, 길이 선택 숨기기 (페이지네이션은 유지) */
+        .dataTables_wrapper .dataTables_info,
+        .dataTables_wrapper .dataTables_filter,
         .dataTables_wrapper .dataTables_length {
             display: none;
         }
 
-        .dataTables_wrapper .dataTables_info {
-            font-size: 14px;
+        /* DataTables 페이지네이션 스타일 */
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            padding: 8px 15px;
+            margin: 0 4px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+            color: #333 !important;
+            text-decoration: none;
+            transition: background-color 0.2s ease, color 0.2s ease;
         }
+        .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+            background-color: #e9ecef;
+            color: #000 !important;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+            background-color: #007bff !important;
+            color: white !important;
+            border-color: #007bff !important;
+        }
+        .dataTables_wrapper .dataTables_paginate {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        /* 차트 스타일 (이 섹션은 제거됩니다) */
+        /*
+        .chart-container {
+            position: relative;
+            height: 40vh;
+            width: 100%;
+            margin: 20px auto;
+        }
+        */
     </style>
 </head>
 <body>
     <div class="container">
         <div class="page-header">
             <h1>{{ plant_name }} 기상 정보</h1>
-            <div class="btn-group" style="margin-left: auto;">
+            <div class="btn-group">
                 <a href="/" class="btn btn-back">처음으로</a>
                 <button class="btn btn-refresh" onclick="location.reload();">새로고침</button>
                 <button class="btn btn-csv" onclick="downloadCSV()">CSV로 다운</button>
@@ -192,25 +251,20 @@
             </div>
         </div>
 
-        <!-- 날짜 필터 -->
-        <div class="date-filter">
-            <label for="start-date">시작 날짜:</label>
-            <input type="text" id="start-date" name="start-date" placeholder="YYYY-MM-DD">
-            <label for="end-date">종료 날짜:</label>
-            <input type="text" id="end-date" name="end-date" placeholder="YYYY-MM-DD">
-            <button class="btn btn-apply" onclick="applyDateFilter()">적용</button>
-        </div>
+        <div class="date-filter-section"> <label for="start-date">시작일: </label>
+            <input type="text" id="start-date" name="start-date" readonly> <label for="end-date">종료일: </label>
+            <input type="text" id="end-date" name="end-date" readonly> <button class="btn btn-filter-apply" onclick="applyDateFilter()">적용</button> <button class="btn btn-filter-clear" onclick="clearDateFilter()">초기화</button> </div>
 
         <table id="weatherTable" class="display">
             <thead>
                 <tr>
-                    <th>Time</th>
-                    <th>Temperature (°C)</th>
-                    <th>Humidity (%)</th>
-                    <th>Rainfall (mm)</th>
-                    <th>Windspeed (m/s)</th>
-                    <th>Winddirection (°)</th>
-                    <th>Air Stability</th>
+                    <th>시간</th>
+                    <th>온도 (°C)</th>
+                    <th>습도 (%)</th>
+                    <th>강수량 (mm)</th>
+                    <th>풍속 (m/s)</th>
+                    <th>풍향 (°)</th>
+                    <th>대기 안정도</th>
                 </tr>
             </thead>
             <tbody>
@@ -234,19 +288,15 @@
             </tbody>
         </table>
 
-        <!-- 차트를 표시할 캔버스 -->
-        <div class="chart-container">
-            <canvas id="weatherChart"></canvas>
         </div>
-    </div>
 
     <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
     <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
     <script>
         $(document).ready(function() {
+            // var weatherChartInstance; // 차트 인스턴스를 저장할 변수 (제거)
+
             $('#weatherTable').DataTable({
                 "paging": true,
                 "lengthChange": false,
@@ -255,109 +305,159 @@
                 "info": true,
                 "autoWidth": false,
                 "order": [[0, 'desc']],
-                "pageLength": 20
-            });
-
-            // Datepicker 초기화
-            $('#start-date').datepicker({
-                dateFormat: "yy-mm-dd",
-            });
-
-            $('#end-date').datepicker({
-                dateFormat: "yy-mm-dd",
-            });
-
-            // 차트 업데이트 함수
-            function updateChart(labels, data) {
-                const ctx = document.getElementById('weatherChart').getContext('2d');
-                const weatherChart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: labels,
-                        datasets: [{
-                            label: '온도 (°C)',
-                            data: data,
-                            borderColor: 'rgba(75, 192, 192, 1)',
-                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                            fill: true,
-                        }]
+                "pageLength": 20,
+                "language": { // DataTables 언어를 한글로 설정
+                    "emptyTable": "데이터가 없습니다.",
+                    "zeroRecords": "검색 결과 없음",
+                    "loadingRecords": "로딩 중...",
+                    "processing": "처리 중...",
+                    "paginate": {
+                        "first": "처음",
+                        "last": "마지막",
+                        "next": "다음",
+                        "previous": "이전"
                     },
-                    options: {
-                        responsive: true,
-                        scales: {
-                            x: {
-                                title: {
-                                    display: true,
-                                    text: '시간'
-                                }
-                            },
-                            y: {
-                                beginAtZero: true,
-                                title: {
-                                    display: true,
-                                    text: '온도 (°C)'
-                                }
-                            }
-                        }
+                    "aria": {
+                        "sortAscending": ": 오름차순 정렬",
+                        "sortDescending": ": 내림차순 정렬"
                     }
-                });
-            }
+                },
+                "columns": [ // DataTables 컬럼 정의를 추가하여 한글 제목과 데이터 매핑
+                    { "data": "time", "title": "시간" },
+                    { "data": "temperature", "title": "온도 (°C)" },
+                    { "data": "humidity", "title": "습도 (%)" },
+                    { "data": "rainfall", "title": "누적 일일강수량 (mm)" },
+                    { "data": "windspeed", "title": "풍속 (m/s)" },
+                    { "data": "winddirection", "title": "풍향 (°)" },
+                    { "data": "stability", "title": "대기 안정도" }
+                ]
+            });
+
+            // Datepicker 초기화 및 아이콘 추가
+            $("#start-date").datepicker({
+                dateFormat: 'yy-mm-dd',
+                showOn: 'button',
+                buttonText: "<img src='https://jqueryui.com/resources/demos/images/calendar.gif' alt='달력 아이콘'>", /* 달력 아이콘 추가 */
+                changeMonth: true,
+                changeYear: true,
+                onSelect: function(selectedDate) {
+                    $("#end-date").datepicker("option", "minDate", selectedDate);
+                }
+            });
+
+            $("#end-date").datepicker({
+                dateFormat: 'yy-mm-dd',
+                showOn: 'button',
+                buttonText: "<img src='https://jqueryui.com/resources/demos/images/calendar.gif' alt='달력 아이콘'>", /* 달력 아이콘 추가 */
+                changeMonth: true,
+                changeYear: true,
+                onSelect: function(selectedDate) {
+                    $("#start-date").datepicker("option", "maxDate", selectedDate);
+                }
+            });
 
             // 필터 적용 함수
             window.applyDateFilter = function() {
                 const region = "{{ region }}";
-                const startDate = document.getElementById('start-date').value;
-                const endDate = document.getElementById('end-date').value;
+                const startDate = $('#start-date').val();
+                const endDate = $('#end-date').val();
 
                 if (!startDate || !endDate) {
                     alert('시작 날짜와 종료 날짜를 모두 선택해주세요.');
                     return;
                 }
 
-                // AJAX 요청 보내기
                 fetch(`/api/data/${region}/filtered?start=${startDate}&end=${endDate}`)
                     .then(response => {
                         if (!response.ok) {
+                            if (response.status === 404) {
+                                return response.json().then(err => { throw new Error(err.error); });
+                            }
                             throw new Error(`HTTP error! status: ${response.status}`);
                         }
                         return response.json();
                     })
                     .then(data => {
-                        // DataTable 인스턴스 가져오기
                         const table = $('#weatherTable').DataTable();
-
-                        // 기존 데이터 지우기
-                        table.clear();
-
-                        // 새로운 데이터 추가
-                        const labels = [];
-                        const temperatureData = [];
+                        table.clear(); // 기존 데이터 지우기
 
                         data.forEach(entry => {
-                            table.row.add([
-                                entry.time,
-                                entry.temperature,
-                                entry.humidity,
-                                entry.rainfall,
-                                entry.windspeed,
-                                entry.winddirection,
-                                entry.stability
-                            ]).draw(false);
-
-                            // 차트 데이터 추가
-                            labels.push(entry.time);
-                            temperatureData.push(entry.temperature);
+                            table.row.add(entry); // DataTables의 columns 정의를 사용하여 객체 자체를 추가
                         });
 
-                        // 차트 업데이트
-                        updateChart(labels, temperatureData);
+                        table.draw(false); // 새 데이터를 추가한 후 테이블 다시 그리기
                     })
                     .catch(error => {
                         console.error('Error applying date filter:', error);
-                        alert('데이터를 불러오는 데 실패했습니다. 다시 시도해주세요.');
+                        alert(`데이터를 불러오는 데 실패했습니다: ${error.message || '알 수 없는 오류'}`);
+                        // 데이터가 없는 경우 테이블 초기화
+                        $('#weatherTable').DataTable().clear().draw();
                     });
             }
+
+            // 초기화 버튼 함수 (추가됨)
+            window.clearDateFilter = function() {
+                $('#start-date').val('');
+                $('#end-date').val('');
+                // 필터 초기화 후 모든 데이터 다시 불러오기
+                loadAllWeatherData();
+            };
+
+            // 초기 로드 시 모든 데이터를 불러오는 함수 (날짜 필터 없음)
+            function loadAllWeatherData() {
+                const region = "{{ region }}";
+                fetch(`/api/data/${region}/filtered`) // 필터링 파라미터 없이 호출하면 모든 데이터 로드 (서버 API 로직에 따름)
+                    .then(response => {
+                        if (!response.ok) {
+                            if (response.status === 404) {
+                                return response.json().then(err => { throw new Error(err.error); });
+                            }
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        const table = $('#weatherTable').DataTable();
+                        table.clear();
+
+                        data.forEach(entry => {
+                            table.row.add(entry); // DataTables의 columns 정의를 사용하여 객체 자체를 추가
+                        });
+                        table.draw(false);
+                    })
+                    .catch(error => {
+                        console.error('Error loading all weather data:', error);
+                        alert(`전체 데이터를 불러오는 데 실패했습니다: ${error.message || '알 수 없는 오류'}`);
+                        $('#weatherTable').DataTable().clear().draw();
+                    });
+            }
+
+            // 페이지 로드 시 전체 데이터 로드
+            loadAllWeatherData();
         });
+
+        // CSV 다운로드 함수 (기존 코드 유지)
+        function downloadCSV() {
+            var table = $('#weatherTable').DataTable();
+            var data = table.rows().data().toArray();
+            var csv = "시간,온도 (°C),습도 (%),강수량 (mm),풍속 (m/s),풍향 (°),대기 안정도\n"; // 한글 헤더로 변경
+            data.forEach(function(row) {
+                // row가 DataTables의 columns 정의에 따라 객체 형태로 반환되므로, 필드 이름을 사용하여 값에 접근합니다.
+                csv += `${row.time},${row.temperature},${row.humidity},${row.rainfall},${row.windspeed},${row.winddirection},${row.stability}\n`;
+            });
+
+            var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            var link = document.createElement("a");
+            if (link.download !== undefined) {
+                var url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", "{{ plant_name }}_기상_데이터.csv"); // 한글 파일명 변경
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
     </script>
 </body>
 </html>
