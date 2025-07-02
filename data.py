@@ -7,9 +7,6 @@ from datetime import datetime, timedelta
 import schedule
 import time
 
-# .env 파일에서 환경 변수 불러오기 - 이 부분은 이제 사용되지 않으므로 제거합니다.
-# load_dotenv("telegram_config.env")
-
 # 로깅 설정 (stdout으로 강제하여 모든 출력이 동일하게 처리되도록 설정)
 logging.basicConfig(
     level=logging.INFO,
@@ -120,7 +117,7 @@ def process_radiation_data():
 
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         logging.info(f"방사선 데이터 처리 및 radiation_stats 컬렉션 저장 완료. (현재 시간: {current_time})")
-        print(f"방사선 데이터 처리 및 radiation_stats 컬렉션 저장 완료. (현재 시간: {current_time})")
+        print(f"방사선 데이터 처리 및 radiation_stats 컬lection 저장 완료. (현재 시간: {current_time})")
 
     except Exception as e:
         logging.error(f"process_radiation_data 함수 실행 중 오류 발생: {e}", exc_info=True)

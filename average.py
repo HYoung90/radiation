@@ -6,14 +6,7 @@ import os
 # from dotenv import load_dotenv # 이 라인을 제거합니다.
 import sys
 from datetime import datetime, timedelta
-# import requests # 텔레그램 메시지 전송 함수 내부에서 사용되었으나, 불필요하므로 제거합니다.
-
-# 환경 변수 로드 - 이 부분은 이제 사용되지 않으므로 제거합니다.
-# load_dotenv("telegram_config.env")
-
-# 텔레그램 설정 - 이 부분은 이제 사용되지 않으므로 제거합니다.
-# TELEGRAM_TOKEN = os.getenv("TELEGRAM_AVERAGE_COUNT_TOKEN")
-# TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+import requests # 텔레그램 메시지 전송 함수 내부에서 사용 (복원)
 
 # 로깅 설정 (파일과 콘솔 모두 출력)
 logging.basicConfig(
@@ -25,6 +18,10 @@ logging.basicConfig(
     ]
 )
 
+# 텔레그램 설정 - Railway 환경 변수를 직접 사용합니다.
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_AVERAGE_COUNT_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+
 # 발전소 코드에 대한 한글 이름 매핑
 plant_names = {
     "WS": "월성발전소 (경북 경주)",
@@ -34,24 +31,28 @@ plant_names = {
     "SU": "새울발전소 (울산 울주)"
 }
 
-# 텔레그램 메시지 전송 함수 - 이 함수를 완전히 제거합니다.
-# def send_telegram_message(token, chat_id, message):
-#     url = f"https://api.telegram.org/bot{token}/sendMessage"
-#     payload = {
-#         "chat_id": chat_id,
-#         "text": message,
-#         "parse_mode": "Markdown"
-#     }
-#     try:
-#         response = requests.post(url, json=payload, timeout=10)
-#         response.raise_for_status()
-#         logging.info("텔레그램 메시지 전송 성공.")
-#     except requests.exceptions.Timeout:
-#         logging.error("텔레그램 메시지 전송 시간 초과.")
-#     except requests.exceptions.RequestException as e:
-#         logging.error(f"텔레그램 메시지 전송 중 오류 발생: {e}")
-#     except Exception as e:
-#         logging.error(f"예상치 못한 텔레그램 메시지 전송 오류: {e}")
+# 텔레그램 메시지 전송 함수 (복원)
+def send_telegram_message(token, chat_id, message):
+    if not token or not chat_id:
+        logging.warning("텔레그램 토큰 또는 채팅 ID가 설정되지 않아 메시지를 보낼 수 없습니다.")
+        return
+
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": message,
+        "parse_mode": "Markdown"
+    }
+    try:
+        response = requests.post(url, json=payload, timeout=10)
+        response.raise_for_status()
+        logging.info("텔레그램 메시지 전송 성공.")
+    except requests.exceptions.Timeout:
+        logging.error("텔레그램 메시지 전송 시간 초과.")
+    except requests.exceptions.RequestException as e:
+        logging.error(f"텔레그램 메시지 전송 중 오류 발생: {e}")
+    except Exception as e:
+        logging.error(f"예상치 못한 텔레그램 메시지 전송 오류: {e}")
 
 
 # MongoDB 연결 함수
@@ -68,11 +69,8 @@ def get_mongo_connection():
         return client
     except Exception as e:
         logging.error(f"MongoDB 연결 실패: {e}")
-        # 텔레그램 메시지 전송 호출 제거
-        # try:
-        #     send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, f"MongoDB 연결 실패: {e}")
-        # except NameError:
-        #     logging.error("send_telegram_message 함수가 정의되지 않아 텔레그램 알림 전송 실패.")
+        if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+            send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, f"🚨 *MongoDB 연결 실패:* 🚨\n{e}")
         sys.exit(1)
 
 client = get_mongo_connection()
@@ -147,26 +145,23 @@ def calculate_and_report_daily_averages():
             for entry in avg_data_list:
                 plant_name = entry.get('plant_name', '알 수 없음')
                 avg_radiation = entry.get('avg_radiation', 0)
-                # 이전에 비 온 날/비 안 온 날 정보가 없으므로 해당 필드는 제거
-                # rain_days = entry.get('rain_days', 0)
-                # no_rain_days = entry.get('no_rain_days', 0)
-                # rain_avg = entry.get('rain_avg', 0)
-                # no_rain_avg = entry.get('no_rain_avg', 0)
-                # percentage_increase = entry.get('percentage_increase', '-')
                 message += (
                     f"**발전소: {plant_name}**\n"
                     f"어제 평균 방사선량: `{avg_radiation:.4f}`\n\n" # 단위는 필요에 따라 추가
                 )
-            # send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, message) # 텔레그램 메시지 전송 호출 제거
-            logging.info("일일 방사선량 평균 리포트 텔레그램 전송 완료. (실제 전송은 비활성화)")
+            if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+                send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, message)
+            logging.info("일일 방사선량 평균 리포트 텔레그램 전송 완료.")
         else:
             logging.info("일일 방사선량 평균 리포트를 생성할 데이터가 없습니다.")
-            # send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, "⚠️ *경고:* 일일 방사선량 평균 리포트를 생성할 데이터가 없습니다.") # 텔레그램 메시지 전송 호출 제거
+            if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+                send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, "⚠️ *경고:* 일일 방사선량 평균 리포트를 생성할 데이터가 없습니다.")
 
     except Exception as e:
         logging.error(f"일일 방사선량 평균 계산 및 리포트 생성 중 오류 발생: {e}", exc_info=True)
         print(f"일일 방사선량 평균 계산 및 리포트 생성 중 오류 발생: {e}")
-        # send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, f"🚨 *일일 방사선량 평균 리포트 스크립트 오류:* 🚨\\n{str(e)}") # 텔레그램 메시지 전송 호출 제거
+        if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+            send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, f"🚨 *일일 방사선량 평균 리포트 스크립트 오류:* 🚨\n{str(e)}")
 
 
 def automate():

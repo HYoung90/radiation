@@ -1,6 +1,6 @@
 # NPP_radiation.py
 # 이 스크립트는 원자력 발전소의 방사선 데이터를 공공 API에서 가져와 MongoDB에 저장합니다.
-# 데이터 백업을 처리합니다. 오류 발생 시 텔레그램 알림 기능은 제거되었습니다.
+# 데이터 백업을 처리합니다. 오류 발생 시 텔레그램 알림을 전송합니다.
 
 import requests
 import xml.etree.ElementTree as ET
@@ -13,8 +13,7 @@ import sys
 import atexit
 # from dotenv import load_dotenv # 이 라인을 제거합니다.
 from datetime import datetime
-
-# from telegram_notifier import send_telegram_message # 이 라인을 제거합니다.
+from telegram_notifier import send_telegram_message # 텔레그램 알림 기능 복원
 
 # 로그 설정
 logging.basicConfig(
@@ -23,9 +22,9 @@ logging.basicConfig(
     format='%(asctime)s %(levelname)s:%(message)s'
 )
 
-# 텔레그램 설정 - 이 부분은 이제 사용되지 않으므로 제거합니다.
-# TELEGRAM_NPP_MONITORING_TOKEN = os.getenv("TELEGRAM_NPP_MONITORING_TOKEN")
-# TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+# 텔레그램 설정 - Railway 환경 변수를 직접 사용합니다.
+TELEGRAM_NPP_MONITORING_TOKEN = os.getenv("TELEGRAM_NPP_MONITORING_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 # 공공 API URL과 서비스 키
 base_url = "http://data.khnp.co.kr/environ/service/realtime/radiorate"
@@ -61,12 +60,10 @@ def get_mongo_connection():
         return client
     except Exception as e:
         logging.error(f"MongoDB 연결 실패: {e}")
-        # 텔레그램 메시지 전송 부분 제거
-        # try:
-        #     send_telegram_message(TELEGRAM_NPP_MONITORING_TOKEN, TELEGRAM_CHAT_ID, f"MongoDB 연결 실패: {e}")
-        # except NameError:
-        #     logging.error("send_telegram_message 함수가 정의되지 않아 텔레그램 알림 전송 실패.")
-        sys.exit(1)  # 연결 실패 시 스크립트 종료
+        # 텔레그램 메시지 전송 (오류 발생 시)
+        if TELEGRAM_NPP_MONITORING_TOKEN and TELEGRAM_CHAT_ID:
+            send_telegram_message(TELEGRAM_NPP_MONITORING_TOKEN, TELEGRAM_CHAT_ID, f"🚨 *MongoDB 연결 실패:* 🚨\n{e}")
+        sys.exit(1) # 연결 실패 시 스크립트 종료
 
 
 # MongoDB 연결
@@ -98,7 +95,7 @@ def backup_existing_data():
         logging.info(f"{current_date} 날짜의 방사선 백업이 이미 존재합니다. 추가 백업을 건너뜁니다.")
 
 
-# 데이터 수집 및 저장 함수
+# 데이터 수집 및 저장 함수 (복원)
 def fetch_and_store_radiation_data():
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     logging.info(f"방사선 데이터 수집 시작 (현재 시간: {current_time})")
@@ -127,8 +124,7 @@ def fetch_and_store_radiation_data():
                         'facilDiv': item.find('facilDiv').text,
                         'locNm': item.find('locNm').text,
                         'tm': item.find('tm').text,
-                        'curVal': float(item.find('curVal').text) if item.find('curVal') is not None and item.find(
-                            'curVal').text else None,
+                        'curVal': float(item.find('curVal').text) if item.find('curVal') is not None and item.find('curVal').text else None,
                         'data_fetch_time': datetime.now()
                     }
                     latest_data = data_row
@@ -140,36 +136,36 @@ def fetch_and_store_radiation_data():
                     logging.info(f"[{genName}] 방사선 데이터 저장 성공: {latest_data['tm']} - {latest_data['curVal']} μSv/h")
                 else:
                     logging.warning(f"[{genName}] API 응답에서 유효한 데이터를 찾을 수 없습니다.")
-                    # 텔레그램 메시지 전송 호출 제거
-                    # error_message = f"[{genName}] API 응답 오류: 유효한 방사선 데이터 없음\\n응답: {response.text[:100]}..."
-                    # send_telegram_message(TELEGRAM_NPP_MONITORING_TOKEN, TELEGRAM_CHAT_ID, error_message)
+                    if TELEGRAM_NPP_MONITORING_TOKEN and TELEGRAM_CHAT_ID:
+                        error_message = f"🚨 *[{genName}] API 응답 오류:* 🚨\n유효한 방사선 데이터 없음\n응답: {response.text[:100]}..."
+                        send_telegram_message(TELEGRAM_NPP_MONITORING_TOKEN, TELEGRAM_CHAT_ID, error_message)
 
         except requests.exceptions.Timeout as e:
             logging.error(f"{genName} 발전소 API 요청 시간 초과: {e}")
-            # 텔레그램 메시지 전송 호출 제거
-            # error_message = f"{genName} 발전소 API 요청 시간 초과:\\n{str(e)}"
-            # send_telegram_message(TELEGRAM_NPP_MONITORING_TOKEN, TELEGRAM_CHAT_ID, error_message)
+            if TELEGRAM_NPP_MONITORING_TOKEN and TELEGRAM_CHAT_ID:
+                error_message = f"🚨 *[{genName}] API 요청 시간 초과:* 🚨\n{str(e)}"
+                send_telegram_message(TELEGRAM_NPP_MONITORING_TOKEN, TELEGRAM_CHAT_ID, error_message)
             continue
         except requests.exceptions.RequestException as e:
             logging.error(f"{genName} 발전소 API 요청 오류: {e}")
-            # 텔레그램 메시지 전송 호출 제거
-            # error_message = f"{genName} 발전소 API 요청 오류:\\n{str(e)}"
-            # send_telegram_message(TELEGRAM_NPP_MONITORING_TOKEN, TELEGRAM_CHAT_ID, error_message)
+            if TELEGRAM_NPP_MONITORING_TOKEN and TELEGRAM_CHAT_ID:
+                error_message = f"🚨 *[{genName}] API 요청 오류:* 🚨\n{str(e)}"
+                send_telegram_message(TELEGRAM_NPP_MONITORING_TOKEN, TELEGRAM_CHAT_ID, error_message)
             continue
         except ET.ParseError as e:
 
             logging.error(f"{genName} 발전소 XML 파싱 오류: {e}")
-            # 텔레그램 메시지 전송 호출 제거
-            # error_message = f"{genName} 발전소 XML 파싱 오류:\\n{str(e)}"
-            # send_telegram_message(TELEGRAM_NPP_MONITORING_TOKEN, TELEGRAM_CHAT_ID, error_message)
+            if TELEGRAM_NPP_MONITORING_TOKEN and TELEGRAM_CHAT_ID:
+                error_message = f"🚨 *[{genName}] XML 파싱 오류:* 🚨\n{str(e)}"
+                send_telegram_message(TELEGRAM_NPP_MONITORING_TOKEN, TELEGRAM_CHAT_ID, error_message)
             continue
         except Exception as e:
             logging.error(f"{genName} 발전소 데이터 처리 중 오류 발생: {e}")
             print(f"{genName} 발전소 데이터 처리 중 오류 발생: {e}")
-            # 텔레그램 메시지 전송 호출 제거
-            # error_message = f"{genName} 발전소 데이터 처리 중 오류 발생:\\n{str(e)}"
-            # send_telegram_message(
-            #     TELEGRAM_NPP_MONITORING_TOKEN, TELEGRAM_CHAT_ID, error_message)
+            if TELEGRAM_NPP_MONITORING_TOKEN and TELEGRAM_CHAT_ID:
+                error_message = f"🚨 *[{genName}] 데이터 처리 중 오류 발생:* 🚨\n{str(e)}"
+                send_telegram_message(
+                    TELEGRAM_NPP_MONITORING_TOKEN, TELEGRAM_CHAT_ID, error_message)
             continue
 
     logging.info(f"방사선 데이터 수집 작업 완료 (현재 시간: {current_time})")
@@ -183,13 +179,11 @@ def scheduled_task():
     backup_existing_data()
     fetch_and_store_radiation_data()
 
-
 # 스크립트 종료 시 MongoDB 연결 닫기
 def close_mongodb_connection():
     if client:
         client.close()
         logging.info("MongoDB 연결이 닫혔습니다.")
-
 
 atexit.register(close_mongodb_connection)
 

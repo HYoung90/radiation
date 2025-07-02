@@ -1,6 +1,6 @@
 # busan_radiation.py
 # 이 스크립트는 부산의 환경 방사선 데이터를 공공 API에서 가져와 MongoDB에 저장합니다.
-# 데이터 백업 기능이 포함되어 있으며, 60분마다 실행됩니다. 텔레그램 알림 기능은 제거되었습니다.
+# 데이터 백업 및 오류 발생 시 텔레그램 알림 기능이 포함되어 있으며, 60분마다 실행됩니다.
 
 import requests
 from pymongo import MongoClient
@@ -11,11 +11,8 @@ import atexit
 import sys
 import os
 # from dotenv import load_dotenv # 이 라인을 제거합니다.
-# from telegram_notifier import send_telegram_message # 이 라인을 제거합니다.
-from datetime import datetime
-
-# 환경 변수 로드 - 이 부분은 이제 사용되지 않으므로 제거합니다.
-# load_dotenv("telegram_config.env")
+from telegram_notifier import send_telegram_message # 텔레그램 알림 기능 복원
+from datetime import datetime # datetime 모듈 추가 (로그 및 시간 처리용)
 
 # 로그 설정
 logging.basicConfig(
@@ -24,13 +21,13 @@ logging.basicConfig(
     format='%(asctime)s %(levelname)s:%(message)s'
 )
 
-# 텔레그램 설정 - 이 부분은 이제 사용되지 않으므로 제거합니다.
-# TELEGRAM_TOKEN   = os.getenv("TELEGRAM_BUSAN_RADIATION_TOKEN")
-# TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+# 텔레그램 설정 - Railway 환경 변수를 직접 사용합니다.
+TELEGRAM_TOKEN   = os.getenv("TELEGRAM_BUSAN_RADIATION_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 # 공공 API URL과 서비스 키
 base_url    = "http://apis.data.go.kr/6260000/EnvironmentalRadiationInfoService"
-service_key = os.getenv("Service_key")
+service_key = os.getenv("Service_key")  # env에 설정한 이름을 그대로 사용
 
 # MongoDB 연결 함수
 def get_mongo_connection():
@@ -52,11 +49,9 @@ def get_mongo_connection():
         return client
     except Exception as e:
         logging.error(f"MongoDB 연결 실패: {e}")
-        # 텔레그램 메시지 전송 부분 제거
-        # try:
-        #     send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, f"MongoDB 연결 실패: {e}")
-        # except NameError:
-        #     logging.error("send_telegram_message 함수가 정의되지 않아 텔레그램 알림 전송 실패.")
+        # 텔레그램 메시지 전송 (오류 발생 시)
+        if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+            send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, f"🚨 *MongoDB 연결 실패:* 🚨\n{e}")
         sys.exit(1) # 연결 실패 시 스크립트 종료
 
 # MongoDB 연결
@@ -86,7 +81,7 @@ def backup_existing_data():
     else:
         logging.info(f"{current_date} 날짜의 부산 방사선 백업이 이미 존재합니다. 추가 백업을 건너뜁니다.")
 
-# 데이터 수집 및 저장 함수
+# 데이터 수집 및 저장 함수 (복원)
 def fetch_and_store_radiation_data():
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     logging.info(f"부산 방사선 데이터 수집 시작 (현재 시간: {current_time})")
@@ -122,28 +117,28 @@ def fetch_and_store_radiation_data():
             logging.info(f"부산 방사선 데이터 저장 성공: {processed_data['locNm']} - {processed_data['checkTime'].strftime('%Y%m%d%H%M')} - {processed_data['dose_nSv_h']} nSv/h")
         else:
             logging.warning("API 응답에서 유효한 부산 방사선 데이터를 찾을 수 없습니다.")
-            # 텔레그램 메시지 전송 호출 제거
-            # error_message = f"부산 방사선 API 응답 오류: 유효한 데이터 없음\\n응답: {response.text[:100]}..."
-            # send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, error_message)
+            if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+                error_message = f"🚨 *부산 방사선 API 응답 오류:* 🚨\n유효한 데이터 없음\n응답: {response.text[:100]}..."
+                send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, error_message)
 
     except requests.exceptions.Timeout as e:
-        error_msg = f"부산 방사선 API 요청 시간 초과: {str(e)}"
+        error_msg = f"🚨 *부산 방사선 API 요청 시간 초과:* 🚨\n{str(e)}"
         logging.error(error_msg)
         print(error_msg)
-        # 텔레그램 메시지 전송 호출 제거
-        # send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, error_msg)
+        if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+            send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, error_msg)
     except requests.exceptions.RequestException as e:
-        error_msg = f"부산 방사선 API 요청 오류: {str(e)}"
+        error_msg = f"🚨 *부산 방사선 API 요청 오류:* 🚨\n{str(e)}"
         logging.error(error_msg)
         print(error_msg)
-        # 텔레그램 메시지 전송 호출 제거
-        # send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, error_msg)
+        if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+            send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, error_msg)
     except Exception as e:
-        error_msg = f"부산 방사선 선량률 정보 조회 중 오류 발생: {str(e)}"
+        error_msg = f"🚨 *부산 방사선 선량률 정보 조회 중 오류 발생:* 🚨\n{str(e)}"
         logging.error(error_msg)
         print(f"오류 발생: {str(e)}")
-        # 텔레그램 메시지 전송 호출 제거
-        # send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, error_msg)
+        if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+            send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, error_msg)
         sys.exit(1)
 
 
@@ -151,7 +146,7 @@ def scheduled_task():
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     logging.info(f"60분마다 부산 방사선 데이터 수집 작업 실행 중... (현재 시간: {current_time})")
     print(f"60분마다 부산 방사선 데이터 수집 작업 실행 중... (현재 시간: {current_time})")
-    backup_existing_data()
+    backup_existing_data() # 백업 먼저
     fetch_and_store_radiation_data()
 
 # 스크립트 종료 시 MongoDB 연결 닫기

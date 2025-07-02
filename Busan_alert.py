@@ -1,7 +1,7 @@
 from pymongo import MongoClient
 import logging
 from statistics import mean
-import requests # requests는 MongoDB 연결 실패 알림에 잠시 사용되었으나, 불필요하므로 제거해도 무방합니다. 여기서는 일단 유지합니다.
+import requests
 import schedule
 import time
 import os
@@ -20,9 +20,9 @@ logging.basicConfig(
     ]
 )
 
-# 텔레그램 설정 - 이 부분은 이제 사용되지 않으므로 제거합니다.
-# TELEGRAM_TOKEN = os.getenv("TELEGRAM_BUSAN_RADIATION_TOKEN")
-# TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+# 텔레그램 설정 - Railway 환경 변수를 직접 사용합니다.
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_BUSAN_RADIATION_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 # MongoDB 연결 함수
 def get_mongo_connection():
@@ -44,11 +44,12 @@ def get_mongo_connection():
         return client
     except Exception as e:
         logging.error(f"MongoDB 연결 실패: {e}")
-        # 텔레그램 알림 전송 부분 제거
-        # try:
-        #     send_alert_to_another_bot(f"MongoDB 연결 실패: {e}")
-        # except NameError:
-        #     logging.error("send_alert_to_another_bot 함수가 정의되지 않아 텔레그램 알림 전송 실패.")
+        # 텔레그램 알림 전송 (오류 발생 시)
+        if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+            try:
+                send_alert_to_another_bot(f"🚨 *MongoDB 연결 실패:* 🚨\n{e}")
+            except NameError:
+                logging.error("send_alert_to_another_bot 함수가 정의되지 않아 텔레그램 알림 전송 실패.")
         sys.exit(1) # 연결 실패 시 스크립트 종료
 
 # MongoDB 클라이언트 초기화
@@ -56,30 +57,34 @@ client = get_mongo_connection()
 db = client['Data']
 radiation_collection = db['Busan_radiation'] # Busan_radiation 컬렉션 사용
 
-# 텔레그램 메시지 전송 함수 - 이 함수를 완전히 제거합니다.
-# def send_alert_to_another_bot(message):
-#     chat_id = TELEGRAM_CHAT_ID
-#     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-#
-#     payload = {
-#         "chat_id": chat_id,
-#         "text": message,
-#         "parse_mode": "Markdown"
-#     }
-#
-#     try:
-#         response = requests.post(url, json=payload, timeout=10)
-#         response.raise_for_status()
-#         logging.info("텔레그램 알림 전송 성공.")
-#     except requests.exceptions.Timeout:
-#         logging.error("텔레그램 알림 전송 시간 초과.")
-#     except requests.exceptions.RequestException as e:
-#         logging.error(f"텔레그램 알림 전송 중 오류 발생: {e}")
-#     except Exception as e:
-#         logging.error(f"예상치 못한 텔레그램 알림 전송 오류: {e}")
+# 텔레그램 메시지 전송 함수 (복원)
+def send_alert_to_another_bot(message):
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+        logging.warning("텔레그램 토큰 또는 채팅 ID가 설정되지 않아 메시지를 보낼 수 없습니다.")
+        return
+
+    chat_id = TELEGRAM_CHAT_ID
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+
+    payload = {
+        "chat_id": chat_id,
+        "text": message,
+        "parse_mode": "Markdown"
+    }
+
+    try:
+        response = requests.post(url, json=payload, timeout=10)
+        response.raise_for_status()
+        logging.info("텔레그램 알림 전송 성공.")
+    except requests.exceptions.Timeout:
+        logging.error("텔레그램 알림 전송 시간 초과.")
+    except requests.exceptions.RequestException as e:
+        logging.error(f"텔레그램 알림 전송 중 오류 발생: {e}")
+    except Exception as e:
+        logging.error(f"예상치 못한 텔레그램 알림 전송 오류: {e}")
 
 
-# 방사선량 통계 가져오기 및 알림 전송 함수
+# 방사선량 통계 가져오기 및 알림 전송 함수 (복원)
 def fetch_radiation_statistics_and_alert():
     current_time_log = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     logging.info(f"방사선량 통계 가져오기 및 알림 시작 (현재 시간: {current_time_log})")
@@ -96,8 +101,8 @@ def fetch_radiation_statistics_and_alert():
 
         if not data:
             logging.warning("최근 24시간 동안의 부산 방사선 데이터가 없습니다.")
-            # 텔레그램 알림 전송 호출 제거
-            # send_alert_to_another_bot("⚠️ *경고:* 최근 24시간 동안의 부산 방사선 데이터가 없습니다.")
+            if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+                send_alert_to_another_bot("⚠️ *경고:* 최근 24시간 동안의 부산 방사선 데이터가 없습니다.")
             return
 
         highest_value = 0
@@ -134,14 +139,14 @@ def fetch_radiation_statistics_and_alert():
         print(result_message)
         logging.info(f"생성된 알림 메시지:\n{result_message}")
 
-        # 텔레그램 알림 전송 호출 제거
-        # send_alert_to_another_bot(result_message)
+        if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+            send_alert_to_another_bot(result_message)
 
     except Exception as e:
         logging.error(f"방사선량 통계 가져오기 중 오류 발생: {e}", exc_info=True)
         print(f"방사선량 통계 가져오기 중 오류 발생: {e}")
-        # 텔레그램 알림 전송 호출 제거
-        # send_alert_to_another_bot(f"🚨 *부산 방사선량 알림 스크립트 오류:* 🚨\n{str(e)}")
+        if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+            send_alert_to_another_bot(f"🚨 *부산 방사선량 알림 스크립트 오류:* 🚨\n{str(e)}")
 
 
 # 스케줄 함수

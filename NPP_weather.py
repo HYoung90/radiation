@@ -9,10 +9,7 @@ import sys
 import os
 # from dotenv import load_dotenv # 이 라인을 제거합니다.
 from datetime import datetime
-# from telegram_notifier import send_telegram_message # 이 라인을 제거합니다.
-
-# 환경 변수 로드 - 이 부분은 이제 사용되지 않으므로 제거합니다.
-# load_dotenv("telegram_config.env")
+from telegram_notifier import send_telegram_message # 텔레그램 알림 기능 복원
 
 # 로그 설정
 logging.basicConfig(
@@ -21,9 +18,9 @@ logging.basicConfig(
     format='%(asctime)s %(levelname)s:%(message)s'
 )
 
-# 텔레그램 설정 - 이 부분은 이제 사용되지 않으므로 제거합니다.
-# TELEGRAM_TOKEN = os.getenv("TELEGRAM_NPP_MONITORING_TOKEN")
-# TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+# 텔레그램 설정 - Railway 환경 변수를 직접 사용합니다.
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_NPP_MONITORING_TOKEN")
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
 
 # MongoDB 연결 함수
 def get_mongo_connection():
@@ -45,11 +42,9 @@ def get_mongo_connection():
         return client
     except Exception as e:
         logging.error(f"MongoDB 연결 실패: {e}")
-        # 텔레그램 알림 전송 부분 제거
-        # try:
-        #     send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, f"MongoDB 연결 실패: {e}")
-        # except NameError:
-        #     logging.error("send_telegram_message 함수가 정의되지 않아 텔레그램 알림 전송 실패.")
+        # 텔레그램 알림 전송 (오류 발생 시)
+        if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+            send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, f"🚨 *MongoDB 연결 실패:* 🚨\n{e}")
         sys.exit(1) # 연결 실패 시 스크립트 종료
 
 
@@ -91,9 +86,9 @@ def backup_existing_data():
         else:
             logging.info("백업할 날씨 데이터가 없습니다.")
     else:
-        logging.info(f"{current_date} 날짜의 날씨 백업이 이미 존재합니다. 추가 백업을 건너뜁니다.")
+        logging.info(f"{current_date} 날짜의 날씨 백업이 이미 존재합니다. 추가 백업을 건너킵니다.")
 
-# 데이터 수집 및 저장 함수
+# 데이터 수집 및 저장 함수 (복원)
 def fetch_and_store_weather_data():
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     logging.info(f"날씨 데이터 수집 시작 (현재 시간: {current_time})")
@@ -141,34 +136,34 @@ def fetch_and_store_weather_data():
                     logging.info(f"[{gen_name}] 날씨 데이터 저장 성공: {latest_data['tm']} - 온도 {latest_data['temp']}℃")
                 else:
                     logging.warning(f"[{gen_name}] API 응답에서 유효한 데이터를 찾을 수 없습니다.")
-                    # 텔레그램 메시지 전송 호출 제거
-                    # error_message = f"[{gen_name}] API 응답 오류: 유효한 날씨 데이터 없음\\n응답: {response.text[:100]}..."
-                    # send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, error_message)
+                    if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+                        error_message = f"🚨 *[{gen_name}] API 응답 오류:* 🚨\n유효한 날씨 데이터 없음\n응답: {response.text[:100]}..."
+                        send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, error_message)
 
         except requests.exceptions.Timeout as e:
             logging.error(f"{gen_name} 발전소 날씨 API 요청 시간 초과: {e}")
-            # 텔레그램 메시지 전송 호출 제거
-            # error_message = f"{gen_name} 발전소 날씨 API 요청 시간 초과:\\n{str(e)}"
-            # send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, error_message)
+            if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+                error_message = f"🚨 *[{gen_name}] API 요청 시간 초과:* 🚨\n{str(e)}"
+                send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, error_message)
             continue
         except requests.exceptions.RequestException as e:
             logging.error(f"{gen_name} 발전소 날씨 API 요청 오류: {e}")
-            # 텔레그램 메시지 전송 호출 제거
-            # error_message = f"{gen_name} 발전소 날씨 API 요청 오류:\\n{str(e)}"
-            # send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, error_message)
+            if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+                error_message = f"🚨 *[{gen_name}] API 요청 오류:* 🚨\n{str(e)}"
+                send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, error_message)
             continue
         except ET.ParseError as e:
             logging.error(f"{gen_name} 발전소 날씨 XML 파싱 오류: {e}")
-            # 텔레그램 메시지 전송 호출 제거
-            # error_message = f"{gen_name} 발전소 날씨 XML 파싱 오류:\\n{str(e)}"
-            # send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, error_message)
+            if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+                error_message = f"🚨 *[{gen_name}] XML 파싱 오류:* 🚨\n{str(e)}"
+                send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, error_message)
             continue
         except Exception as e:
             logging.error(f"{gen_name} 발전소 날씨 데이터 처리 중 오류 발생: {e}")
             print(f"{gen_name} 발전소 날씨 데이터 처리 중 오류 발생: {e}")
-            # 텔레그램 메시지 전송 호출 제거
-            # error_message = f"{gen_name} 발전소 날씨 데이터 처리 중 오류 발생:\\n{str(e)}"
-            # send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, error_message)
+            if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+                error_message = f"🚨 *[{gen_name}] 데이터 처리 중 오류 발생:* 🚨\n{str(e)}"
+                send_telegram_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, error_message)
             continue
 
     logging.info(f"날씨 데이터 수집 작업 완료 (현재 시간: {current_time})")
