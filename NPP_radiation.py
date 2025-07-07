@@ -53,28 +53,30 @@ def get_mongo_connection():
     연결에 실패하면 스크립트를 종료합니다.
     """
     try:
-        # Railway MONGO_URI 환경 변수를 로드 시도
-        railway_mongo_uri = os.getenv("MONGO_URI")
+        # 1) 환경변수에서 URI 읽고 앞뒤 공백·개행 제거
+        raw_uri = os.getenv("MONGO_URI", "")
+        print("🛠 DEBUG: raw MONGO_URI repr ->", repr(raw_uri))
+        uri = raw_uri.strip()
 
-        if railway_mongo_uri:
-            # MONGO_URI에 '='가 붙어있을 경우 제거
-            cleaned_railway_mongo_uri = railway_mongo_uri.lstrip('=')
-            client = MongoClient(cleaned_railway_mongo_uri)
+        # 2) URI가 있으면 Railway, 없으면 로컬로 연결
+        if uri:
+            client = MongoClient(uri)
             logging.info("Railway MongoDB 클라이언트 설정 및 연결 시도 성공")
         else:
-            # MONGO_URI가 없으면 로컬 MongoDB에 연결
             client = MongoClient("mongodb://localhost:27017/")
-            logging.info("로컬 MongoDB 클라이언트 설정 완료")
+            logging.info("MONGO_URI 미설정, 로컬 MongoDB 클라이언트 설정 완료")
 
         return client
+
     except Exception as e:
-        logging.error(f"MongoDB 연결 실패: {e}")
-        # 텔레그램 메시지 전송
+        logging.error(f"MongoDB 연결 실패: {e}", exc_info=True)
+        # 실패 시 텔레그램 알림
         try:
-            send_telegram_message(TELEGRAM_NPP_MONITORING_TOKEN, TELEGRAM_CHAT_ID, f"MongoDB 연결 실패: {e}")
-        except NameError:
-            logging.error("send_telegram_message 함수가 정의되지 않아 텔레그램 알림 전송 실패.")
-        sys.exit(1) # 연결 실패 시 스크립트 종료
+            send_telegram_message(TELEGRAM_NPP_MONITORING_TOKEN, TELEGRAM_CHAT_ID,
+                                  f"🚨 MongoDB 연결 실패: {e}")
+        except Exception:
+            logging.error("send_telegram_message 호출 실패", exc_info=True)
+        sys.exit(1)  # 연결 실패 시 스크립트 종료
 
 
 # MongoDB 연결 (기존 client = MongoClient(...) 라인을 대체)
