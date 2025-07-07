@@ -6,6 +6,7 @@ import sys  # sys 모듈 추가
 from datetime import datetime, timedelta  # 현재 시간 출력을 위한 모듈 추가, timedelta 추가
 import schedule  # 스케줄러 모듈
 import time  # 스케줄 실행 대기 시간 조절을 위한 모듈
+import atexit
 
 # .env 파일에서 환경 변수 불러오기
 #load_dotenv("telegram_config.env") # telegram_config.env 파일 명시
