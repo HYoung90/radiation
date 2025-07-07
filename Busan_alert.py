@@ -34,25 +34,29 @@ def get_mongo_connection():
     연결에 실패하면 스크립트를 종료합니다.
     """
     try:
-        railway_mongo_uri = os.getenv("MONGO_URI")
+        # 1) 환경변수에서 URI 읽고 앞뒤 공백/개행 제거
+        raw_uri = os.getenv("MONGO_URI", "")
+        uri = raw_uri.strip()
 
-        if railway_mongo_uri:
-            cleaned_railway_mongo_uri = railway_mongo_uri.lstrip('=')
-            client = MongoClient(cleaned_railway_mongo_uri)
-            logging.info("Railway MongoDB 클라이언트 설정 및 연결 시도 성공")
-        else:
-            client = MongoClient("mongodb://localhost:27017/")
-            logging.info("로컬 MongoDB 클라이언트 설정 완료")
+        # 2) 로컬 Fallback (원하시면)
+        if not uri:
+            logging.info("MONGO_URI 미설정, 로컬 MongoDB로 연결 시도")
+            uri = "mongodb://localhost:27017/"
 
+        # 3) 실제 연결
+        client = MongoClient(uri)
+        logging.info("Railway MongoDB 클라이언트 설정 및 연결 시도 성공")
         return client
+
     except Exception as e:
-        logging.error(f"MongoDB 연결 실패: {e}")
-        # 텔레그램 알림 전송 (이 스크립트에도 필요하다면)
+        logging.error(f"MongoDB 연결 실패: {e}", exc_info=True)
+        # 연결 실패 시 필요한 경우 텔레그램 알림도 보내고 종료
         try:
-            send_alert_to_another_bot(f"MongoDB 연결 실패: {e}") # 텔레그램 함수가 정의된 후에 호출
-        except NameError:
-            logging.error("send_alert_to_another_bot 함수가 정의되지 않아 텔레그램 알림 전송 실패.")
-        sys.exit(1) # 연결 실패 시 스크립트 종료
+            send_alert_to_another_bot(f"🚨 MongoDB 연결 실패: {e}")
+        except Exception:
+            logging.error("send_alert_to_another_bot 호출 실패")
+        sys.exit(1)
+
 
 # MongoDB 클라이언트 초기화 (기존 client = MongoClient(...) 라인을 대체)
 client = get_mongo_connection()
