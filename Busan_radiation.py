@@ -196,4 +196,4 @@ atexit.register(close_mongodb_connection)
 schedule.every(60).minutes.do(scheduled_task)
 
 # 매일 자정(0시 0분)에 백업 실행
-schedule.every().day().at("00:00").do(backup_existing_data)
+schedule.every().day.at("00:00").do(backup_existing_data)
