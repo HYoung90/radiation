@@ -1,174 +1,131 @@
-from pymongo import MongoClient
+# app.py
+# 이 스크립트는 Flask 웹 애플리케이션으로, 방사선 및 기상 데이터를 MongoDB에서 가져와 API 및 웹 페이지로 제공합니다.
+# 데이터 필터링, 최신 데이터 조회, CSV 내보내기 등의 기능을 제공합니다.
+
+from flask import Flask, render_template, request
+from pymongo import MongoClient, DESCENDING
+from flask_caching import Cache
+import csv
+import io
+from datetime import datetime, timedelta
 import logging
-from statistics import mean
-import requests
-import schedule
-import time
+from dateutil import parser
+from scipy.signal import find_peaks, savgol_filter
+import matplotlib.pyplot as plt
 import os
-#from dotenv import load_dotenv
-import sys # sys 모듈 추가
-import atexit # atexit 모듈 추가
-from datetime import datetime, timedelta # datetime, timedelta 모듈 추가
+from pymongo.errors import PyMongoError
+from map_utils import compute_top5_for, generate_topsis_map_html
 
-# 환경 변수 로드
-#load_dotenv("telegram_config.env") # .env 파일에서 로드
+# Flask 앱 및 캐시 설정
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY', 'super-secret-key')
+app.config['CACHE_TYPE'] = 'simple'
+cache = Cache(app)
 
-# 로그 설정 (파일과 콘솔 모두 출력)
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s %(levelname)s:%(message)s',
-    handlers=[
-        logging.FileHandler("busan_alert.log"),
-        logging.StreamHandler()
-    ]
-)
-
-# 텔레그램 설정 - Busan Radiation 봇 사용
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_BUSAN_RADIATION_TOKEN") # .env 파일에서 Busan Radiation 봇의 토큰을 가져옴
-TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID") # .env 파일에서 채팅 ID를 가져옴
+# 로그 설정
+logging.basicConfig(level=logging.INFO)
 
 # MongoDB 연결 함수
-def get_mongo_connection():
-    """
-    MongoDB에 연결하고 클라이언트를 반환합니다.
-    연결에 실패하면 스크립트를 종료합니다.
-    """
-    try:
-        # 1) 환경변수에서 URI 읽고 앞뒤 공백/개행 제거
-        raw_uri = os.getenv("MONGO_URI", "")
-        uri = raw_uri.strip()
-
-        # 2) 로컬 Fallback (원하시면)
-        if not uri:
-            logging.info("MONGO_URI 미설정, 로컬 MongoDB로 연결 시도")
-            uri = "mongodb://localhost:27017/"
-
-        # 3) 실제 연결
+def get_db():
+    uri = os.getenv('MONGO_URI', '').strip().lstrip('=')
+    if uri:
         client = MongoClient(uri)
-        logging.info("Railway MongoDB 클라이언트 설정 및 연결 시도 성공")
-        return client
+        logging.info('원격 MongoDB 연결 성공')
+    else:
+        client = MongoClient('mongodb://localhost:27017/')
+        logging.info('로컬 MongoDB 연결 성공')
+    return client['Data']
 
-    except Exception as e:
-        logging.error(f"MongoDB 연결 실패: {e}", exc_info=True)
-        # 연결 실패 시 필요한 경우 텔레그램 알림도 보내고 종료
-        try:
-            send_alert_to_another_bot(f"🚨 MongoDB 연결 실패: {e}")
-        except Exception:
-            logging.error("send_alert_to_another_bot 호출 실패")
-        sys.exit(1)
+db = get_db()
+radiation_collection = db['NPP_radiation']
+weather_collection = db['NPP_weather']
+stats_collection = db['radiation_stats']
 
-
-# MongoDB 클라이언트 초기화 (기존 client = MongoClient(...) 라인을 대체)
-client = get_mongo_connection()
-db = client['Data']
-radiation_collection = db['Busan_radiation'] # Busan_radiation 컬렉션 사용
-
-# 텔레그램 메시지 전송 함수
-def send_alert_to_another_bot(message):
-    chat_id = TELEGRAM_CHAT_ID
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-
-    payload = {
-        "chat_id": chat_id,
-        "text": message,
-        "parse_mode": "Markdown" # 메시지 포맷팅을 위해 Markdown 사용
-    }
-
+# 유틸리티 함수: datetime 문자열 파싱
+def parse_datetime(dt_str):
     try:
-        response = requests.post(url, json=payload, timeout=10)
-        response.raise_for_status() # HTTP 오류 발생 시 예외 발생
-        logging.info("텔레그램 알림 전송 성공.")
-    except requests.exceptions.Timeout:
-        logging.error("텔레그램 알림 전송 시간 초과.")
-    except requests.exceptions.RequestException as e:
-        logging.error(f"텔레그램 알림 전송 중 오류 발생: {e}")
-    except Exception as e:
-        logging.error(f"예상치 못한 텔레그램 알림 전송 오류: {e}")
+        return parser.parse(dt_str)
+    except Exception:
+        return None
 
-
-# 방사선량 통계 가져오기 및 알림 전송 함수
-def fetch_radiation_statistics_and_alert():
-    current_time_log = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    logging.info(f"방사선량 통계 가져오기 및 알림 시작 (현재 시간: {current_time_log})")
-    print(f"방사선량 통계 가져오기 및 알림 시작 (현재 시간: {current_time_log})")
-
+# 캐싱된 최신 데이터 조회
+@cache.cached(timeout=300)
+def get_latest_data(collection, limit=5):
     try:
-        # 최근 24시간 동안의 데이터만 가져오기
-        end_time = datetime.now()
-        start_time = end_time - timedelta(days=1)
+        docs = list(collection.find().sort('data_fetch_time', DESCENDING).limit(limit))
+        return docs
+    except PyMongoError as e:
+        logging.error(f"DB 에러: {e}")
+        return []
 
-        # checkTime 필드가 datetime 객체임을 가정하고 범위 조회
-        data_cursor = radiation_collection.find({
-            'checkTime': {'$gte': start_time, '$lte': end_time}
-        })
-        data = list(data_cursor)
+# 라우트: 홈 (방사선 데이터 시각화)
+@app.route('/')
+def index():
+    data = get_latest_data(radiation_collection, 24)
+    return render_template('index.html', data=data)
 
-        if not data:
-            logging.warning("최근 24시간 동안의 부산 방사선 데이터가 없습니다.")
-            send_alert_to_another_bot("⚠️ *경고:* 최근 24시간 동안의 부산 방사선 데이터가 없습니다.")
-            return
+# 라우트: API - JSON 반환
+@app.route('/api/radiation/latest')
+def api_latest_radiation():
+    limit = int(request.args.get('limit', 5))
+    data = get_latest_data(radiation_collection, limit)
+    for d in data:
+        d['_id'] = str(d['_id'])
+        d['tm'] = d['tm'].strftime('%Y-%m-%d %H:%M:%S')
+        d['data_fetch_time'] = d['data_fetch_time'].strftime('%Y-%m-%d %H:%M:%S')
+    return {'data': data}
 
-        highest_value = 0
-        highest_region = "알 수 없음"
-        total_radiation = [] # 모든 유효한 방사선량 값을 저장할 리스트
+# 라우트: CSV 다운로드
+@app.route('/download/csv')
+def download_csv():
+    data = list(stats_collection.find().sort('tm', DESCENDING))
+    si = io.StringIO()
+    writer = csv.writer(si)
+    writer.writerow(['locNm', 'tm', 'curVal', 'wthStt', 'data_fetch_time'])
+    for d in data:
+        writer.writerow([
+            d.get('locNm'),
+            d.get('tm').strftime('%Y-%m-%d %H:%M:%S'),
+            d.get('curVal'),
+            d.get('wthStt'),
+            d.get('data_fetch_time').strftime('%Y-%m-%d %H:%M:%S')
+        ])
+    output = si.getvalue()
+    return app.response_class(
+        output,
+        mimetype='text/csv',
+        headers={'Content-Disposition':'attachment;filename=radiation_stats.csv'}
+    )
 
-        for item in data:
-            try:
-                # 'data' 필드는 nSv/h 단위의 문자열 또는 숫자일 수 있으므로 float로 변환
-                radiation_value = float(item['dose_nSv_h']) # dose_nSv_h 필드 사용
-            except (ValueError, KeyError):
-                logging.warning(f"유효하지 않은 방사선량 데이터 또는 필드 누락: {item.get('dose_nSv_h', 'N/A')}")
-                continue
+# 라우트: TOP5 Topsis 지도
+@app.route('/map')
+def map_view():
+    end = datetime.now()
+    start = end - timedelta(days=1)
+    stats = compute_top5_for(stats_collection, start, end)
+    map_html = generate_topsis_map_html(stats)
+    return render_template('map.html', map_html=map_html)
 
-            if radiation_value > 0: # 유효한 양의 값만 포함
-                total_radiation.append(radiation_value)
+# 라우트: 데이터 필터
+@app.route('/filter', methods=['GET', 'POST'])
+def filter_data():
+    if request.method == 'POST':
+        start = parse_datetime(request.form.get('start'))
+        end = parse_datetime(request.form.get('end'))
+        data = []
+        if start and end:
+            data = list(stats_collection.find({'tm': {'$gte': start, '$lte': end}}).sort('tm', DESCENDING))
+        return render_template('filter.html', data=data)
+    return render_template('filter.html', data=[])
 
-                if radiation_value > highest_value:
-                    highest_value = radiation_value
-                    highest_region = item.get('locNm', '알 수 없음') # 지역명 필드 사용
+# Graceful shutdown
+def shutdown_db():
+    db.client.close()
+    logging.info("MongoDB 연결 종료")
 
-        if total_radiation:
-            average_radiation = mean(total_radiation)
-        else:
-            average_radiation = 0
+# 스크립트 종료 시 연결 종료 등록
+atexit.register(shutdown_db)
 
-        # 결과 메시지 포맷팅 (줄 바꿈 추가 및 강조)
-        result_message = (
-            f"📍 *부산 실시간 방사선량 요약 (최근 24시간)* 📍\n\n"
-            f"✨ *가장 높은 방사선량 지역:*\n"
-            f"   *{highest_region}* ({highest_value:.2f} nSv/h)\n\n"
-            f"📊 *부산 전체 평균 방사선량:*\n"
-            f"   *{average_radiation:.2f} nSv/h*\n\n"
-            f"_\_본 데이터는 공공 API를 통해 수집된 정보입니다._"
-        )
-        print(result_message)
-        logging.info(f"생성된 알림 메시지:\n{result_message}")
-
-        # 텔레그램 알림 전송
-        send_alert_to_another_bot(result_message)
-
-    except Exception as e:
-        logging.error(f"방사선량 통계 가져오기 중 오류 발생: {e}", exc_info=True)
-        print(f"방사선량 통계 가져오기 중 오류 발생: {e}")
-        send_alert_to_another_bot(f"🚨 *부산 방사선량 알림 스크립트 오류:* 🚨\n{str(e)}")
-
-
-# 스케줄 함수
-def scheduled_alert_task():
-    current_time_log = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    logging.info(f"2시간마다 부산 방사선 통계 알림 작업 실행 중... (현재 시간: {current_time_log})")
-    print(f"2시간마다 부산 방사선 통계 알림 작업 실행 중... (현재 시간: {current_time_log})")
-    fetch_radiation_statistics_and_alert()
-
-# 매일 2시간마다 (정각에) 작업을 실행하는 스케줄 설정
-schedule.every(2).hours.do(scheduled_alert_task)
-
-# 스크립트 종료 시 MongoDB 연결 닫기
-def close_mongodb_connection():
-    if client:
-        client.close()
-        logging.info("MongoDB 연결이 닫혔습니다.")
-        print("MongoDB 연결이 닫혔습니다.")
-
-atexit.register(close_mongodb_connection)
-
+# 앱 실행
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.getenv('PORT', 5000)), debug=False)
