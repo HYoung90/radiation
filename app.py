@@ -52,14 +52,17 @@ if not mongo_uri: # 환경 변수가 설정되지 않았을 경우를 대비한 
 mongo_uri = mongo_uri.strip().lstrip('=')
 # ----------------------------------------
 
-# 아래는 제가 디버그용으로 추가 요청드렸던 로그입니다. 최종 배포 시에는 제거해도 좋습니다.
-# import logging
-# logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-# logging.info(f"DEBUG: MONGO_URI repr in app.py: {repr(mongo_uri)}")
-
 client = MongoClient(mongo_uri)
 db = client['Data']
 users = db['users'] # 사용자 컬렉션
+
+# TTL 인덱스 설정 (한 시간 후 자동 삭제)
+# - 'time' 필드는 반드시 BSON datetime 타입이어야 합니다.
+db.nuclear_radiation.create_index(
+    [("time", 1)],
+    expireAfterSeconds=3600,
+    name="nuclear_radiation_ttl_idx"
+)
 
 # User 클래스 정의 바로 위나 아래에 추가
 def admin_required(f):
