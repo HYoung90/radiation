@@ -555,7 +555,7 @@ def get_radiation_history():
                 {'genName': mapped_genName, 'expl': expl},
                 {'_id': 0, 'time': 1, 'value': 1}
             )
-            .sort('time', -1)   # time 필드 내림차순 정렬
+            .sort('time', -1)   # time 내림차순
             .limit(4)           # 최신 4건만
         )
 
@@ -565,7 +565,6 @@ def get_radiation_history():
     except Exception as e:
         logging.error(f"Error fetching history data for {genName}, {expl}: {e}")
         return jsonify({"error": "Failed to fetch radiation history data"}), 500
-
 
 @app.route('/nuclear_radiation_history/<genName>', methods=['GET'])
 def show_radiation_history(genName):

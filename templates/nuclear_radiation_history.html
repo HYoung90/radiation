@@ -4,141 +4,156 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ genName }}의 방사선 데이터</title>
-  <link rel="stylesheet" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css">
+  <link
+    rel="stylesheet"
+    href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css"
+  />
   <style>
     body {
       font-family: Arial, sans-serif;
-      background-color: #f4f7f6;
+      background: #f4f7f6;
       margin: 0;
       padding: 20px;
       color: #333;
     }
+
     .container {
       max-width: 1200px;
       margin: 20px auto;
-      background-color: #ffffff;
+      background: #fff;
       padding: 30px;
       border-radius: 12px;
       box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
     }
-    h1, h3 {
+
+    h1,
+    h3 {
       color: #2c3e50;
       text-align: center;
       margin-bottom: 20px;
-      font-size: 2.2em;
     }
+
     h3 {
       font-size: 1.5em;
       margin-top: 30px;
       text-align: left;
     }
+
     .btn-back {
       display: inline-block;
       padding: 12px 25px;
-      font-size: 1em;
-      background-color: #6c757d;
-      color: white;
+      background: #6c757d;
+      color: #fff;
       border: none;
       border-radius: 8px;
-      cursor: pointer;
       text-decoration: none;
-      margin-bottom: 25px;
       transition: background-color 0.3s ease, transform 0.2s ease;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     }
+
     .btn-back:hover {
-      background-color: #5a6268;
+      background: #5a6268;
       transform: translateY(-2px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
     }
+
     .image-container {
       text-align: center;
       margin: 30px 0;
     }
+
     .image-container img {
       max-width: 40%;
-      height: auto;
       border-radius: 10px;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
+
     #measurementPoints {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
       margin-bottom: 30px;
-      justify-content: flex-start;
     }
+
     .measurement-btn {
       padding: 12px 20px;
-      font-size: 0.95em;
-      background-color: #007bff;
-      color: white;
+      background: #007bff;
+      color: #fff;
       border: none;
       border-radius: 8px;
-      cursor: pointer;
       transition: background-color 0.3s ease, transform 0.2s ease;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     }
+
     .measurement-btn:hover {
-      background-color: #0056b3;
+      background: #0056b3;
       transform: translateY(-2px);
     }
+
     .measurement-btn.selected {
-      background-color: #28a745;
+      background: #28a745;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     }
+
     #radiationHistoryTable {
       width: 100% !important;
       border-collapse: collapse;
       margin-top: 20px;
-      font-size: 1.0em;
+      font-size: 1em;
     }
+
     #radiationHistoryTable thead th {
-      background-color: #e9ecef;
+      background: #e9ecef;
       color: #495057;
       padding: 12px 15px;
       text-align: center;
       border-bottom: 2px solid #dee2e6;
       font-weight: bold;
     }
+
     #radiationHistoryTable tbody td {
       padding: 10px 15px;
       text-align: center;
       vertical-align: middle;
       border-bottom: 1px solid #e9ecef;
     }
+
     #radiationHistoryTable tbody tr:nth-child(even) {
-      background-color: #f8f9fa;
+      background: #f8f9fa;
     }
+
     #radiationHistoryTable tbody tr:hover {
-      background-color: #e2f4f8;
+      background: #e2f4f8;
       cursor: pointer;
     }
+
     .dataTables_wrapper .dataTables_info,
     .dataTables_wrapper .dataTables_paginate,
     .dataTables_wrapper .dataTables_filter,
     .dataTables_wrapper .dataTables_length {
       display: none;
     }
+
     #viewBackupData {
       display: block;
       margin: 30px auto;
       padding: 15px 30px;
-      font-size: 1.1em;
-      background-color: #34495e;
-      color: white;
+      background: #34495e;
+      color: #fff;
       border: none;
       border-radius: 8px;
-      cursor: pointer;
-      transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+      transition: background-color 0.3s ease,
+                  transform 0.2s ease,
+                  box-shadow 0.3s ease;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     }
+
     #viewBackupData:hover {
-      background-color: #e0a800;
+      background: #e0a800;
       transform: translateY(-2px);
       box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
     }
   </style>
+
 </head>
 <body>
   <div class="container">
@@ -147,97 +162,67 @@
       <img src="{{ url_for('static', filename='images/' + genName + '.png') }}"
            alt="{{ genName }} 발전소 이미지">
     </div>
+
     <h3>측정 지점 리스트</h3>
     <div id="measurementPoints"></div>
+
     <h3>선택된 측정 지점의 데이터</h3>
     <table id="radiationHistoryTable" class="display">
       <thead>
-        <tr>
-          <th>측정 시간</th>
-          <th>방사선량 (μSv/h)</th>
-        </tr>
+        <tr><th>측정 시간</th><th>방사선량 (μSv/h)</th></tr>
       </thead>
       <tbody></tbody>
     </table>
-    <button id="viewBackupData" class="btn btn-warning" onclick="viewBackupData()">
-      과거 데이터 보기
-    </button>
 
-    <script>
-      function viewBackupData() {
-        var expl = $('#measurementPoints .measurement-btn.selected').data('expl');
-        if (expl) {
-          window.location.href = `/nuclear_radiation_detail/{{ genName }}/${encodeURIComponent(expl)}`;
-        } else {
-          alert("측정 지점을 선택해주세요.");
-        }
-      }
-    </script>
+    <button id="viewBackupData" onclick="viewBackupData()">과거 데이터 보기</button>
   </div>
 
   <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
   <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
   <script>
-    $(document).ready(function() {
-      var genName = "{{ genName }}";
-      var table = $('#radiationHistoryTable').DataTable({
-        paging: false,
-        info: false,
-        searching: false,
-        lengthChange: false,
-        order: [[0, 'desc']]
+    function viewBackupData() {
+      const expl = $('#measurementPoints .selected').data('expl');
+      if (!expl) return alert("측정 지점을 선택해주세요.");
+      location.href = `/nuclear_radiation_detail/{{ genName }}/${encodeURIComponent(expl)}`;
+    }
+
+    $(function(){
+      const genName = "{{ genName }}";
+      const table = $('#radiationHistoryTable').DataTable({
+        paging:false, info:false, searching:false, lengthChange:false, order:[[0,'desc']]
       });
 
-      // 측정 지점 리스트 로드
-      function loadMeasurementPoints() {
-        $.ajax({
-          url: `/api/nuclear_radiation/points?genName=${encodeURIComponent(genName)}`,
-          method: 'GET',
-          success: function(data) {
-            $('#measurementPoints').empty();
-            if (!data.length) return;
-            // MS-숫자 순 정렬
-            data.sort(function(a, b) {
-              return parseInt((a.match(/MS-(\d+)/)||[0,0])[1],10)
-                   - parseInt((b.match(/MS-(\d+)/)||[0,0])[1],10);
-            });
-            data.forEach(function(point) {
-              $('#measurementPoints').append(
-                `<button class="measurement-btn" data-expl="${point}">${point}</button>`
-              );
-            });
-            // 첫 버튼 선택 및 데이터 로드
-            $('.measurement-btn').first().addClass('selected');
-            loadRadiationHistory($('.measurement-btn').first().data('expl'));
-            // 클릭 이벤트
-            $('.measurement-btn').on('click', function() {
-              $('.measurement-btn').removeClass('selected');
-              $(this).addClass('selected');
-              loadRadiationHistory($(this).data('expl'));
-            });
-          }
+      function loadMeasurementPoints(){
+        $.getJSON(`/api/nuclear_radiation/points?genName=${encodeURIComponent(genName)}`, data=>{
+          if(!data.length) return;
+          data.sort((a,b)=>+a.match(/\d+/)[0] - +b.match(/\d+/)[0]);
+          data.forEach(pt=>{
+            $('#measurementPoints').append(
+              `<button class="measurement-btn" data-expl="${pt}">${pt}</button>`
+            );
+          });
+          $('.measurement-btn').first().addClass('selected');
+          loadRadiationHistory($('.selected').data('expl'));
+          $('.measurement-btn').click(function(){
+            $('.measurement-btn').removeClass('selected');
+            $(this).addClass('selected');
+            loadRadiationHistory($(this).data('expl'));
+          });
         });
       }
 
-      // 특정 지점 데이터 로드 (최신 4개만)
-      function loadRadiationHistory(expl) {
-        $.ajax({
-          url: `/api/nuclear_radiation/history?genName=${encodeURIComponent(genName)}&expl=${encodeURIComponent(expl)}`,
-          method: 'GET',
-          success: function(data) {
+      function loadRadiationHistory(expl){
+        $.getJSON(
+          `/api/nuclear_radiation/history?genName=${encodeURIComponent(genName)}&expl=${encodeURIComponent(expl)}`,
+          data=>{
             table.clear();
-            if (!data.length) return;
-            // 끝에서 4개를 가져와 최신순으로 뒤집기
-            const latest4 = data.slice(-4).reverse();
-            latest4.forEach(function(item) {
-              table.row.add([
-                item.time,
-                `${parseFloat(item.value).toFixed(3)} μSv/h`
-              ]);
+            if(!data.length) return;
+            data.forEach(item=>{
+              table.row.add([ item.time, `${parseFloat(item.value).toFixed(3)} μSv/h` ]);
             });
             table.draw();
           }
-        });
+        );
       }
 
       loadMeasurementPoints();
