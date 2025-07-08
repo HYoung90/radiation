@@ -278,13 +278,15 @@
                     method: 'GET',
                     success: function(data) {
                         table.clear().draw();  // 테이블 초기화
+
                         if (data.length === 0) {
-                            // DataTables가 자동으로 "No data available in table" 메시지를 표시합니다.
-                            // alert("해당 측정 지점에 대한 데이터가 없습니다.");
-                            return;
+                            return;  // 데이터 없으면 종료
                         }
 
-                        data.forEach(function(item) {
+                        // 최신 4개 항목만 추출
+                        const latest4 = data.slice(0, 8);
+
+                        latest4.forEach(function(item) {
                             table.row.add([
                                 item.time,
                                 `${parseFloat(item.value).toFixed(3)} μSv/h`
@@ -293,13 +295,13 @@
                     },
                     error: function(error) {
                         console.error("Error fetching radiation history:", error);
-                        // 사용자에게는 DataTables의 emptyTable 메시지가 표시될 것이므로, 여기서는 alert을 생략합니다.
                     }
                 });
             }
 
             // 측정 지점 리스트 로드
             loadMeasurementPoints();
+
         });
     </script>
 </body>
