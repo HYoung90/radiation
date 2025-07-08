@@ -145,7 +145,7 @@
         {% for s in top5_shelters %}
         <tr>
           <td>{{ s.name }}</td>
-          <td>{{ s.capacity }}</td>
+          <td>{{ "{:,}".format(s.capacity) }}</td>
           <td>{{ '%.3f' % s.topsis_score }}</td>
         </tr>
         {% endfor %}
