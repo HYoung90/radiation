@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,271 +9,194 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #f4f7f6; /* 전체 배경색을 더 부드럽게 */
+            background-color: #f4f7f6;
             margin: 0;
             padding: 20px;
             color: #333;
         }
-
         .container {
-            max-width: 1200px; /* 컨테이너 최대 너비 설정 */
-            margin: 20px auto; /* 중앙 정렬 및 상하 여백 */
-            background-color: #ffffff;
+            max-width: 1200px;
+            margin: 20px auto;
+            background-color: #fff;
             padding: 30px;
-            border-radius: 12px; /* 모서리 더 둥글게 */
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1); /* 그림자 더 강하게 */
+            border-radius: 12px;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
         }
-
         h1 {
-            color: #2c3e50; /* 제목 색상 */
+            color: #2c3e50;
             text-align: center;
             margin-bottom: 30px;
-            font-size: 2.2em; /* 제목 크기 조정 */
+            font-size: 2.2em;
         }
-
         #map {
             height: 500px;
-            margin-bottom: 30px; /* 지도와 버튼/테이블 사이 간격 늘림 */
+            margin-bottom: 30px;
             border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
-
-        /* 테이블 및 DataTables 관련 스타일 개선 */
+        /* DataTable 스타일 */
         #radiationTable {
-            width: 100% !important; /* DataTables 너비 문제 해결 */
-            border-collapse: collapse; /* 테두리 병합 */
-            margin-top: 20px; /* 지도와의 간격 */
-            font-size: 1.0em; /* 폰트 크기 조정 */
+            width:100% !important;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 1em;
         }
-
         #radiationTable thead th {
-            background-color: #e9ecef; /* 헤더 배경색 */
-            color: #495057; /* 헤더 텍스트 색상 */
-            padding: 12px 15px; /* 헤더 패딩 */
+            background: #e9ecef;
+            color: #495057;
+            padding: 12px 15px;
             text-align: center;
-            border-bottom: 2px solid #dee2e6; /* 헤더 하단 테두리 */
+            border-bottom: 2px solid #dee2e6;
             font-weight: bold;
         }
-
         #radiationTable tbody td {
-            padding: 10px 15px; /* 바디 셀 패딩 */
+            padding: 10px 15px;
             text-align: center;
-            vertical-align: middle; /* 세로 정렬 */
-            border-bottom: 1px solid #e9ecef; /* 셀 하단 테두리 */
+            border-bottom: 1px solid #e9ecef;
         }
-
         #radiationTable tbody tr:nth-child(even) {
-            background-color: #f8f9fa; /* 짝수 행 배경색 */
+            background: #f8f9fa;
         }
-
         #radiationTable tbody tr:hover {
-            background-color: #e2f4f8; /* 호버 시 배경색 변경 */
+            background: #e2f4f8;
             cursor: pointer;
         }
-
-        /* DataTables 정보 텍스트, 검색 필드, 페이지 길이 선택 드롭다운 숨기기 */
         .dataTables_wrapper .dataTables_info,
         .dataTables_wrapper .dataTables_filter,
         .dataTables_wrapper .dataTables_length,
-        .dataTables_wrapper .dataTables_paginate { /* 페이지네이션 관련 요소 숨기기 */
+        .dataTables_wrapper .dataTables_paginate {
             display: none;
         }
-
-
-        /* 버튼 그룹 스타일 */
-        .top-buttons { /* 새로고침, 처음으로 버튼 그룹 */
+        .top-buttons {
             display: flex;
-            justify-content: flex-start; /* 왼쪽 정렬 */
-            align-items: center; /* 세로 중앙 정렬 */
-            margin-bottom: 25px; /* 버튼과 제목/지도 사이 간격 */
+            gap: 8px;
+            margin-bottom: 25px;
         }
         .btn {
-            padding: 12px 25px; /* 버튼 패딩 증가 */
-            font-size: 1em; /* 버튼 폰트 크기 조정 */
-            color: white;
+            padding: 12px 25px;
+            font-size: 1em;
+            color: #fff;
             border: none;
-            border-radius: 8px; /* 버튼 모서리 둥글게 */
+            border-radius: 8px;
             cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.2s ease; /* 부드러운 전환 효과 */
-            margin-right: 8px; /* 버튼 간 간격 (오른쪽에만 적용) */
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* 버튼에 그림자 추가 */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: background-color .3s, transform .2s;
         }
-        .btn-secondary {
-            background-color: #6c757d;
-        }
-        .btn-info { /* 새로고침 버튼 색상 */
-            background-color: #007bff; /* 통일성을 위해 파란색으로 변경 */
-        }
-        .btn:hover {
-            transform: translateY(-2px); /* 호버 시 살짝 올라오는 효과 */
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); /* 호버 시 그림자 강조 */
-        }
-
+        .btn-info { background: #007bff; }
+        .btn-secondary { background: #6c757d; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
         .popup-button {
-            background-color: #007bff;
-            color: white;
-            padding: 8px 15px; /* 팝업 버튼 패딩 조정 */
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            text-align: center;
-            font-size: 0.9em;
-            transition: background-color 0.3s ease;
+            background: #007bff; color: #fff; padding: 8px 15px;
+            border: none; border-radius:5px; cursor:pointer;
+            transition: background .3s;
         }
-        .popup-button:hover {
-            background-color: #0056b3;
-        }
+        .popup-button:hover { background: #0056b3; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="top-buttons"> {# 버튼들을 왼쪽 상단으로 이동시키기 위한 div #}
-            <button id="refreshData" class="btn btn-info">새로고침</button>
-            <button class="btn btn-secondary" onclick="window.location.href='/'">처음으로</button>
-        </div>
-
-        <h1 class="mb-4">원자력 발전소 주변 방사선량 데이터</h1>
-
-        <div id="map"></div> <table id="radiationTable" class="display">
-            <thead>
-                <tr>
-                    <th>측정 시간</th>
-                    <th>발전소 이름</th>
-                    <th>측정 지역</th>
-                    <th>방사선량 (μSv/h)</th>
-                </tr>
-            </thead>
-            <tbody>
-                </tbody>
-        </table>
+  <div class="container">
+    <div class="top-buttons">
+      <button id="refreshData" class="btn btn-info">새로고침</button>
+      <button class="btn btn-secondary" onclick="location.href='/'">처음으로</button>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-    <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <h1>원자력 발전소 주변 방사선량 데이터</h1>
 
-    <script>
-        $(document).ready(function() {
-            var table = $('#radiationTable').DataTable({
-                searching: false, // 검색창 비활성화
-                paging: false,    // 페이지네이션 비활성화 (가장 중요한 변경)
-                ordering: true,  // 정렬 활성화
-                info: false,     // "Showing X of Y entries" 정보 표시 비활성화 (가장 중요한 변경)
-                order: [[3, 'desc']], // 방사선량 기준으로 초기 내림차순 정렬
-                // lengthMenu 옵션은 paging이 false일 때 의미 없지만, 혹시 나중에 쓸 수 있으니 남겨두거나 삭제해도 됩니다.
-                // lengthMenu: [[10, 25, 50, -1], [10, 25, 50, "모두"]],
-                language: { // DataTables 언어를 한글로 설정
-                    "emptyTable": "데이터가 없습니다.",
-                    // info 관련 텍스트는 info:false 로 인해 불필요하므로 생략 가능
-                    // "info": "총 _TOTAL_개 항목 중 _START_에서 _END_ 표시",
-                    // "infoEmpty": "표시할 항목 없음",
-                    // "infoFiltered": "(_MAX_ 항목 중 필터링됨)",
-                    "loadingRecords": "로딩 중...",
-                    "processing": "처리 중...",
-                    "zeroRecords": "검색 결과 없음",
-                    "aria": {
-                        "sortAscending": ": 오름차순 정렬",
-                        "sortDescending": ": 내림차순 정렬"
-                    }
-                },
-                columns: [
-                    { data: 'time', title: '측정 시간' },
-                    { data: 'genName', title: '발전소 이름' },
-                    { data: 'expl', title: '측정 지역' },
-                    {
-                        data: 'max_value',
-                        title: '방사선량 (μSv/h)',
-                        render: function(data) {
-                            return data !== null ? `${parseFloat(data).toFixed(3)} μSv/h` : "N/A";
-                        }
-                    }
-                ]
-            });
+    <div id="map"></div>
 
-            // 지도 설정
-            var map = L.map('map').setView([36.5, 127.5], 7);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; <a href="https://carto.com/">CARTO</a> | &copy; OpenStreetMap contributors',
-                subdomains: 'abcd',
-                maxZoom: 19
-            }).addTo(map);
+    <table id="radiationTable" class="display">
+      <thead>
+        <tr>
+          <th>측정 시간</th>
+          <th>발전소 이름</th>
+          <th>측정 지역</th>
+          <th>방사선량 (μSv/h)</th>
+        </tr>
+      </thead>
+    </table>
+  </div>
 
-            // 발전소 좌표
-            const plantCoordinates = {
-                "KR": { lat: 35.3213, lng: 129.2941, name: "고리 원자력발전소" },
-                "WS": { lat: 35.7131, lng: 129.4775, name: "월성 원자력발전소" },
-                "YK": { lat: 35.4165, lng: 126.4178, name: "한빛 원자력발전소" },
-                "UJ": { lat: 37.0941, lng: 129.3819, name: "한울 원자력발전소" },
-                "SU": { lat: 35.3376, lng: 129.3115, name: "새울 원자력발전소" }
-            };
-
-            // 마커 추가
-            Object.keys(plantCoordinates).forEach(function(key) {
-                var plant = plantCoordinates[key];
-                L.marker([plant.lat, plant.lng]).addTo(map)
-                    .bindPopup(`
-                        <b>${plant.name}</b><br>
-                        <button class="popup-button" onclick="window.location.href='/nuclear_radiation_history/${encodeURIComponent(key)}'">과거 데이터 보기</button>
-                    `);
-            });
-
-            // 데이터를 가져와 테이블에 채우는 함수
-            function loadHighestRadiationData() {
-                table.clear(); // 테이블 초기화
-
-                $.ajax({
-                    url: '/api/nuclear_radiation/highest_per_plant',
-                    method: 'GET',
-                    success: function(data) {
-                        if (!Array.isArray(data)) {
-                            console.error("데이터 형식 오류:", data);
-                            table.draw(); // 에러 시에도 테이블 다시 그리기
-                            return;
-                        }
-
-                        if (data.length === 0) {
-                            console.log("데이터가 없습니다.");
-                            table.draw(); // 데이터 없으면 테이블 다시 그리기
-                            return;
-                        }
-
-                        // 데이터를 map_utils.py의 genName_mapping과 동일하게 매핑합니다.
-                        const genNameMapping = {
-                            "KR": "고리 원자력발전소",
-                            "WS": "월성 원자력발전소",
-                            "YK": "한빛 원자력발전소",
-                            "UJ": "한울 원자력발전소",
-                            "SU": "새울 원자력발전소"
-                        };
-
-                        data.forEach(function(item) {
-                            // item._id는 발전소 코드 (예: "KR", "WS")
-                            var plantName = genNameMapping[item._id] || item._id; // 매핑된 이름 사용
-                            var radiationValue = parseFloat(item.max_value) || 0; // 최대 방사선량
-
-                            // 데이터를 테이블에 추가
-                            table.row.add({
-                                time: item.time, // 측정 시간
-                                genName: plantName,
-                                expl: item.expl, // 측정 지역
-                                max_value: radiationValue
-                            });
-                        });
-
-                        table.draw(); // 데이터 로드 후 테이블 다시 그리기
-                    },
-                    error: function() {
-                        console.error("최고 방사선량 정보를 불러오지 못했습니다.");
-                        table.draw(); // 에러 발생 시에도 테이블 다시 그리기
-                    }
-                });
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  <script>
+    $(function(){
+      // DataTable 설정
+      var table = $('#radiationTable').DataTable({
+        ajax: {
+          url: '/api/nuclear_radiation/highest_per_plant',
+          dataSrc: ''
+        },
+        columns: [
+          {
+            data: 'time',
+            title: '측정 시간',
+            render: function(raw) {
+              if (!raw) return '';
+              // "YYYY-MM-DD hh:mm:ss" → ISO 형식
+              var iso = raw.replace(' ', 'T') + 'Z';
+              // 한국 시간으로 로컬화
+              return new Date(iso).toLocaleString('ko-KR', {
+                year:   'numeric',
+                month:  '2-digit',
+                day:    '2-digit',
+                hour:   '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+              });
             }
+          },
+          {
+            data: '_id',
+            title: '발전소 이름',
+            render: function(code) {
+              var m = { KR:'고리 원자력발전소', WS:'월성 원자력발전소',
+                        YK:'한빛 원자력발전소', UJ:'한울 원자력발전소',
+                        SU:'새울 원자력발전소' };
+              return m[code]||code;
+            }
+          },
+          { data: 'expl', title: '측정 지역' },
+          {
+            data: 'max_value',
+            title: '방사선량 (μSv/h)',
+            render: function(v){ return parseFloat(v).toFixed(3)+' μSv/h'; }
+          }
+        ],
+        paging:    false,
+        info:      false,
+        searching: false,
+        order: [[0,'desc']],
+        language: { emptyTable: '데이터가 없습니다.' }
+      });
 
-            loadHighestRadiationData(); // 페이지 로드 시 데이터 로드
-            $('#refreshData').click(function() {
-                loadHighestRadiationData(); // 새로 고침 버튼 클릭 시 데이터 로드
-            });
-        });
-    </script>
+      // 새로고침
+      $('#refreshData').on('click', function(){
+        table.ajax.reload(null, false);
+      });
+
+      // 지도 초기화
+      var map = L.map('map').setView([36.5,127.5],7);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution:'&copy; CARTO &copy; OSM', maxZoom:19
+      }).addTo(map);
+
+      var coords = {
+        KR:[35.3213,129.2941,'고리 원전'],
+        WS:[35.7131,129.4775,'월성 원전'],
+        YK:[35.4165,126.4178,'한빛 원전'],
+        UJ:[37.0941,129.3819,'한울 원전'],
+        SU:[35.3376,129.3115,'새울 원전']
+      };
+      Object.entries(coords).forEach(function([code,arr]){
+        L.marker([arr[0],arr[1]]).addTo(map)
+         .bindPopup(`<b>${arr[2]}</b><br>
+           <button class="popup-button"
+             onclick="location.href='/nuclear_radiation_history/${code}'">
+             과거 데이터 보기
+           </button>`);
+      });
+    });
+  </script>
 </body>
 </html>
