@@ -226,7 +226,7 @@ def get_latest_weather_data(genName):
     logging.info(f"Received request for latest data for genName: {normalized_genName}")
 
     try:
-        data =backup_collection.find_one({"genName": normalized_genName}, {"_id": 0}, sort=[("time", DESCENDING)])
+        data =collection.find_one({"genName": normalized_genName}, {"_id": 0}, sort=[("time", DESCENDING)])
         if data:
             logging.info(f"Latest data found: {data}")
             return jsonify(data)
