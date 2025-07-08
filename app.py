@@ -531,31 +531,37 @@ def get_highest_radiation_by_plant():
 @app.route('/api/nuclear_radiation/history', methods=['GET'])
 def get_radiation_history():
     genName = request.args.get('genName')
-    expl = request.args.get('expl')
+    expl    = request.args.get('expl')
 
-    logging.debug(f"Fetching history for genName: {genName}, expl: {expl}")  # 추가 로그
+    logging.debug(f"Fetching history for genName: {genName}, expl: {expl}")
 
     if not genName or not expl:
         logging.warning("Missing genName or expl in the request")
         return jsonify([])
 
+    # 클라이언트에 넘겨준 genName이 한글 이름일 경우 코드로 매핑
     mapped_genName = None
     for code, name in genName_mapping.items():
         if name == genName:
             mapped_genName = code
             break
-
     if not mapped_genName:
         mapped_genName = genName
 
     try:
-        history_data = list(nuclear_radiation_collection.find(
-            {'genName': mapped_genName, 'expl': expl},
-            {'_id': 0, 'time': 1, 'value': 1}
-        ).sort('time', 1))
+        # 최신순(내림차순) 정렬 후 상위 4개만 조회
+        history_data = list(
+            nuclear_radiation_collection.find(
+                {'genName': mapped_genName, 'expl': expl},
+                {'_id': 0, 'time': 1, 'value': 1}
+            )
+            .sort('time', -1)   # time 필드 내림차순 정렬
+            .limit(4)           # 최신 4건만
+        )
 
-        logging.info(f"Fetched history data: {history_data}")  # 여기에 로그 추가
+        logging.info(f"Fetched history data (latest 4): {history_data}")
         return jsonify(history_data)
+
     except Exception as e:
         logging.error(f"Error fetching history data for {genName}, {expl}: {e}")
         return jsonify({"error": "Failed to fetch radiation history data"}), 500
