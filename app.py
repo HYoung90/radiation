@@ -56,14 +56,6 @@ client = MongoClient(mongo_uri)
 db = client['Data']
 users = db['users'] # 사용자 컬렉션
 
-# TTL 인덱스 설정 (한 시간 후 자동 삭제)
-# - 'time' 필드는 반드시 BSON datetime 타입이어야 합니다.
-db.nuclear_radiation.create_index(
-    [("time", 1)],
-    expireAfterSeconds=3600,
-    name="nuclear_radiation_ttl_idx"
-)
-
 # User 클래스 정의 바로 위나 아래에 추가
 def admin_required(f):
     @wraps(f)
