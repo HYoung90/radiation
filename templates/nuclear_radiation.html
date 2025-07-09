@@ -121,10 +121,10 @@
   <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
   <script>
     $(function(){
-      // DataTable 설정
+      // DataTable 설정 (최신값 endpoint 사용)
       var table = $('#radiationTable').DataTable({
         ajax: {
-          url: '/api/nuclear_radiation/highest_per_plant',
+          url: '/api/nuclear_radiation/latest',
           dataSrc: ''
         },
         columns: [
@@ -133,9 +133,7 @@
             title: '측정 시간',
             render: function(raw) {
               if (!raw) return '';
-              // "YYYY-MM-DD hh:mm:ss" → ISO 형식
               var iso = raw.replace(' ', 'T') + 'Z';
-              // 한국 시간으로 로컬화
               return new Date(iso).toLocaleString('ko-KR', {
                 year:   'numeric',
                 month:  '2-digit',
@@ -147,20 +145,26 @@
             }
           },
           {
-            data: '_id',
+            data: 'genName',
             title: '발전소 이름',
             render: function(code) {
-              var m = { KR:'고리 원자력발전소', WS:'월성 원자력발전소',
-                        YK:'한빛 원자력발전소', UJ:'한울 원자력발전소',
-                        SU:'새울 원자력발전소' };
-              return m[code]||code;
+              var m = {
+                KR:'고리 원자력발전소',
+                WS:'월성 원자력발전소',
+                YK:'한빛 원자력발전소',
+                UJ:'한울 원자력발전소',
+                SU:'새울 원자력발전소'
+              };
+              return m[code] || code;
             }
           },
           { data: 'expl', title: '측정 지역' },
           {
-            data: 'max_value',
+            data: 'value',
             title: '방사선량 (μSv/h)',
-            render: function(v){ return parseFloat(v).toFixed(3)+' μSv/h'; }
+            render: function(v){
+              return parseFloat(v).toFixed(3) + ' μSv/h';
+            }
           }
         ],
         paging:    false,
@@ -170,7 +174,7 @@
         language: { emptyTable: '데이터가 없습니다.' }
       });
 
-      // 새로고침
+      // 새로고침 버튼
       $('#refreshData').on('click', function(){
         table.ajax.reload(null, false);
       });
