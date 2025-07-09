@@ -56,6 +56,7 @@ client = MongoClient(mongo_uri)
 db = client['Data']
 users = db['users'] # 사용자 컬렉션
 
+
 # User 클래스 정의 바로 위나 아래에 추가
 def admin_required(f):
     @wraps(f)
