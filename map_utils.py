@@ -243,7 +243,7 @@ def generate_topsis_map_html(plant):
         for row in w_norm
     ]
 
-    cm_top = cm.LinearColormap(['#313695', 'white', '#a50026'], index=[0, 0.5, 1],
+    cm_top = cm.LinearColormap(['blue', 'white', 'red'], index=[0, 0.5, 1],
                                vmin=0, vmax=1, caption='TOPSIS Score')
     folium.GeoJson(
         df,
