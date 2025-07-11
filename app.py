@@ -755,45 +755,41 @@ def export_analysis1_csv():
 # ---------------------------------------------------------------------
 # 분석2 라우터 그룹
 # ---------------------------------------------------------------------
-@app.route('/export_analysis2_csv')
-def export_analysis2_csv():
-    return export_csv(
-        analysis2_collection,
-        "analysis2_data",
-        # 템플릿 <th>와 정확히 일치하도록 단위 포함
-        ["측정시간", "위도", "경도", "고도 (m)", "풍속 (m/s)", "풍향 (°)", "방사선량 (nSv/h)"],
-        ["time",      "lat",  "lng",  "altitude",   "windspeed",     "windDir",    "radiation"],
-        sort=[('time', DESCENDING)]
-    )
+# ---------------------------------------------------------------------
+# 분석2 라우터 그룹 — upload_analysis2_csv 개선판
+# ---------------------------------------------------------------------
+from flask import request, jsonify
+import pandas as pd
+import io
 
 @app.route('/upload_analysis2_csv', methods=['POST'])
 def upload_analysis2_csv():
+    # 0) 파일 유효성 검사
     if 'file' not in request.files:
-        return "No file part", 400
+        return jsonify({"error": "No file part"}), 400
     file = request.files['file']
     if file.filename == '':
-        return "No selected file", 400
-    if not file.filename.endswith('.csv'):
-        return "Invalid file type. Only CSV files are allowed.", 400
+        return jsonify({"error": "No selected file"}), 400
+    if not file.filename.lower().endswith('.csv'):
+        return jsonify({"error": "Only CSV files allowed"}), 400
 
-    # 1) 파일 전체를 바이너리로 읽어서
+    # 1) 전체 바이너리 읽기
     raw_bytes = file.read()
 
-    # 2) UTF-8 BOM 제거(decode 실패 시 CP949로 fallback)
+    # 2) UTF-8 BOM 제거 → CP949 fallback
     try:
         text = raw_bytes.decode('utf-8-sig')
     except UnicodeDecodeError:
         text = raw_bytes.decode('cp949')
 
-    # 3) 문자열 버퍼로 다시 읽기
+    # 3) StringIO → DataFrame
     df = pd.read_csv(io.StringIO(text))
-
-    # 4) 컬럼명 깨끗하게 정리 (BOM, 공백 제거)
+    # 4) BOM·공백 제거
     df.columns = df.columns.str.replace('\ufeff', '').str.strip()
-    app.logger.debug(f"Raw columns after clean: {df.columns.tolist()}")
+    app.logger.debug(f"Raw columns: {df.columns.tolist()}")
 
-    # 5) 매핑
-    mapping = {
+    # 5) 매핑 사전 (한글/영문)
+    mapping_kr = {
         "측정시간":        "time",
         "위도":            "lat",
         "경도":            "lng",
@@ -802,16 +798,44 @@ def upload_analysis2_csv():
         "풍향 (°)":        "windDir",
         "방사선량 (nSv/h)": "radiation"
     }
-    df.rename(columns=mapping, inplace=True)
-    app.logger.debug(f"Columns after rename: {df.columns.tolist()}")
+    mapping_en = {
+        "checkTime": "time",
+        "lat":       "lat",
+        "lng":       "lng",
+        "altitude":  "altitude",
+        "windspeed": "windspeed",
+        "windDir":   "windDir",
+        "radiation": "radiation"
+    }
 
-    # 6) 재업로드용 버퍼 생성
+    # 6) 적합한 매핑 선택
+    if set(mapping_kr).issubset(df.columns):
+        mapping = mapping_kr
+    elif set(mapping_en).issubset(df.columns):
+        mapping = mapping_en
+    else:
+        return jsonify({
+            "error":    "Unexpected CSV headers",
+            "headers":  df.columns.tolist()
+        }), 400
+
+    # 7) 컬럼명 치환
+    df.rename(columns=mapping, inplace=True)
+    app.logger.debug(f"Renamed columns: {df.columns.tolist()}")
+
+    # 8) 타입 변환
+    df['time']      = pd.to_datetime(df['time'], errors='coerce')
+    for col in ['lat','lng','altitude','windspeed','windDir','radiation']:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+
+    # 9) 재업로드용 버퍼 생성
     out_buf = io.StringIO()
     df.to_csv(out_buf, index=False, encoding='utf-8-sig')
     out_buf.seek(0)
 
-    # 7) upload_csv에 새로운 버퍼 전달
+    # 10) upload_csv 호출
     return upload_csv(analysis2_collection, out_buf, mapping)
+
 
 # ---------------------------------------------------------------------
 # 분석4 라우터 그룹
