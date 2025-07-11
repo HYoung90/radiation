@@ -770,24 +770,48 @@ def export_analysis2_csv():
 def upload_analysis2_csv():
     if 'file' not in request.files:
         return "No file part", 400
-
     file = request.files['file']
     if file.filename == '':
         return "No selected file", 400
-
-    if file and file.filename.endswith('.csv'):
-        return upload_csv(analysis2_collection, file, {
-            # export 헤더와 1:1 매핑되도록 단위 포함
-            "측정시간":        "time",
-            "위도":            "lat",
-            "경도":            "lng",
-            "고도 (m)":        "altitude",
-            "풍속 (m/s)":      "windspeed",
-            "풍향 (°)":        "windDir",
-            "방사선량 (nSv/h)": "radiation"
-        })
-    else:
+    if not file.filename.endswith('.csv'):
         return "Invalid file type. Only CSV files are allowed.", 400
+
+    # 1) 파일 전체를 바이너리로 읽어서
+    raw_bytes = file.read()
+
+    # 2) UTF-8 BOM 제거(decode 실패 시 CP949로 fallback)
+    try:
+        text = raw_bytes.decode('utf-8-sig')
+    except UnicodeDecodeError:
+        text = raw_bytes.decode('cp949')
+
+    # 3) 문자열 버퍼로 다시 읽기
+    df = pd.read_csv(io.StringIO(text))
+
+    # 4) 컬럼명 깨끗하게 정리 (BOM, 공백 제거)
+    df.columns = df.columns.str.replace('\ufeff', '').str.strip()
+    app.logger.debug(f"Raw columns after clean: {df.columns.tolist()}")
+
+    # 5) 매핑
+    mapping = {
+        "측정시간":        "time",
+        "위도":            "lat",
+        "경도":            "lng",
+        "고도 (m)":        "altitude",
+        "풍속 (m/s)":      "windspeed",
+        "풍향 (°)":        "windDir",
+        "방사선량 (nSv/h)": "radiation"
+    }
+    df.rename(columns=mapping, inplace=True)
+    app.logger.debug(f"Columns after rename: {df.columns.tolist()}")
+
+    # 6) 재업로드용 버퍼 생성
+    out_buf = io.StringIO()
+    df.to_csv(out_buf, index=False, encoding='utf-8-sig')
+    out_buf.seek(0)
+
+    # 7) upload_csv에 새로운 버퍼 전달
+    return upload_csv(analysis2_collection, out_buf, mapping)
 
 # ---------------------------------------------------------------------
 # 분석4 라우터 그룹
