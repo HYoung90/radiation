@@ -757,8 +757,9 @@ def export_analysis2_csv():
     return export_csv(
         analysis2_collection,
         "analysis2_data",
-        ["측정시간","위도","경도","고도 (m)","풍속 (m/s)","풍향 (°)","방사선량 (nSv/h)"],
-        ["time","lat","lng","altitude","windspeed","windDir","radiation"],
+        # 템플릿 <th>와 정확히 일치하도록 단위 포함
+        ["측정시간", "위도", "경도", "고도 (m)", "풍속 (m/s)", "풍향 (°)", "방사선량 (nSv/h)"],
+        ["time",      "lat",  "lng",  "altitude",   "windspeed",     "windDir",    "radiation"],
         sort=[('time', DESCENDING)]
     )
 
@@ -772,18 +773,18 @@ def upload_analysis2_csv():
         return "No selected file", 400
 
     if file and file.filename.endswith('.csv'):
+        # export 헤더와 1:1 매핑되도록 단위 포함
         return upload_csv(analysis2_collection, file, {
-            "측정시간": "time",
-            "위도": "lat",
-            "경도": "lng",
-            "고도": "altitude",
-            "풍속": "windspeed",
-            "풍향": "windDir",
-            "방사선량": "radiation"
+            "측정시간":        "time",
+            "위도":            "lat",
+            "경도":            "lng",
+            "고도 (m)":        "altitude",
+            "풍속 (m/s)":      "windspeed",
+            "풍향 (°)":        "windDir",
+            "방사선량 (nSv/h)": "radiation"
         })
     else:
         return "Invalid file type. Only CSV files are allowed.", 400
-
 # ---------------------------------------------------------------------
 # 분석4 라우터 그룹
 # ---------------------------------------------------------------------
