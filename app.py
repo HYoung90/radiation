@@ -752,6 +752,9 @@ def export_analysis1_csv():
 # ---------------------------------------------------------------------
 # 분석2 라우터 그룹
 # ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# 분석2 라우터 그룹
+# ---------------------------------------------------------------------
 @app.route('/export_analysis2_csv')
 def export_analysis2_csv():
     return export_csv(
@@ -773,8 +776,8 @@ def upload_analysis2_csv():
         return "No selected file", 400
 
     if file and file.filename.endswith('.csv'):
-        # export 헤더와 1:1 매핑되도록 단위 포함
         return upload_csv(analysis2_collection, file, {
+            # export 헤더와 1:1 매핑되도록 단위 포함
             "측정시간":        "time",
             "위도":            "lat",
             "경도":            "lng",
@@ -785,6 +788,7 @@ def upload_analysis2_csv():
         })
     else:
         return "Invalid file type. Only CSV files are allowed.", 400
+
 # ---------------------------------------------------------------------
 # 분석4 라우터 그룹
 # ---------------------------------------------------------------------
