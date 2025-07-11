@@ -243,13 +243,13 @@ def generate_topsis_map_html(plant):
         for row in w_norm
     ]
 
-    cm_top = cm.LinearColormap(['blue', 'white', 'red'], index=[0, 0.5, 1],
+    cm_top = cm.LinearColormap(['#313695', '#ffffff', '#A50026'], index=[0, 0.5, 1],
                                vmin=0, vmax=1, caption='TOPSIS Score')
     folium.GeoJson(
         df,
         style_function=lambda feat: {
             'fillColor': cm_top(feat['properties']['topsis']),
-            'color': 'black', 'weight': 1, 'fillOpacity': 0.7
+            'color': 'black', 'weight': 1, 'fillOpacity': 0.9
         },
         tooltip=GeoJsonTooltip(
             fields=['adm_nm','population','topsis'],
