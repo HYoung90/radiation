@@ -3,7 +3,7 @@
 # 데이터 필터링, 최신 데이터 조회, CSV 내보내기 등의 기능을 제공합니다.
 
 
-from flask import Flask, render_template, request, redirect, url_for, jsonify, session, flash # flash 추가
+from flask import Flask, render_template, request, redirect, url_for, jsonify, session, flash, make_response
 from pymongo import MongoClient, DESCENDING
 from flask_caching import Cache
 import csv
@@ -860,24 +860,73 @@ def export_analysis4_csv():
 
 @app.route('/upload_analysis4_csv', methods=['POST'])
 def upload_analysis4_csv():
+    # 0) 파일 유효성 검사
     if 'file' not in request.files:
-        return "No file part", 400
-
+        return jsonify({"error": "No file part"}), 400
     file = request.files['file']
     if file.filename == '':
-        return "No selected file", 400
+        return jsonify({"error": "No selected file"}), 400
+    if not file.filename.lower().endswith('.csv'):
+        return jsonify({"error": "Only CSV files allowed"}), 400
 
-    if file and file.filename.endswith('.csv'):
-        return upload_csv(analysis4_collection, file, {
-            "측정시간": "time",
-            "위도": "lat",
-            "경도": "lng",
-            "풍속": "windspeed",
-            "풍향": "windDir",
-            "방사선량": "radiation"
-        })
+    # 1) 원본 바이너리 읽기 (한 번만)
+    raw_bytes = file.read()
+
+    # 2) 인코딩 처리
+    try:
+        text = raw_bytes.decode('utf-8-sig')
+    except UnicodeDecodeError:
+        text = raw_bytes.decode('cp949')
+
+    # 3) DataFrame 생성
+    df = pd.read_csv(io.StringIO(text))
+    df.columns = df.columns.str.replace('\ufeff', '').str.strip()
+
+    # 4) 매핑표: 한글·영문
+    mapping_kr = {
+        "측정시간":          "time",
+        "checkTime":        "time",
+        "time":             "time",
+        "위도":             "lat",
+        "lat":              "lat",
+        "경도":             "lng",
+        "lng":              "lng",
+        "풍속":             "windspeed",
+        "풍속 (m/s)":       "windspeed",
+        "windspeed":        "windspeed",
+        "풍향":             "windDir",
+        "풍향 (°)":         "windDir",
+        "windDir":          "windDir",
+        "방사선량":         "radiation",
+        "방사선량 (nSv/h)": "radiation",
+        "radiation":        "radiation"
+    }
+    mapping_en = mapping_kr  # 한글/영문 모두 mapping_kr에 포함했으니 mapping_en도 동일하게 사용
+
+    # 5) 컬럼 존재 체크 후 선택
+    if set(mapping_kr).issubset(df.columns):
+        mapping = mapping_kr
+    elif set(mapping_en).issubset(df.columns):
+        mapping = mapping_en
     else:
-        return "Invalid file type. Only CSV files are allowed.", 400
+        return jsonify({
+            "error":   "Unexpected CSV headers",
+            "headers": df.columns.tolist()
+        }), 400
+
+    # 6) 컬럼명 교체 & 타입 변환
+    df.rename(columns=mapping, inplace=True)
+    df['time']      = pd.to_datetime(df['time'], errors='coerce')
+    for c in ['lat','lng','windspeed','windDir','radiation']:
+        df[c] = pd.to_numeric(df[c], errors='coerce')
+
+    # 7) StringIO 버퍼로 재생성
+    out_buf = io.StringIO()
+    df.to_csv(out_buf, index=False, encoding='utf-8-sig')
+    out_buf.seek(0)
+
+    # 8) MongoDB 업로드
+    return upload_csv(analysis4_collection, out_buf, mapping)
 
 
 # ---------------------------------------------------------------------
