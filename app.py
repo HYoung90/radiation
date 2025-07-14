@@ -796,7 +796,10 @@ def upload_analysis2_csv():
     df.columns = df.columns.str.replace('\ufeff', '').str.strip()
     app.logger.debug(f"Raw columns: {df.columns.tolist()}")
 
-    # 5) 매핑 사전 (한글/영문)
+    # 5) _id 컬럼이 있으면 제거
+    df = df.drop(columns=['_id'], errors='ignore')
+
+    # 6) 매핑 사전 (한글/영문)
     mapping_kr = {
         "측정시간":        "time",
         "위도":            "lat",
@@ -810,40 +813,39 @@ def upload_analysis2_csv():
         "checkTime": "time",
         "lat":       "lat",
         "lng":       "lng",
-        "altitude":  "altitude",
-        "windspeed": "windspeed",
+        # windSpeed 헤더 추가!
+        "windSpeed": "windspeed",
         "windDir":   "windDir",
         "radiation": "radiation"
     }
 
-    # 6) 적합한 매핑 선택
+    # 7) 적합한 매핑 선택
     if set(mapping_kr).issubset(df.columns):
         mapping = mapping_kr
     elif set(mapping_en).issubset(df.columns):
         mapping = mapping_en
     else:
         return jsonify({
-            "error":    "Unexpected CSV headers",
-            "headers":  df.columns.tolist()
+            "error":   "Unexpected CSV headers",
+            "headers": df.columns.tolist()
         }), 400
 
-    # 7) 컬럼명 치환
+    # 8) 컬럼명 치환
     df.rename(columns=mapping, inplace=True)
     app.logger.debug(f"Renamed columns: {df.columns.tolist()}")
 
-    # 8) 타입 변환
-    df['time']      = pd.to_datetime(df['time'], errors='coerce')
-    for col in ['lat','lng','altitude','windspeed','windDir','radiation']:
+    # 9) 타입 변환
+    df['time'] = pd.to_datetime(df['time'], errors='coerce')
+    for col in ['lat', 'lng', 'windspeed', 'windDir', 'radiation']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    # 9) 재업로드용 버퍼 생성
+    # 10) 재업로드용 버퍼 생성
     out_buf = io.StringIO()
     df.to_csv(out_buf, index=False, encoding='utf-8-sig')
     out_buf.seek(0)
 
-    # 10) upload_csv 호출
+    # 11) upload_csv 호출
     return upload_csv(analysis2_collection, out_buf, mapping)
-
 
 # ---------------------------------------------------------------------
 # 분석4 라우터 그룹
