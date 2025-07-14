@@ -721,22 +721,30 @@ def analysis4():
 @app.route('/export_csv/<genName>', methods=['GET'])
 def export_csv_by_genName(genName):
     normalized = genName.upper()
-    # genName 필터, time 내림차순 정렬
+    # 1) 쿼리·정렬 설정
     query = {"genName": normalized}
     sort  = [("time", DESCENDING)]
-    # CSV 헤더·필드 정의
+    # 2) CSV 헤더·필드 정의
     header = ['time','temperature','humidity','rainfall','windspeed','winddirection','stability']
     fields = ['time','temperature','humidity','rainfall','windspeed','winddirection','air_stability']
-    # utils.export_csv 호출
-    return export_csv(
-        backup_collection,
-        f"{normalized}_data",  # 파일명 (확장자 .csv는 utils에서 붙여줌)
-        header,
-        fields,
-        query=query,
-        sort=sort
-    )
 
+    # 3) 메모리 상에 CSV 작성 (UTF-8 BOM 포함)
+    si = io.StringIO()
+    # BOM을 먼저 써 줍니다.
+    si.write('\ufeff')
+    writer = csv.writer(si)
+    writer.writerow(header)
+
+    cursor = backup_collection.find(query, {f: 1 for f in fields}, sort=sort)
+    for doc in cursor:
+        row = [doc.get(f, "") for f in fields]
+        writer.writerow(row)
+
+    # 4) Flask Response 로 감싸기
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = f"attachment; filename={normalized}_data.csv"
+    output.headers["Content-Type"] = "text/csv; charset=utf-8"
+    return output
 
 # ---------------------------------------------------------------------
 # 분석1 라우터 그룹
