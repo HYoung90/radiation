@@ -765,35 +765,35 @@ import io
 
 @app.route('/upload_analysis2_csv', methods=['POST'])
 def upload_analysis2_csv():
-    # 0) 파일 유효성 검사
+    # 0) File validation
     if 'file' not in request.files:
-        return jsonify({"error": "No file part"}), 400
+        return jsonify({"error": "No file part in the request"}), 400
     file = request.files['file']
     if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
+        return jsonify({"error": "No file selected"}), 400
     if not file.filename.lower().endswith('.csv'):
-        return jsonify({"error": "Only CSV files allowed"}), 400
+        return jsonify({"error": "Only CSV files are allowed"}), 400
 
-    # 1) 전체 바이너리 읽기
+    # 1) Read raw bytes
     raw_bytes = file.read()
 
-    # 2) CP949 우선 디코딩 → 실패 시 UTF-8-SIG
+    # 2) Decode with BOM-stripping and fallback to CP949
     try:
-        text = raw_bytes.decode('cp949')
-    except UnicodeDecodeError:
         text = raw_bytes.decode('utf-8-sig')
+    except UnicodeDecodeError:
+        text = raw_bytes.decode('cp949')
 
-    # 3) StringIO → DataFrame
+    # 3) Load into DataFrame
     df = pd.read_csv(io.StringIO(text))
 
-    # 4) BOM·공백 제거
+    # 4) Clean column names (remove BOM, whitespace)
     df.columns = df.columns.str.replace('\ufeff', '').str.strip()
-    app.logger.debug(f"Raw columns: {df.columns.tolist()}")
+    app.logger.debug(f"Raw CSV headers: {df.columns.tolist()}")
 
-    # 5) _id 컬럼이 있으면 제거
+    # 5) Drop unwanted _id column if present
     df = df.drop(columns=['_id'], errors='ignore')
 
-    # 6) 매핑 사전 (한글/영문)
+    # 6) Define header mappings
     mapping_kr = {
         "측정시간":        "time",
         "위도":            "lat",
@@ -813,40 +813,33 @@ def upload_analysis2_csv():
         "radiation": "radiation"
     }
 
-    # 7) 실제 업로드된 헤더와 겹치는 키만 골라서 매핑 테이블 생성
-    common_kr = {k: v for k, v in mapping_kr.items() if k in df.columns}
-    common_en = {k: v for k, v in mapping_en.items() if k in df.columns}
-
-    if common_kr:
-        mapping = common_kr
-    elif common_en:
-        mapping = common_en
+    # 7) Choose mapping based on which keys are present
+    if set(mapping_kr).issubset(df.columns):
+        mapping = mapping_kr
+    elif set(mapping_en).issubset(df.columns):
+        mapping = mapping_en
     else:
         return jsonify({
             "error":   "Unexpected CSV headers",
             "headers": df.columns.tolist()
         }), 400
 
-    app.logger.debug(f"Using mapping: {mapping}")
-
-    # 8) 컬럼명 치환
+    # 8) Rename columns
     df.rename(columns=mapping, inplace=True)
     app.logger.debug(f"Renamed columns: {df.columns.tolist()}")
 
-    # 9) 타입 변환
+    # 9) Type conversion
     df['time'] = pd.to_datetime(df['time'], errors='coerce')
     for col in ['lat', 'lng', 'altitude', 'windspeed', 'windDir', 'radiation']:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
+        df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    # 10) 재업로드용 버퍼 생성
+    # 10) Write back to buffer
     out_buf = io.StringIO()
     df.to_csv(out_buf, index=False, encoding='utf-8-sig')
     out_buf.seek(0)
 
-    # 11) upload_csv 호출
+    # 11) Finally upload to MongoDB
     return upload_csv(analysis2_collection, out_buf, mapping)
-
 
 # ---------------------------------------------------------------------
 # 분석4 라우터 그룹
@@ -863,29 +856,34 @@ def export_analysis4_csv():
 
 @app.route('/upload_analysis4_csv', methods=['POST'])
 def upload_analysis4_csv():
-    # 0) 파일 유효성 검사
+    # 0) File validation
     if 'file' not in request.files:
-        return jsonify({"error": "No file part"}), 400
+        return jsonify({"error": "No file part in the request"}), 400
     file = request.files['file']
     if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
+        return jsonify({"error": "No file selected"}), 400
     if not file.filename.lower().endswith('.csv'):
-        return jsonify({"error": "Only CSV files allowed"}), 400
+        return jsonify({"error": "Only CSV files are allowed"}), 400
 
-    # 1) 원본 바이너리 읽기 (한 번만)
+    # 1) Read raw bytes
     raw_bytes = file.read()
 
-    # 2) 인코딩 처리
+    # 2) Decode with BOM-stripping and fallback to CP949
     try:
         text = raw_bytes.decode('utf-8-sig')
     except UnicodeDecodeError:
         text = raw_bytes.decode('cp949')
 
-    # 3) DataFrame 생성
+    # 3) Load into DataFrame
     df = pd.read_csv(io.StringIO(text))
+
+    # 4) Clean column names (remove BOM, whitespace)
     df.columns = df.columns.str.replace('\ufeff', '').str.strip()
 
-    # 4) 매핑표: 한글·영문
+    # 5) Drop unwanted _id column if present
+    df = df.drop(columns=['_id'], errors='ignore')
+
+    # 6) Define header mappings (Korean ↔ internal)
     mapping_kr = {
         "측정시간":          "time",
         "checkTime":        "time",
@@ -904,9 +902,9 @@ def upload_analysis4_csv():
         "방사선량 (nSv/h)": "radiation",
         "radiation":        "radiation"
     }
-    mapping_en = mapping_kr  # 한글/영문 모두 mapping_kr에 포함했으니 mapping_en도 동일하게 사용
+    mapping_en = mapping_kr.copy()  # 영문 헤더들도 동일하게 처리
 
-    # 5) 컬럼 존재 체크 후 선택
+    # 7) Choose mapping based on which keys exist in df
     if set(mapping_kr).issubset(df.columns):
         mapping = mapping_kr
     elif set(mapping_en).issubset(df.columns):
@@ -917,20 +915,21 @@ def upload_analysis4_csv():
             "headers": df.columns.tolist()
         }), 400
 
-    # 6) 컬럼명 교체 & 타입 변환
+    # 8) Rename columns
     df.rename(columns=mapping, inplace=True)
-    df['time']      = pd.to_datetime(df['time'], errors='coerce')
-    for c in ['lat','lng','windspeed','windDir','radiation']:
-        df[c] = pd.to_numeric(df[c], errors='coerce')
 
-    # 7) StringIO 버퍼로 재생성
+    # 9) Type conversion
+    df['time'] = pd.to_datetime(df['time'], errors='coerce')
+    for col in ['lat', 'lng', 'windspeed', 'windDir', 'radiation']:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+
+    # 10) Write back to buffer
     out_buf = io.StringIO()
     df.to_csv(out_buf, index=False, encoding='utf-8-sig')
     out_buf.seek(0)
 
-    # 8) MongoDB 업로드
+    # 11) Upload to MongoDB
     return upload_csv(analysis4_collection, out_buf, mapping)
-
 
 # ---------------------------------------------------------------------
 # 구호소 평가
