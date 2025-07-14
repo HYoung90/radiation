@@ -853,9 +853,9 @@ def export_analysis4_csv():
     return export_csv(
         analysis4_collection,
         "analysis4_data",
-        ["측정시간","위도","경도","풍속 (m/s)","풍향 (°)","방사선량 (nSv/h)"],
-        ["time","lat","lng","windspeed","windDir","radiation"],
-        sort=[('time', DESCENDING)]
+        ["측정시간", "위도", "경도", "방사선량 (nSv/h)"],
+        ["checkTime", "lat", "lng", "radiation"],  # ← 여기에 콤마 추가
+        sort=[('checkTime', DESCENDING)]  # 그리고 sort도 checkTime 으로
     )
 
 @app.route('/upload_analysis4_csv', methods=['POST'])
@@ -886,8 +886,7 @@ def upload_analysis4_csv():
         "측정시간": "checkTime",
         "위도": "lat",
         "경도": "lng",
-        "고도": "altitude",  # <- (m) 없이 "고도" 로
-        "방사선량": "radiation"
+        "방사선량 (nSv/h)": "radiation"
     }
 
     if not set(mapping.keys()).intersection(df.columns):
@@ -899,7 +898,7 @@ def upload_analysis4_csv():
     df.rename(columns=mapping, inplace=True)
     # 5) 타입 변환
     df['checkTime'] = pd.to_datetime(df['checkTime'], errors='coerce')
-    for col in ['lat','lng','windspeed','windDir','radiation']:
+    for col in ['lat','lng','radiation']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
     # 6) 버퍼에 다시 CSV 작성
