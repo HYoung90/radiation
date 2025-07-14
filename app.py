@@ -819,10 +819,10 @@ def upload_analysis2_csv():
         "측정시간": "checkTime",
         "위도": "lat",
         "경도": "lng",
-        "고도": "altitude",  # <- (m) 없이 "고도" 로
-        "풍속": "windspeed",  # <- "(m/s)" 없앨 것
-        "풍향": "windDir",  # <- "(°)" 없앨 것
-        "방사선량": "radiation"
+        "고도 (m)": "altitude",  # <-- 여기
+        "풍속 (m/s)": "windspeed",
+        "풍향 (°)": "windDir",
+        "방사선량 (nSv/h)": "radiation"
     }
 
     if not set(mapping.keys()).intersection(df.columns):
@@ -881,7 +881,6 @@ def upload_analysis4_csv():
     df.columns = df.columns.str.replace('\ufeff', '').str.strip()
     df = df.drop(columns=['_id'], errors='ignore')
 
-    # 4) 컬럼 매핑 (checkTime 고정)
     # 4) 컬럼 매핑 (checkTime 고정)
     mapping = {
         "측정시간": "checkTime",
