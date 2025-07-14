@@ -1195,7 +1195,7 @@ def accident_result_page(genName):
         logging.error(f"Error fetching data for {genName}: {e}")
         return render_template('accident_result.html', genName=genName,
                                error="An unexpected error occurred.")
-
+#text test for commit
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
