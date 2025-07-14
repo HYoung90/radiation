@@ -45,7 +45,7 @@ def upload_csv(collection, file_obj, field_map):
             raw = raw.encode('utf-8')
 
     # 바이너리를 텍스트로 디코딩
-    text = raw.decode('utf-8')
+    text = raw.decode('utf-8-sig')
     stream = io.StringIO(text)
     reader = csv.DictReader(stream)
     docs = []
