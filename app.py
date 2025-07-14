@@ -816,18 +816,15 @@ def upload_analysis2_csv():
 
     # 4) 컬럼 매핑 (checkTime 고정)
     mapping = {
-        "측정시간":         "checkTime",
-        "checkTime":       "checkTime",
-        "위도":            "lat",
-        "lat":             "lat",
-        "경도":            "lng",
-        "lng":             "lng",
-        "고도 (m)":        "altitude",
-        "풍속 (m/s)":      "windspeed",
-        "풍향 (°)":        "windDir",
-        "방사선량 (nSv/h)": "radiation",
-        "radiation":       "radiation"
+        "측정시간": "checkTime",
+        "위도": "lat",
+        "경도": "lng",
+        "고도": "altitude",  # <- (m) 없이 "고도" 로
+        "풍속": "windspeed",  # <- "(m/s)" 없앨 것
+        "풍향": "windDir",  # <- "(°)" 없앨 것
+        "방사선량": "radiation"
     }
+
     if not set(mapping.keys()).intersection(df.columns):
         return jsonify({
             "error":   "Unexpected CSV headers",
@@ -885,17 +882,15 @@ def upload_analysis4_csv():
     df = df.drop(columns=['_id'], errors='ignore')
 
     # 4) 컬럼 매핑 (checkTime 고정)
+    # 4) 컬럼 매핑 (checkTime 고정)
     mapping = {
-        "측정시간":          "checkTime",
-        "checkTime":        "checkTime",
-        "위도":             "lat",
-        "lat":              "lat",
-        "경도":             "lng",
-        "lng":              "lng",
-        "풍속 (m/s)":       "windspeed",
-        "풍향 (°)":         "windDir",
-        "방사선량 (nSv/h)": "radiation"
+        "측정시간": "checkTime",
+        "위도": "lat",
+        "경도": "lng",
+        "고도": "altitude",  # <- (m) 없이 "고도" 로
+        "방사선량": "radiation"
     }
+
     if not set(mapping.keys()).intersection(df.columns):
         return jsonify({
             "error":   "Unexpected CSV headers",
