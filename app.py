@@ -756,13 +756,6 @@ def export_analysis1_csv():
     filename = "analysis1_data"
     return export_csv(analysis1_collection, filename, header, fields)
 
-
-# ---------------------------------------------------------------------
-# 분석2 라우터 그룹
-# ---------------------------------------------------------------------
-# ---------------------------------------------------------------------
-# 분석2 라우터 그룹
-# ---------------------------------------------------------------------
 # ---------------------------------------------------------------------
 # 분석2 라우터 그룹 — upload_analysis2_csv 개선판
 # ---------------------------------------------------------------------
@@ -813,7 +806,7 @@ def upload_analysis2_csv():
         "checkTime": "time",
         "lat":       "lat",
         "lng":       "lng",
-        # windSpeed 헤더 추가!
+        # windSpeed 헤더 추가
         "windSpeed": "windspeed",
         "windDir":   "windDir",
         "radiation": "radiation"
@@ -844,7 +837,7 @@ def upload_analysis2_csv():
     df.to_csv(out_buf, index=False, encoding='utf-8-sig')
     out_buf.seek(0)
 
-    # 11) upload_csv 호출
+    # 11) MongoDB 업로드
     return upload_csv(analysis2_collection, out_buf, mapping)
 
 # ---------------------------------------------------------------------
