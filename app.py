@@ -262,6 +262,11 @@ def get_filtered_weather_data(genName):
         return jsonify({"error": "An error occurred while fetching the data"}), 500
 
 
+@app.route('/favicon.ico')
+def favicon():
+    return app.send_static_file('favicon.ico')
+
+
 # 기본 기상 데이터 페이지 (genName 기준으로)
 @app.route('/<genName>', methods=['GET'])  # POST 메서드 제거
 def region_data(genName):
@@ -701,7 +706,12 @@ def analysis1():
 @app.route('/analysis2')
 def analysis2():
     try:
-        data = list(analysis2_collection.find({}, {"_id": 0}).sort("time", DESCENDING))
+        # checkTime 필드 기준으로 내림차순 정렬하도록 수정
+        data = list(
+            analysis2_collection
+            .find({}, {"_id": 0})
+            .sort("checkTime", DESCENDING)
+        )
         logging.info(f"Fetched data from analysis2_collection: {data}")
         return render_template('analysis2.html', data=data)
     except Exception as e:
@@ -711,7 +721,12 @@ def analysis2():
 @app.route('/analysis4')
 def analysis4():
     try:
-        data = list(analysis4_collection.find({}, {"_id": 0}).sort("time", DESCENDING))
+        # 마찬가지로 checkTime 필드 기준으로 정렬
+        data = list(
+            analysis4_collection
+            .find({}, {"_id": 0})
+            .sort("checkTime", DESCENDING)
+        )
         logging.info(f"Fetched data from analysis4_collection: {data}")
         return render_template('analysis4.html', data=data)
     except Exception as e:
@@ -780,39 +795,39 @@ def export_analysis2_csv():
 def upload_analysis2_csv():
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
-    file = request.files['file']
-    if not file or file.filename == '':
+    f = request.files['file']
+    if not f or f.filename == '':
         return jsonify({"error": "No selected file"}), 400
-    if not file.filename.lower().endswith('.csv'):
+    if not f.filename.lower().endswith('.csv'):
         return jsonify({"error": "Only CSV files allowed"}), 400
 
-    # 바이너리 → 문자열 (BOM 제거 후 CP949 fallback)
-    raw = file.read()
+    # 1) 바이너리 읽기
+    raw_bytes = f.read()
+    # 2) BOM 제거 → CP949 fallback
     try:
-        text = raw.decode('utf-8-sig')
+        text = raw_bytes.decode('utf-8-sig')
     except UnicodeDecodeError:
-        text = raw.decode('cp949')
+        text = raw_bytes.decode('cp949')
 
+    # 3) DataFrame 생성
     df = pd.read_csv(io.StringIO(text))
-    df.columns = df.columns.str.replace('\ufeff','').str.strip()
-    # _id 컬럼 제거
+    df.columns = df.columns.str.replace('\ufeff', '').str.strip()
     df = df.drop(columns=['_id'], errors='ignore')
 
-    # 매핑: checkTime 고정
+    # 4) 컬럼 매핑 (checkTime 고정)
     mapping = {
-        "측정시간":        "checkTime",
-        "checkTime":      "checkTime",
-        "위도":           "lat",
-        "lat":            "lat",
-        "경도":           "lng",
-        "lng":            "lng",
-        "고도 (m)":       "altitude",
-        "풍속 (m/s)":     "windspeed",
-        "풍향 (°)":       "windDir",
-        "방사선량 (nSv/h)":"radiation",
-        "radiation":      "radiation"
+        "측정시간":         "checkTime",
+        "checkTime":       "checkTime",
+        "위도":            "lat",
+        "lat":             "lat",
+        "경도":            "lng",
+        "lng":             "lng",
+        "고도 (m)":        "altitude",
+        "풍속 (m/s)":      "windspeed",
+        "풍향 (°)":        "windDir",
+        "방사선량 (nSv/h)": "radiation",
+        "radiation":       "radiation"
     }
-
     if not set(mapping.keys()).intersection(df.columns):
         return jsonify({
             "error":   "Unexpected CSV headers",
@@ -820,17 +835,19 @@ def upload_analysis2_csv():
         }), 400
 
     df.rename(columns=mapping, inplace=True)
-    # 타입 변환
+    # 5) 타입 변환
     df['checkTime'] = pd.to_datetime(df['checkTime'], errors='coerce')
-    for c in ['lat','lng','altitude','windspeed','windDir','radiation']:
-        df[c] = pd.to_numeric(df[c], errors='coerce')
+    for col in ['lat','lng','altitude','windspeed','windDir','radiation']:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    # 버퍼에 다시 CSV 작성
+    # 6) 버퍼에 다시 CSV 작성
     buf = io.StringIO()
     df.to_csv(buf, index=False, encoding='utf-8-sig')
     buf.seek(0)
 
+    # 7) MongoDB 업로드
     return upload_csv(analysis2_collection, buf, mapping)
+
 # ---------------------------------------------------------------------
 # 분석4 라우터 그룹
 # ---------------------------------------------------------------------
@@ -848,22 +865,26 @@ def export_analysis4_csv():
 def upload_analysis4_csv():
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
-    file = request.files['file']
-    if not file or file.filename == '':
+    f = request.files['file']
+    if not f or f.filename == '':
         return jsonify({"error": "No selected file"}), 400
-    if not file.filename.lower().endswith('.csv'):
+    if not f.filename.lower().endswith('.csv'):
         return jsonify({"error": "Only CSV files allowed"}), 400
 
-    raw = file.read()
+    # 1) 바이너리 읽기
+    raw_bytes = f.read()
+    # 2) BOM 제거 → CP949 fallback
     try:
-        text = raw.decode('utf-8-sig')
+        text = raw_bytes.decode('utf-8-sig')
     except UnicodeDecodeError:
-        text = raw.decode('cp949')
+        text = raw_bytes.decode('cp949')
 
+    # 3) DataFrame 생성
     df = pd.read_csv(io.StringIO(text))
-    df.columns = df.columns.str.replace('\ufeff','').str.strip()
+    df.columns = df.columns.str.replace('\ufeff', '').str.strip()
     df = df.drop(columns=['_id'], errors='ignore')
 
+    # 4) 컬럼 매핑 (checkTime 고정)
     mapping = {
         "측정시간":          "checkTime",
         "checkTime":        "checkTime",
@@ -875,7 +896,6 @@ def upload_analysis4_csv():
         "풍향 (°)":         "windDir",
         "방사선량 (nSv/h)": "radiation"
     }
-
     if not set(mapping.keys()).intersection(df.columns):
         return jsonify({
             "error":   "Unexpected CSV headers",
@@ -883,15 +903,19 @@ def upload_analysis4_csv():
         }), 400
 
     df.rename(columns=mapping, inplace=True)
+    # 5) 타입 변환
     df['checkTime'] = pd.to_datetime(df['checkTime'], errors='coerce')
-    for c in ['lat','lng','windspeed','windDir','radiation']:
-        df[c] = pd.to_numeric(df[c], errors='coerce')
+    for col in ['lat','lng','windspeed','windDir','radiation']:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
 
+    # 6) 버퍼에 다시 CSV 작성
     buf = io.StringIO()
     df.to_csv(buf, index=False, encoding='utf-8-sig')
     buf.seek(0)
 
+    # 7) MongoDB 업로드
     return upload_csv(analysis4_collection, buf, mapping)
+
 # ---------------------------------------------------------------------
 # 구호소 평가
 # ---------------------------------------------------------------------
