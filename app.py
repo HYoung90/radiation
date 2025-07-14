@@ -777,14 +777,15 @@ def upload_analysis2_csv():
     # 1) 전체 바이너리 읽기
     raw_bytes = file.read()
 
-    # 2) UTF-8 BOM 제거 → CP949 fallback
+    # 2) CP949 우선 디코딩 → 실패 시 UTF-8-SIG
     try:
-        text = raw_bytes.decode('utf-8-sig')
-    except UnicodeDecodeError:
         text = raw_bytes.decode('cp949')
+    except UnicodeDecodeError:
+        text = raw_bytes.decode('utf-8-sig')
 
     # 3) StringIO → DataFrame
     df = pd.read_csv(io.StringIO(text))
+
     # 4) BOM·공백 제거
     df.columns = df.columns.str.replace('\ufeff', '').str.strip()
     app.logger.debug(f"Raw columns: {df.columns.tolist()}")
@@ -806,22 +807,27 @@ def upload_analysis2_csv():
         "checkTime": "time",
         "lat":       "lat",
         "lng":       "lng",
-        # windSpeed 헤더 추가
-        "windSpeed": "windspeed",
+        "altitude":  "altitude",
+        "windspeed": "windspeed",
         "windDir":   "windDir",
         "radiation": "radiation"
     }
 
-    # 7) 적합한 매핑 선택
-    if set(mapping_kr).issubset(df.columns):
-        mapping = mapping_kr
-    elif set(mapping_en).issubset(df.columns):
-        mapping = mapping_en
+    # 7) 실제 업로드된 헤더와 겹치는 키만 골라서 매핑 테이블 생성
+    common_kr = {k: v for k, v in mapping_kr.items() if k in df.columns}
+    common_en = {k: v for k, v in mapping_en.items() if k in df.columns}
+
+    if common_kr:
+        mapping = common_kr
+    elif common_en:
+        mapping = common_en
     else:
         return jsonify({
             "error":   "Unexpected CSV headers",
             "headers": df.columns.tolist()
         }), 400
+
+    app.logger.debug(f"Using mapping: {mapping}")
 
     # 8) 컬럼명 치환
     df.rename(columns=mapping, inplace=True)
@@ -829,16 +835,18 @@ def upload_analysis2_csv():
 
     # 9) 타입 변환
     df['time'] = pd.to_datetime(df['time'], errors='coerce')
-    for col in ['lat', 'lng', 'windspeed', 'windDir', 'radiation']:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
+    for col in ['lat', 'lng', 'altitude', 'windspeed', 'windDir', 'radiation']:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
 
     # 10) 재업로드용 버퍼 생성
     out_buf = io.StringIO()
     df.to_csv(out_buf, index=False, encoding='utf-8-sig')
     out_buf.seek(0)
 
-    # 11) MongoDB 업로드
+    # 11) upload_csv 호출
     return upload_csv(analysis2_collection, out_buf, mapping)
+
 
 # ---------------------------------------------------------------------
 # 분석4 라우터 그룹
