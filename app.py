@@ -780,17 +780,18 @@ import io
 
 @app.route('/export_analysis2_csv', methods=['GET'])
 def export_analysis2_csv():
-    # analysis2 컬렉션에서 checkTime 기준 내림차순으로 내보냅니다.
     return export_csv(
         analysis2_collection,
         "analysis2_data",
-        # CSV 헤더 (한글)
-        ["측정시간","위도","경도","고도 (m)","풍속 (m/s)","풍향 (°)","방사선량 (nSv/h)"],
+        # CSV 헤더 (영어)
+        ["checkTime", "lat", "lng", "altitude", "windspeed", "windDir", "radiation"],
         # 필드 이름 (DB 저장 필드)
-        ["checkTime","lat","lng","altitude","windspeed","windDir","radiation"],
+        ["checkTime", "lat", "lng", "altitude", "windspeed", "windDir", "radiation"],
         sort=[("checkTime", DESCENDING)]
     )
 
+
+# -- CSV 업로드 (영문 헤더 매핑) --
 @app.route('/upload_analysis2_csv', methods=['POST'])
 def upload_analysis2_csv():
     if 'file' not in request.files:
@@ -814,15 +815,15 @@ def upload_analysis2_csv():
     df.columns = df.columns.str.replace('\ufeff', '').str.strip()
     df = df.drop(columns=['_id'], errors='ignore')
 
-    # 4) 컬럼 매핑 (checkTime 고정)
+    # 4) 컬럼 매핑: 업로드된 CSV 의 '영어 헤더' → DB 필드명
     mapping = {
-        "측정시간": "checkTime",
-        "위도": "lat",
-        "경도": "lng",
-        "고도 (m)": "altitude",  # <-- 여기
-        "풍속 (m/s)": "windspeed",
-        "풍향 (°)": "windDir",
-        "방사선량 (nSv/h)": "radiation"
+        "checkTime": "checkTime",
+        "lat":       "lat",
+        "lng":       "lng",
+        "altitude":  "altitude",
+        "windspeed": "windspeed",
+        "windDir":   "windDir",
+        "radiation": "radiation"
     }
 
     if not set(mapping.keys()).intersection(df.columns):
@@ -832,9 +833,10 @@ def upload_analysis2_csv():
         }), 400
 
     df.rename(columns=mapping, inplace=True)
+
     # 5) 타입 변환
     df['checkTime'] = pd.to_datetime(df['checkTime'], errors='coerce')
-    for col in ['lat','lng','altitude','windspeed','windDir','radiation']:
+    for col in ['lat', 'lng', 'altitude', 'windspeed', 'windDir', 'radiation']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
     # 6) 버퍼에 다시 CSV 작성
@@ -848,16 +850,20 @@ def upload_analysis2_csv():
 # ---------------------------------------------------------------------
 # 분석4 라우터 그룹
 # ---------------------------------------------------------------------
-@app.route('/export_analysis4_csv')
+# -- CSV 내보내기 (영문 헤더) --
+@app.route('/export_analysis4_csv', methods=['GET'])
 def export_analysis4_csv():
     return export_csv(
         analysis4_collection,
         "analysis4_data",
-        ["측정시간", "위도", "경도", "방사선량 (nSv/h)"],
-        ["checkTime", "lat", "lng", "radiation"],  # ← 여기에 콤마 추가
-        sort=[('checkTime', DESCENDING)]  # 그리고 sort도 checkTime 으로
+        # CSV 헤더 (영어)
+        ["checkTime", "lat", "lng", "radiation"],
+        # 필드 이름 (DB 저장 필드)
+        ["checkTime", "lat", "lng", "radiation"],
+        sort=[("checkTime", DESCENDING)]
     )
 
+# -- CSV 업로드 (영문 헤더 매핑) --
 @app.route('/upload_analysis4_csv', methods=['POST'])
 def upload_analysis4_csv():
     if 'file' not in request.files:
@@ -881,12 +887,12 @@ def upload_analysis4_csv():
     df.columns = df.columns.str.replace('\ufeff', '').str.strip()
     df = df.drop(columns=['_id'], errors='ignore')
 
-    # 4) 컬럼 매핑 (checkTime 고정)
+    # 4) 컬럼 매핑: 업로드된 CSV 의 '영문 헤더' → DB 필드명
     mapping = {
-        "측정시간": "checkTime",
-        "위도": "lat",
-        "경도": "lng",
-        "방사선량 (nSv/h)": "radiation"
+        "checkTime": "checkTime",
+        "lat":       "lat",
+        "lng":       "lng",
+        "radiation": "radiation"
     }
 
     if not set(mapping.keys()).intersection(df.columns):
@@ -896,9 +902,10 @@ def upload_analysis4_csv():
         }), 400
 
     df.rename(columns=mapping, inplace=True)
+
     # 5) 타입 변환
     df['checkTime'] = pd.to_datetime(df['checkTime'], errors='coerce')
-    for col in ['lat','lng','radiation']:
+    for col in ['lat', 'lng', 'radiation']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
     # 6) 버퍼에 다시 CSV 작성
@@ -908,6 +915,7 @@ def upload_analysis4_csv():
 
     # 7) MongoDB 업로드
     return upload_csv(analysis4_collection, buf, mapping)
+
 
 # ---------------------------------------------------------------------
 # 구호소 평가
