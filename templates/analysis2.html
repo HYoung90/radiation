@@ -291,8 +291,8 @@
         {% for entry in data %}
         <tr>
           <td>{{ entry.checkTime }}</td>
-          <td>{{ "%.4f"|format(entry.lat) }}</td>
-          <td>{{ "%.4f"|format(entry.lng) }}</td>
+          <td>{{ "%.4f"|format(entry.lat|float) }}</td>
+          <td>{{ "%.4f"|format(entry.lng|float) }}</td>
           <td>{{ entry.altitude }}</td>
           <td>{{ entry.windspeed }}</td>
           <td>{{ entry.windDir }}</td>
