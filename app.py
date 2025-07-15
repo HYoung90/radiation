@@ -696,12 +696,17 @@ def nuclear_radiation_page():
 @app.route('/analysis1')
 def analysis1():
     try:
-        data = list(analysis1_collection.find({}, {"_id": 0}).sort("time", DESCENDING))
-        logging.info(f"Fetched data from analysis1_collection: {data}")
+        data = list(
+            analysis1_collection
+            .find({}, {"_id": 0})
+            .sort("checkTime", DESCENDING)   # 반드시 checkTime
+        )
         return render_template('analysis1.html', data=data)
     except Exception as e:
         logging.error(f"Error in fetching data from MongoDB: {e}")
         return render_template('analysis1.html', data=[], error="Failed to load data")
+
+
 
 @app.route('/analysis2')
 def analysis2():
@@ -800,18 +805,14 @@ def export_csv_by_genName(genName):
 def export_analysis1_csv():
     """
     CSV 다운로드: checkTime, x, y, Energy range (Mev), radiation
-    - headers: 클라이언트에 보여질 컬럼명
-    - fields: MongoDB에 저장된 필드명 (DB 필드도 checkTime 으로 통일)
-    - 정렬: checkTime 내림차순
     """
     return export_csv(
         analysis1_collection,
         filename="analysis1_data",
         headers=["checkTime", "X", "Y", "Energy range (Mev)", "Radiation (nSv/h)"],
-        fields=["checkTime",    "x",  "y",  "Energy range (Mev)",      "radiation"],
+        fields=["checkTime", "x", "y", "Energy range (Mev)", "radiation"],
         sort=[("checkTime", DESCENDING)]
     )
-
 @app.route('/upload_analysis1_csv', methods=['POST'])
 def upload_analysis1_csv():
     """
@@ -847,15 +848,15 @@ def upload_analysis1_csv():
 
     # 4) 헤더 → DB 필드 매핑
     mapping = {
-        "checkTime":            "checkTime",
-        "X":                     "x",
-        "Y":                     "y",
-        "Energy range (Mev)":    "Energy range (Mev)",
-        "Radiation (nSv/h)":     "radiation"
+        "checkTime": "checkTime",
+        "X": "x",
+        "Y": "y",
+        "Energy range (Mev)": "Energy range (Mev)",
+        "Radiation (nSv/h)": "radiation"
     }
-    if not set(mapping.keys()).intersection(df.columns):
+    if not set(mapping.keys()).issubset(df.columns):
         return jsonify({
-            "error":   "Unexpected CSV headers",
+            "error": "Unexpected CSV headers",
             "headers": df.columns.tolist()
         }), 400
     df.rename(columns=mapping, inplace=True)
@@ -872,6 +873,7 @@ def upload_analysis1_csv():
 
     # 7) MongoDB 업로드
     return upload_csv(analysis1_collection, buf, mapping)
+
 # -- CSV 업로드 (영문 헤더 매핑) --
 @app.route('/upload_analysis2_csv', methods=['POST'])
 def upload_analysis2_csv():
@@ -915,18 +917,18 @@ def upload_analysis2_csv():
 
     df.rename(columns=mapping, inplace=True)
 
-    # 5) 타입 변환
+    # 날짜/숫자 타입 변환
     df['checkTime'] = pd.to_datetime(df['checkTime'], errors='coerce')
-    for col in ['lat', 'lng', 'altitude', 'windspeed', 'windDir', 'radiation']:
+    for col in ['x', 'y', 'Energy range (Mev)', 'radiation']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    # 6) 버퍼에 다시 CSV 작성
+    # 다시 CSV로 작성 (UTF-8 BOM)
     buf = io.StringIO()
     df.to_csv(buf, index=False, encoding='utf-8-sig')
     buf.seek(0)
 
-    # 7) MongoDB 업로드
-    return upload_csv(analysis2_collection, buf, mapping)
+    # MongoDB로 업로드
+    return upload_csv(analysis1_collection, buf, mapping)
 
 # ---------------------------------------------------------------------
 # 분석4 라우터 그룹
@@ -1289,4 +1291,3 @@ def accident_result_page(genName):
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False) # debug=False로 변경 권장
-
