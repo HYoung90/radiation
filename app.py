@@ -874,6 +874,23 @@ def upload_analysis1_csv():
     # 7) MongoDB 업로드
     return upload_csv(analysis1_collection, buf, mapping)
 
+# ---------------------------------------------------------------------
+# 분석2 라우터 그룹
+# ---------------------------------------------------------------------
+# -- CSV 내보내기 (영문 헤더) --
+@app.route('/export_analysis2_csv', methods=['GET'])
+def export_analysis2_csv():
+    return export_csv(
+        analysis2_collection,
+        "analysis2_data",
+        # CSV 헤더 (영어)
+        ["checkTime", "lat", "lng", "altitude", "windspeed", "windDir", "radiation"],
+        # 필드 이름 (DB 저장 필드)
+        ["checkTime", "lat", "lng", "altitude", "windspeed", "windDir", "radiation"],
+        sort=[("checkTime", DESCENDING)]
+    )
+
+
 # -- CSV 업로드 (영문 헤더 매핑) --
 @app.route('/upload_analysis2_csv', methods=['POST'])
 def upload_analysis2_csv():
