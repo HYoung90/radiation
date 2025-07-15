@@ -816,13 +816,14 @@ def upload_analysis2_csv():
 
     # 4) 컬럼 매핑 (checkTime 고정)
     mapping = {
-        "측정시간": "checkTime",
-        "위도": "lat",
-        "경도": "lng",
-        "고도 (m)": "altitude",  # <-- 여기
-        "풍속 (m/s)": "windspeed",
-        "풍향 (°)": "windDir",
-        "방사선량 (nSv/h)": "radiation"
+        # 한글
+        "측정시간": "checkTime", "위도": "lat", "경도": "lng",
+        "고도 (m)": "altitude", "풍속 (m/s)": "windspeed",
+        "풍향 (°)": "windDir", "방사선량 (nSv/h)": "radiation",
+        # 영어
+        "checkTime": "checkTime", "lat": "lat", "lng": "lng",
+        "altitude": "altitude", "windspeed": "windspeed",
+        "windDir": "windDir", "radiation": "radiation"
     }
 
     if not set(mapping.keys()).intersection(df.columns):
@@ -886,7 +887,11 @@ def upload_analysis4_csv():
         "측정시간": "checkTime",
         "위도": "lat",
         "경도": "lng",
-        "방사선량 (nSv/h)": "radiation"
+        "방사선량 (nSv/h)": "radiation",
+        "checkTime": "checkTime",
+        "lat": "lat",
+        "lng": "lng",
+        "radiation": "radiation"
     }
 
     if not set(mapping.keys()).intersection(df.columns):
