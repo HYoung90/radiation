@@ -2,99 +2,86 @@
 # 이 스크립트는 Flask 웹 애플리케이션으로, 방사선 및 기상 데이터를 MongoDB에서 가져와 API 및 웹 페이지로 제공합니다.
 # 데이터 필터링, 최신 데이터 조회, CSV 내보내기 등의 기능을 제공합니다.
 
-
-from flask import Flask, render_template, request, redirect, url_for, jsonify, session, flash, make_response
-from pymongo import MongoClient, DESCENDING
-from flask_caching import Cache
+import os
 import csv
 import io
-import pandas as pd
-from datetime import datetime, timedelta
+import json
 import logging
+from datetime import datetime, timedelta
+
+import numpy as np
+import pandas as pd
+import pytz
+from bson import ObjectId
 from dateutil import parser
-from scipy.signal import find_peaks, savgol_filter
-import matplotlib.pyplot as plt
-import os
+from flask import (
+    Flask, render_template, jsonify, request,
+    Response, abort, redirect, url_for
+)
+from flask_caching import Cache
 from pymongo import MongoClient, DESCENDING
 from pymongo.errors import PyMongoError
-from map_utils import power_plants, compute_top5_for, generate_topsis_map_html
+from scipy.signal import find_peaks, savgol_filter
+
+from map_utils import (
+    power_plants,
+    compute_top5_for,
+    generate_topsis_map_html
+)
 from utils import export_csv, upload_csv
-#from chatbot_utils import get_best_match
-from flask import abort
-import numpy as np
-import json
-import pytz
-from flask_login import LoginManager, UserMixin, login_user, user_logged_out,login_required, current_user
-from flask_bcrypt import Bcrypt
-from bson import ObjectId
-from functools import wraps
-from dotenv import load_dotenv # 이 줄이 없으면 추가
+from chatbot_utils import get_best_match
 
 app = Flask(__name__)
-
-bcrypt = Bcrypt(app)
-login_manager = LoginManager(app)
-login_manager.login_view = 'login'  # 로그인 안 한 상태로 접근시 이동할 페이지
-
-app.config['SECRET_KEY'] = 'supersecretkey'  # 이미 있으면 중복 금지, 없으면 꼭 추가!
 
 # Flask-Caching 설정 비활성화
 cache = Cache(app, config={'CACHE_TYPE': 'null'})
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
+# -------------------------------------------------------
 # MongoDB 연결
-# 1) ENV 순서대로 가져오기
+# -------------------------------------------------------
 mongo_uri = (
-    os.getenv("REMOTE_MONGO_URI")
-    or os.getenv("MONGO_URI")
+    os.getenv("MONGO_URI")
+    or os.getenv("REMOTE_MONGO_URI")
     or os.getenv("LOCAL_MONGO_URI")
 )
 if not mongo_uri:
-    raise ValueError("MongoDB URI가 설정되지 않았습니다! .env에 REMOTE_MONGO_URI, MONGO_URI 또는 LOCAL_MONGO_URI 중 하나를 설정하세요.")
+    raise ValueError(
+        "MongoDB URI가 설정되지 않았습니다! .env에 "
+        "MONGO_URI, REMOTE_MONGO_URI 또는 LOCAL_MONGO_URI 중 하나를 설정하세요."
+    )
 
-# --- 이 줄을 다음과 같이 수정해주세요 ---
+# 문자열 앞뒤 공백 제거 및 등호 제거
 mongo_uri = mongo_uri.strip().lstrip('=')
-# ----------------------------------------
+client = MongoClient(mongo_uri)
 
-# 2) MongoClient 생성 → URI 기본 DB 선택
-client = MongoClient(mongo_uri.strip().lstrip('='))
-db     = client.get_default_database()
+db = client['Data']
 
-
-# User 클래스 정의 바로 위나 아래에 추가
-def admin_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not current_user.is_authenticated or current_user.email != 'hyoung@dankook.ac.kr':
-            abort(403)
-        return f(*args, **kwargs)
-    return decorated
-
-
+# -------------------------------------------------------
 # 컬렉션 설정
-collection = db['NPP_weather']  # NPP_weather 컬렉션 (기존 데이터)
-backup_collection = db['NPP_weather_backup']  # NPP_weather_backup 컬렉션 (백업된 데이터)
+# -------------------------------------------------------
+collection = db['NPP_weather']
+backup_collection = db['NPP_weather_backup']
 busan_radiation_collection = db['Busan_radiation']
 busan_radiation_backup_collection = db['Busan_radiation_backup']
 nuclear_radiation_collection = db['nuclear_radiation']
 nuclear_radiation_backup_collection = db['nuclear_radiation_backup']
 
-# 통계 데이터 컬렉션
 stats_collection = db['radiation_stats']
-avg_db = client['radiation_statistics']  # 평균을 저장할 새로운 데이터베이스
-avg_collection = avg_db['daily_average']  # 평균 데이터 저장 컬렉션
+avg_db = client['radiation_statistics']
+avg_collection = avg_db['daily_average']
 regional_avg_collection = avg_db['regional_average']
 
-# 세부 과제 컬렉션
-CAU_collection = db['Data_CAU']
-FNC_collection = db['Data_FNC']
-KAERI_collection = db['Data_KAERI']
-RMT_collection = db['Data_RMT']
+CAU_collection  = db['Data_CAU']
+FNC_collection  = db['Data_FNC']
+KAERI_collection= db['Data_KAERI']
+RMT_collection  = db['Data_RMT']
 
 analysis1_collection = CAU_collection
-analysis2_collection = db['Data_FNC']
+analysis2_collection = FNC_collection
 analysis3_collection = KAERI_collection
-analysis4_collection = db['Data_RMT']
+analysis4_collection = RMT_collection
+
 
 # 로깅 설정
 class ColoredFormatter(logging.Formatter):
