@@ -3,7 +3,7 @@
 # 데이터 필터링, 최신 데이터 조회, CSV 내보내기 등의 기능을 제공합니다.
 
 
-from flask import Flask, render_template, request, redirect, url_for, jsonify, session, flash # flash 추가
+from flask import Flask, render_template, request, redirect, url_for, jsonify, session, flash, make_response
 from pymongo import MongoClient, DESCENDING
 from flask_caching import Cache
 import csv
@@ -260,6 +260,11 @@ def get_filtered_weather_data(genName):
     except Exception as e:
         logging.error(f"Error in get_filtered_weather_data: {e}")
         return jsonify({"error": "An error occurred while fetching the data"}), 500
+
+
+@app.route('/favicon.ico')
+def favicon():
+    return app.send_static_file('favicon.ico')
 
 
 # 기본 기상 데이터 페이지 (genName 기준으로)
@@ -701,7 +706,12 @@ def analysis1():
 @app.route('/analysis2')
 def analysis2():
     try:
-        data = list(analysis2_collection.find({}, {"_id": 0}).sort("time", DESCENDING))
+        # checkTime 필드 기준으로 내림차순 정렬하도록 수정
+        data = list(
+            analysis2_collection
+            .find({}, {"_id": 0})
+            .sort("checkTime", DESCENDING)
+        )
         logging.info(f"Fetched data from analysis2_collection: {data}")
         return render_template('analysis2.html', data=data)
     except Exception as e:
@@ -711,7 +721,12 @@ def analysis2():
 @app.route('/analysis4')
 def analysis4():
     try:
-        data = list(analysis4_collection.find({}, {"_id": 0}).sort("time", DESCENDING))
+        # 마찬가지로 checkTime 필드 기준으로 정렬
+        data = list(
+            analysis4_collection
+            .find({}, {"_id": 0})
+            .sort("checkTime", DESCENDING)
+        )
         logging.info(f"Fetched data from analysis4_collection: {data}")
         return render_template('analysis4.html', data=data)
     except Exception as e:
@@ -721,93 +736,173 @@ def analysis4():
 @app.route('/export_csv/<genName>', methods=['GET'])
 def export_csv_by_genName(genName):
     normalized = genName.upper()
-    # 1) 쿼리·정렬 설정
     query = {"genName": normalized}
     sort  = [("time", DESCENDING)]
-    # 2) CSV 헤더·필드 정의
-    header = ['time','temperature','humidity','rainfall','windspeed','winddirection','stability']
-    fields = ['time','temperature','humidity','rainfall','windspeed','winddirection','air_stability']
 
-    # 3) 메모리 상에 CSV 작성 (UTF-8 BOM 포함)
+    # 한글 헤더
+    header = [
+        "측정시간",
+        "온도 (°C)",
+        "습도 (%)",
+        "강수량 (mm)",
+        "풍속 (m/s)",
+        "풍향 (°)",
+        "대기 안정도"
+    ]
+    fields = [
+        "time",
+        "temperature",
+        "humidity",
+        "rainfall",
+        "windspeed",
+        "winddirection",
+        "air_stability"
+    ]
+
+    # CSV 문자열 생성
     si = io.StringIO()
-    # BOM을 먼저 써 줍니다.
-    si.write('\ufeff')
+    si.write('\ufeff')  # UTF-8 BOM
     writer = csv.writer(si)
     writer.writerow(header)
 
     cursor = backup_collection.find(query, {f: 1 for f in fields}, sort=sort)
     for doc in cursor:
-        row = [doc.get(f, "") for f in fields]
-        writer.writerow(row)
+        writer.writerow([
+            doc.get("time", ""),
+            doc.get("temperature", ""),
+            doc.get("humidity", ""),
+            doc.get("rainfall", ""),
+            doc.get("windspeed", ""),
+            doc.get("winddirection", ""),
+            doc.get("air_stability", "")
+        ])
 
-    # 4) Flask Response 로 감싸기
-    output = make_response(si.getvalue())
-    output.headers["Content-Disposition"] = f"attachment; filename={normalized}_data.csv"
-    output.headers["Content-Type"] = "text/csv; charset=utf-8"
-    return output
+    # 바디를 바이트로 변환 (utf-8-sig)
+    body = si.getvalue().encode('utf-8-sig')
+
+    # 한국어 파일명 URL-encode
+    filename = f"{normalized}_기상데이터.csv"
+    quoted_name = urllib.parse.quote(filename)
+
+    # Response 생성
+    resp = Response(body,
+                    mimetype='application/vnd.ms-excel; charset=UTF-8')
+    # RFC 5987 형식으로 한글 파일명 설정
+    resp.headers.set('Content-Disposition',
+                     f"attachment; filename*=UTF-8''{quoted_name}")
+
+    return resp
 
 # ---------------------------------------------------------------------
 # 분석1 라우터 그룹
 # ---------------------------------------------------------------------
+from flask import Flask, request, jsonify, make_response
+import io, csv, pandas as pd
+from pymongo import DESCENDING
+from utils import export_csv, upload_csv
+
+app = Flask(__name__)
+
+# ---------------------------------------------------------------------
+# 분석1 라우터 그룹 (영문·숫자 전용, BOM 제거)
+# ---------------------------------------------------------------------
+
 @app.route('/export_analysis1_csv', methods=['GET'])
 def export_analysis1_csv():
-    header = ["Check Time", "X", "Y", "Energy range (Mev)", "Radiation (nSv/h)"]
-    fields = ["time", "x", "y", "Energy range (Mev)", "radiation"]
+    # 1) CSV 헤더 (클라이언트에 보여질 컬럼명)
+    headers = ["checkTime", "X", "Y", "Energy range (Mev)", "Radiation (nSv/h)"]
+    # 2) 실제 MongoDB 필드명 매핑
+    fields  = ["checkTime",      "x", "y", "Energy range (Mev)", "radiation"]
     filename = "analysis1_data"
-    return export_csv(analysis1_collection, filename, header, fields)
+    # 3) export_csv 헬퍼 대신 직접 작성 (UTF-8 only)
+    si = io.StringIO()
+    writer = csv.writer(si)
+    writer.writerow(headers)
+    cursor = analysis1_collection.find({}, {f:1 for f in fields}, sort=[("checkTime", DESCENDING)])
+    for doc in cursor:
+        row = [doc.get(f, "") for f in fields]
+        writer.writerow(row)
+    output = make_response(si.getvalue())
+    output.headers["Content-Disposition"] = f"attachment; filename={filename}.csv"
+    output.headers["Content-Type"] = "text/csv; charset=utf-8"
+    return output
 
-
-# ---------------------------------------------------------------------
-# 분석2 라우터 그룹
-# ---------------------------------------------------------------------
-# ---------------------------------------------------------------------
-# 분석2 라우터 그룹
-# ---------------------------------------------------------------------
-# ---------------------------------------------------------------------
-# 분석2 라우터 그룹 — upload_analysis2_csv 개선판
-# ---------------------------------------------------------------------
-from flask import request, jsonify
-import pandas as pd
-import io
-
-@app.route('/upload_analysis2_csv', methods=['POST'])
-def upload_analysis2_csv():
-    # 0) 파일 유효성 검사
+@app.route('/upload_analysis1_csv', methods=['POST'])
+def upload_analysis1_csv():
+    # 1) 파일 유무 체크
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
-    if not file.filename.lower().endswith('.csv'):
+    f = request.files['file']
+    if not f or not f.filename.lower().endswith('.csv'):
         return jsonify({"error": "Only CSV files allowed"}), 400
 
-    # 1) 전체 바이너리 읽기
-    raw_bytes = file.read()
+    # 2) 바이너리 읽고 BOM 제거 → CP949 fallback
+    raw = f.read()
+    try:
+        text = raw.decode('utf-8')
+    except UnicodeDecodeError:
+        text = raw.decode('cp949')
 
-    # 2) UTF-8 BOM 제거 → CP949 fallback
+    # 3) DataFrame 생성
+    df = pd.read_csv(io.StringIO(text))
+    df.columns = df.columns.str.replace('\ufeff', '').str.strip()
+    df = df.drop(columns=['_id'], errors='ignore')
+
+    # 4) 컬럼 매핑 (CSV 헤더 → DB 필드명)
+    mapping = {
+        "checkTime":            "checkTime",
+        "X":                    "x",
+        "Y":                    "y",
+        "Energy range (Mev)":  "Energy range (Mev)",
+        "Radiation (nSv/h)":   "radiation"
+    }
+    if set(mapping.keys()) != set(df.columns):
+        return jsonify({
+            "error":   "Unexpected CSV headers",
+            "headers": df.columns.tolist()
+        }), 400
+    df.rename(columns=mapping, inplace=True)
+
+    # 5) 타입 변환
+    df['checkTime'] = pd.to_datetime(df['checkTime'], errors='coerce')
+    for col in ['x', 'y', 'Energy range (Mev)', 'radiation']:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+
+    # 6) 다시 CSV로 버퍼에 작성 (UTF-8 only)
+    buf = io.StringIO()
+    df.to_csv(buf, index=False, encoding='utf-8')
+    buf.seek(0)
+
+    # 7) MongoDB에 업로드 (upload_csv 헬퍼 사용)
+    return upload_csv(analysis1_collection, buf, mapping)
+
+# -- CSV 업로드 (영문 헤더 매핑) --
+@app.route('/upload_analysis2_csv', methods=['POST'])
+def upload_analysis2_csv():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    f = request.files['file']
+    if not f or f.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    if not f.filename.lower().endswith('.csv'):
+        return jsonify({"error": "Only CSV files allowed"}), 400
+
+    # 1) 바이너리 읽기
+    raw_bytes = f.read()
+    # 2) BOM 제거 → CP949 fallback
     try:
         text = raw_bytes.decode('utf-8-sig')
     except UnicodeDecodeError:
         text = raw_bytes.decode('cp949')
 
-    # 3) StringIO → DataFrame
+    # 3) DataFrame 생성
     df = pd.read_csv(io.StringIO(text))
-    # 4) BOM·공백 제거
     df.columns = df.columns.str.replace('\ufeff', '').str.strip()
-    app.logger.debug(f"Raw columns: {df.columns.tolist()}")
+    df = df.drop(columns=['_id'], errors='ignore')
 
-    # 5) 매핑 사전 (한글/영문)
-    mapping_kr = {
-        "측정시간":        "time",
-        "위도":            "lat",
-        "경도":            "lng",
-        "고도 (m)":        "altitude",
-        "풍속 (m/s)":      "windspeed",
-        "풍향 (°)":        "windDir",
-        "방사선량 (nSv/h)": "radiation"
-    }
-    mapping_en = {
-        "checkTime": "time",
+    # 4) 컬럼 매핑: 업로드된 CSV 의 '영어 헤더' → DB 필드명
+    mapping = {
+        "checkTime": "checkTime",
         "lat":       "lat",
         "lng":       "lng",
         "altitude":  "altitude",
@@ -816,68 +911,95 @@ def upload_analysis2_csv():
         "radiation": "radiation"
     }
 
-    # 6) 적합한 매핑 선택
-    if set(mapping_kr).issubset(df.columns):
-        mapping = mapping_kr
-    elif set(mapping_en).issubset(df.columns):
-        mapping = mapping_en
-    else:
+    if not set(mapping.keys()).intersection(df.columns):
         return jsonify({
-            "error":    "Unexpected CSV headers",
-            "headers":  df.columns.tolist()
+            "error":   "Unexpected CSV headers",
+            "headers": df.columns.tolist()
         }), 400
 
-    # 7) 컬럼명 치환
     df.rename(columns=mapping, inplace=True)
-    app.logger.debug(f"Renamed columns: {df.columns.tolist()}")
 
-    # 8) 타입 변환
-    df['time']      = pd.to_datetime(df['time'], errors='coerce')
-    for col in ['lat','lng','altitude','windspeed','windDir','radiation']:
+    # 5) 타입 변환
+    df['checkTime'] = pd.to_datetime(df['checkTime'], errors='coerce')
+    for col in ['lat', 'lng', 'altitude', 'windspeed', 'windDir', 'radiation']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    # 9) 재업로드용 버퍼 생성
-    out_buf = io.StringIO()
-    df.to_csv(out_buf, index=False, encoding='utf-8-sig')
-    out_buf.seek(0)
+    # 6) 버퍼에 다시 CSV 작성
+    buf = io.StringIO()
+    df.to_csv(buf, index=False, encoding='utf-8-sig')
+    buf.seek(0)
 
-    # 10) upload_csv 호출
-    return upload_csv(analysis2_collection, out_buf, mapping)
-
+    # 7) MongoDB 업로드
+    return upload_csv(analysis2_collection, buf, mapping)
 
 # ---------------------------------------------------------------------
 # 분석4 라우터 그룹
 # ---------------------------------------------------------------------
-@app.route('/export_analysis4_csv')
+# -- CSV 내보내기 (영문 헤더) --
+@app.route('/export_analysis4_csv', methods=['GET'])
 def export_analysis4_csv():
     return export_csv(
         analysis4_collection,
         "analysis4_data",
-        ["측정시간","위도","경도","풍속 (m/s)","풍향 (°)","방사선량 (nSv/h)"],
-        ["time","lat","lng","windspeed","windDir","radiation"],
-        sort=[('time', DESCENDING)]
+        # CSV 헤더 (영어)
+        ["checkTime", "lat", "lng", "radiation"],
+        # 필드 이름 (DB 저장 필드)
+        ["checkTime", "lat", "lng", "radiation"],
+        sort=[("checkTime", DESCENDING)]
     )
 
+# -- CSV 업로드 (영문 헤더 매핑) --
 @app.route('/upload_analysis4_csv', methods=['POST'])
 def upload_analysis4_csv():
     if 'file' not in request.files:
-        return "No file part", 400
+        return jsonify({"error": "No file part"}), 400
+    f = request.files['file']
+    if not f or f.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    if not f.filename.lower().endswith('.csv'):
+        return jsonify({"error": "Only CSV files allowed"}), 400
 
-    file = request.files['file']
-    if file.filename == '':
-        return "No selected file", 400
+    # 1) 바이너리 읽기
+    raw_bytes = f.read()
+    # 2) BOM 제거 → CP949 fallback
+    try:
+        text = raw_bytes.decode('utf-8-sig')
+    except UnicodeDecodeError:
+        text = raw_bytes.decode('cp949')
 
-    if file and file.filename.endswith('.csv'):
-        return upload_csv(analysis4_collection, file, {
-            "측정시간": "time",
-            "위도": "lat",
-            "경도": "lng",
-            "풍속": "windspeed",
-            "풍향": "windDir",
-            "방사선량": "radiation"
-        })
-    else:
-        return "Invalid file type. Only CSV files are allowed.", 400
+    # 3) DataFrame 생성
+    df = pd.read_csv(io.StringIO(text))
+    df.columns = df.columns.str.replace('\ufeff', '').str.strip()
+    df = df.drop(columns=['_id'], errors='ignore')
+
+    # 4) 컬럼 매핑: 업로드된 CSV 의 '영문 헤더' → DB 필드명
+    mapping = {
+        "checkTime": "checkTime",
+        "lat":       "lat",
+        "lng":       "lng",
+        "radiation": "radiation"
+    }
+
+    if not set(mapping.keys()).intersection(df.columns):
+        return jsonify({
+            "error":   "Unexpected CSV headers",
+            "headers": df.columns.tolist()
+        }), 400
+
+    df.rename(columns=mapping, inplace=True)
+
+    # 5) 타입 변환
+    df['checkTime'] = pd.to_datetime(df['checkTime'], errors='coerce')
+    for col in ['lat', 'lng', 'radiation']:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+
+    # 6) 버퍼에 다시 CSV 작성
+    buf = io.StringIO()
+    df.to_csv(buf, index=False, encoding='utf-8-sig')
+    buf.seek(0)
+
+    # 7) MongoDB 업로드
+    return upload_csv(analysis4_collection, buf, mapping)
 
 
 # ---------------------------------------------------------------------
@@ -1166,7 +1288,7 @@ def accident_result_page(genName):
         logging.error(f"Error fetching data for {genName}: {e}")
         return render_template('accident_result.html', genName=genName,
                                error="An unexpected error occurred.")
-
+#text
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))

@@ -266,36 +266,33 @@
             <button class="btn btn-apply" onclick="filterByDate()">적용</button>
             <button class="btn btn-clear" onclick="clearDateFilter()">초기화</button>
         </div>
-
-        <table id="weatherTable" class="display">
-            <thead>
-                <tr>
-                    <th>측정 시간</th>
-                    <th>X</th>
-                    <th>Y</th>
-                    <th>Energy range (Mev)</th>
-                    <th>Radiation Dose Rate (nSv/h)</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% if data %}
-                    {% for entry in data %}
-                    <tr>
-                        <td>{{ entry.checkTime }}</td>
-                        <td>{{ entry.x }}</td>
-                        <td>{{ entry.y }}</td>
-                        <td>{{ entry['Energy range (Mev)'] }}</td>
-                        <td>{{ entry.radiation }}</td>
-                    </tr>
-                    {% endfor %}
-                {% else %}
-                    <tr>
-                        <td colspan="5">데이터가 없습니다.</td>
-                    </tr>
-                {% endif %}
-                </tbody>
+        <table id="weatherTable">
+          <thead>
+            <tr>
+              <th>checkTime</th>
+              <th>X</th>
+              <th>Y</th>
+              <th>Energy range (Mev)</th>
+              <th>Radiation (nSv/h)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if data %}
+              {% for e in data %}
+              <tr>
+                <td>{{ e.checkTime }}</td>
+                <td>{{ e.x }}</td>
+                <td>{{ e.y }}</td>
+                <td>{{ e['Energy range (Mev)'] }}</td>
+                <td>{{ e.radiation }}</td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="5">데이터가 없습니다.</td></tr>
+            {% endif %}
+          </tbody>
         </table>
-    </div>
+
 
     <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
     <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>

@@ -1,5 +1,3 @@
-# utils.py
-
 from flask import Response
 import csv, io
 from pymongo import DESCENDING
@@ -29,13 +27,26 @@ def export_csv(collection, filename, header, fields, query=None, sort=None):
         headers={'Content-Disposition': f'attachment; filename="{filename}.csv"'}
     )
 
-def upload_csv(collection, file, field_map):
+def upload_csv(collection, file_obj, field_map):
     """
     collection: MongoDB 컬렉션 객체
-    file: request.files['file']
+    file_obj: request.files['file'] 또는 io.StringIO 객체
     field_map: CSV 컬럼명 → MongoDB 필드명 매핑 dict
     """
-    stream = io.StringIO(file.stream.read().decode('utf-8'))
+    # 파일 객체가 Flask FileStorage인지, 아니면 StringIO/BytesIO인지 구분
+    if hasattr(file_obj, 'stream'):
+        raw = file_obj.stream.read()
+    else:
+        # StringIO 등 자체가 스트림인 경우
+        file_obj.seek(0)
+        raw = file_obj.read()
+        # 문자열로 읽혔으면 바이트로 변환
+        if isinstance(raw, str):
+            raw = raw.encode('utf-8')
+
+    # 바이너리를 텍스트로 디코딩
+    text = raw.decode('utf-8-sig')
+    stream = io.StringIO(text)
     reader = csv.DictReader(stream)
     docs = []
     for row in reader:
