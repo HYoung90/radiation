@@ -43,18 +43,22 @@ cache = Cache(app, config={'CACHE_TYPE': 'null'})
 app.config['UPLOAD_FOLDER'] = 'uploads'
 
 # MongoDB 연결
-load_dotenv() # .env 파일에서 환경 변수를 로드합니다. (로컬 개발용)
-mongo_uri = os.getenv("MONGO_URI")
-if not mongo_uri: # 환경 변수가 설정되지 않았을 경우를 대비한 체크
-    raise ValueError("MONGO_URI environment variable not set! Please set MONGO_URI in .env or your deployment environment.")
+# 1) ENV 순서대로 가져오기
+mongo_uri = (
+    os.getenv("REMOTE_MONGO_URI")
+    or os.getenv("MONGO_URI")
+    or os.getenv("LOCAL_MONGO_URI")
+)
+if not mongo_uri:
+    raise ValueError("MongoDB URI가 설정되지 않았습니다! .env에 REMOTE_MONGO_URI, MONGO_URI 또는 LOCAL_MONGO_URI 중 하나를 설정하세요.")
 
 # --- 이 줄을 다음과 같이 수정해주세요 ---
 mongo_uri = mongo_uri.strip().lstrip('=')
 # ----------------------------------------
 
-client = MongoClient(mongo_uri)
-db = client['Data']
-users = db['users'] # 사용자 컬렉션
+# 2) MongoClient 생성 → URI 기본 DB 선택
+client = MongoClient(mongo_uri.strip().lstrip('='))
+db     = client.get_default_database()
 
 
 # User 클래스 정의 바로 위나 아래에 추가
@@ -88,9 +92,9 @@ KAERI_collection = db['Data_KAERI']
 RMT_collection = db['Data_RMT']
 
 analysis1_collection = CAU_collection
-analysis2_collection = FNC_collection    # ← 여기가 핵심!
+analysis2_collection = db['Data_FNC']
 analysis3_collection = KAERI_collection
-analysis4_collection = RMT_collection
+analysis4_collection = db['Data_RMT']
 
 # 로깅 설정
 class ColoredFormatter(logging.Formatter):
