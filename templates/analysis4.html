@@ -283,8 +283,8 @@
         {% if data %}
           {% for e in data %} <tr>
             <td>{{ e.checkTime }}</td>
-            <td>{{ "%.4f"|format(e.lat) }}</td>
-            <td>{{ "%.4f"|format(e.lng) }}</td>
+            <td>{{ "%.4f"|format(e.lat|float) }}</td>
+            <td>{{ "%.4f"|format(e.lng|float) }}</td>
             <td>{{ e.radiation }}</td>
           </tr>
           {% endfor %}
