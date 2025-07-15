@@ -736,30 +736,62 @@ def analysis4():
 @app.route('/export_csv/<genName>', methods=['GET'])
 def export_csv_by_genName(genName):
     normalized = genName.upper()
-    # 1) 쿼리·정렬 설정
     query = {"genName": normalized}
     sort  = [("time", DESCENDING)]
-    # 2) CSV 헤더·필드 정의
-    header = ['time','temperature','humidity','rainfall','windspeed','winddirection','stability']
-    fields = ['time','temperature','humidity','rainfall','windspeed','winddirection','air_stability']
 
-    # 3) 메모리 상에 CSV 작성 (UTF-8 BOM 포함)
+    # 한글 헤더
+    header = [
+        "측정시간",
+        "온도 (°C)",
+        "습도 (%)",
+        "강수량 (mm)",
+        "풍속 (m/s)",
+        "풍향 (°)",
+        "대기 안정도"
+    ]
+    fields = [
+        "time",
+        "temperature",
+        "humidity",
+        "rainfall",
+        "windspeed",
+        "winddirection",
+        "air_stability"
+    ]
+
+    # CSV 문자열 생성
     si = io.StringIO()
-    # BOM을 먼저 써 줍니다.
-    si.write('\ufeff')
+    si.write('\ufeff')  # UTF-8 BOM
     writer = csv.writer(si)
     writer.writerow(header)
 
     cursor = backup_collection.find(query, {f: 1 for f in fields}, sort=sort)
     for doc in cursor:
-        row = [doc.get(f, "") for f in fields]
-        writer.writerow(row)
+        writer.writerow([
+            doc.get("time", ""),
+            doc.get("temperature", ""),
+            doc.get("humidity", ""),
+            doc.get("rainfall", ""),
+            doc.get("windspeed", ""),
+            doc.get("winddirection", ""),
+            doc.get("air_stability", "")
+        ])
 
-    # 4) Flask Response 로 감싸기
-    output = make_response(si.getvalue())
-    output.headers["Content-Disposition"] = f"attachment; filename={normalized}_data.csv"
-    output.headers["Content-Type"] = "text/csv; charset=utf-8"
-    return output
+    # 바디를 바이트로 변환 (utf-8-sig)
+    body = si.getvalue().encode('utf-8-sig')
+
+    # 한국어 파일명 URL-encode
+    filename = f"{normalized}_기상데이터.csv"
+    quoted_name = urllib.parse.quote(filename)
+
+    # Response 생성
+    resp = Response(body,
+                    mimetype='application/vnd.ms-excel; charset=UTF-8')
+    # RFC 5987 형식으로 한글 파일명 설정
+    resp.headers.set('Content-Disposition',
+                     f"attachment; filename*=UTF-8''{quoted_name}")
+
+    return resp
 
 # ---------------------------------------------------------------------
 # 분석1 라우터 그룹
