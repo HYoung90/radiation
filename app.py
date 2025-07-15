@@ -796,32 +796,35 @@ def export_csv_by_genName(genName):
 # ---------------------------------------------------------------------
 # 분석1 라우터 그룹
 # ---------------------------------------------------------------------
-
 @app.route('/export_analysis1_csv', methods=['GET'])
 def export_analysis1_csv():
     """
-    분석1 데이터를 CSV로 내보냅니다.
-    - CSV 헤더(클라이언트에 보여질 컬럼명): checkTime, X, Y, Energy range (Mev), Radiation (nSv/h)
-    - 실제 MongoDB 필드명: checkTime, x, y, Energy range (Mev), radiation
+    CSV 다운로드: checkTime, x, y, Energy range (Mev), radiation
+    - headers: 클라이언트에 보여질 컬럼명
+    - fields: MongoDB에 저장된 필드명 (DB 필드도 checkTime 으로 통일)
+    - 정렬: checkTime 내림차순
     """
-    headers = ["checkTime", "X", "Y", "Energy range (Mev)", "Radiation (nSv/h)"]
-    fields  = ["checkTime", "x", "y", "Energy range (Mev)", "radiation"]
     return export_csv(
         analysis1_collection,
-        "analysis1_data",
-        headers,
-        fields,
+        filename="analysis1_data",
+        headers=["checkTime", "X", "Y", "Energy range (Mev)", "Radiation (nSv/h)"],
+        fields=["checkTime",    "x",  "y",  "Energy range (Mev)",      "radiation"],
         sort=[("checkTime", DESCENDING)]
     )
-
 
 @app.route('/upload_analysis1_csv', methods=['POST'])
 def upload_analysis1_csv():
     """
-    CSV 업로드 → MongoDB에 저장합니다.
-    업로드할 CSV의 첫 번째 컬럼 헤더는 반드시 'checkTime'이어야 합니다.
+    CSV 업로드: 영문 헤더를 checkTime 등 DB 필드로 매핑 후 업로드
+    1) 파일 존재 및 확장자 체크
+    2) 바이너리 읽기 → utf-8-sig 또는 cp949 디코딩
+    3) pandas DataFrame 생성, 컬럼 정리
+    4) CSV 헤더 → DB 필드 매핑 (mapping 딕셔너리)
+    5) checkTime → datetime, 나머지 수치 칼럼 → numeric
+    6) UTF-8 BOM 포함하여 다시 CSV 작성
+    7) upload_csv 헬퍼로 MongoDB 업로드
     """
-    # 1) 파일 유무 확인
+    # 1) 파일 유무 & 확장자 체크
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
     f = request.files['file']
@@ -830,25 +833,25 @@ def upload_analysis1_csv():
     if not f.filename.lower().endswith('.csv'):
         return jsonify({"error": "Only CSV files allowed"}), 400
 
-    # 2) 바이너리 읽기 + BOM 제거 → CP949 fallback
+    # 2) 바이너리 읽기 → BOM 제거 → cp949 fallback
     raw = f.read()
     try:
         text = raw.decode('utf-8-sig')
     except UnicodeDecodeError:
         text = raw.decode('cp949')
 
-    # 3) DataFrame 생성
+    # 3) DataFrame 생성 & 컬럼 정리
     df = pd.read_csv(io.StringIO(text))
     df.columns = df.columns.str.replace('\ufeff', '').str.strip()
-    df = df.drop(columns=['_id'], errors='ignore')  # 혹시 남아있는 _id 컬럼 제거
+    df = df.drop(columns=['_id'], errors='ignore')
 
-    # 4) 컬럼 매핑 (CSV 헤더 → DB 필드명)
+    # 4) 헤더 → DB 필드 매핑
     mapping = {
         "checkTime":            "checkTime",
-        "X":                    "x",
-        "Y":                    "y",
-        "Energy range (Mev)":   "Energy range (Mev)",
-        "Radiation (nSv/h)":    "radiation"
+        "X":                     "x",
+        "Y":                     "y",
+        "Energy range (Mev)":    "Energy range (Mev)",
+        "Radiation (nSv/h)":     "radiation"
     }
     if not set(mapping.keys()).intersection(df.columns):
         return jsonify({
@@ -862,33 +865,13 @@ def upload_analysis1_csv():
     for col in ['x', 'y', 'Energy range (Mev)', 'radiation']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    # 6) 다시 CSV로 버퍼에 작성 (UTF-8 BOM 포함)
+    # 6) 다시 CSV로 버퍼 작성 (UTF-8 BOM)
     buf = io.StringIO()
     df.to_csv(buf, index=False, encoding='utf-8-sig')
     buf.seek(0)
 
-    # 7) MongoDB에 업로드
+    # 7) MongoDB 업로드
     return upload_csv(analysis1_collection, buf, mapping)
-# ---------------------------------------------------------------------
-# 분석2 라우터 그룹 — upload_analysis2_csv 개선판
-# ---------------------------------------------------------------------
-from flask import request, jsonify
-import pandas as pd
-import io
-
-@app.route('/export_analysis2_csv', methods=['GET'])
-def export_analysis2_csv():
-    return export_csv(
-        analysis2_collection,
-        "analysis2_data",
-        # CSV 헤더 (영어)
-        ["checkTime", "lat", "lng", "altitude", "windspeed", "windDir", "radiation"],
-        # 필드 이름 (DB 저장 필드)
-        ["checkTime", "lat", "lng", "altitude", "windspeed", "windDir", "radiation"],
-        sort=[("checkTime", DESCENDING)]
-    )
-
-
 # -- CSV 업로드 (영문 헤더 매핑) --
 @app.route('/upload_analysis2_csv', methods=['POST'])
 def upload_analysis2_csv():
