@@ -917,9 +917,9 @@ def upload_analysis2_csv():
 
     df.rename(columns=mapping, inplace=True)
 
-    # 날짜/숫자 타입 변환
+    # 날짜/숫자 타입 변환 (analysis2 전용 컬럼)
     df['checkTime'] = pd.to_datetime(df['checkTime'], errors='coerce')
-    for col in ['x', 'y', 'Energy range (Mev)', 'radiation']:
+    for col in ['lat', 'lng', 'altitude', 'windspeed', 'windDir', 'radiation']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
     # 다시 CSV로 작성 (UTF-8 BOM)
@@ -928,7 +928,7 @@ def upload_analysis2_csv():
     buf.seek(0)
 
     # MongoDB로 업로드
-    return upload_csv(analysis1_collection, buf, mapping)
+    return upload_csv(analysis2_collection, buf, mapping)
 
 # ---------------------------------------------------------------------
 # 분석4 라우터 그룹
