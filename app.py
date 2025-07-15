@@ -771,6 +771,53 @@ def export_analysis1_csv():
     filename = "analysis1_data"
     return export_csv(analysis1_collection, filename, header, fields)
 
+@app.route('/upload_analysis1_csv', methods=['POST'])
+def upload_analysis1_csv():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    f = request.files['file']
+    if not f or f.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    if not f.filename.lower().endswith('.csv'):
+        return jsonify({"error": "Only CSV files allowed"}), 400
+
+    # 1) 바이너리 읽기
+    raw = f.read()
+    try:
+        text = raw.decode('utf-8-sig')
+    except UnicodeDecodeError:
+        text = raw.decode('cp949')
+
+    # 2) DataFrame 생성
+    df = pd.read_csv(io.StringIO(text))
+    df.columns = df.columns.str.replace('\ufeff', '').str.strip()
+    df = df.drop(columns=['_id'], errors='ignore')
+
+    # 3) 컬럼 매핑
+    mapping = {
+        "Check Time": "time",
+        "X": "x",
+        "Y": "y",
+        "Energy range (Mev)": "Energy range (Mev)",
+        "Radiation (nSv/h)": "radiation"
+    }
+    if not set(mapping.keys()).intersection(df.columns):
+        return jsonify({"error": "Unexpected CSV headers", "headers": df.columns.tolist()}), 400
+    df.rename(columns=mapping, inplace=True)
+
+    # 4) 타입 변환
+    df['time'] = pd.to_datetime(df['time'], errors='coerce')
+    for col in ['x','y','Energy range (Mev)','radiation']:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+
+    # 5) 다시 CSV로 버퍼에 작성
+    buf = io.StringIO()
+    df.to_csv(buf, index=False, encoding='utf-8-sig')
+    buf.seek(0)
+
+    # 6) MongoDB에 업로드
+    return upload_csv(analysis1_collection, buf, mapping)
+
 # ---------------------------------------------------------------------
 # 분석2 라우터 그룹 — upload_analysis2_csv 개선판
 # ---------------------------------------------------------------------
