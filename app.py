@@ -796,67 +796,79 @@ def export_csv_by_genName(genName):
 # ---------------------------------------------------------------------
 # 분석1 라우터 그룹
 # ---------------------------------------------------------------------
+
 @app.route('/export_analysis1_csv', methods=['GET'])
 def export_analysis1_csv():
+    """
+    분석1 데이터를 CSV로 내보냅니다.
+    - CSV 헤더(클라이언트에 보여질 컬럼명): checkTime, X, Y, Energy range (Mev), Radiation (nSv/h)
+    - 실제 MongoDB 필드명: checkTime, x, y, Energy range (Mev), radiation
+    """
+    headers = ["checkTime", "X", "Y", "Energy range (Mev)", "Radiation (nSv/h)"]
+    fields  = ["checkTime", "x", "y", "Energy range (Mev)", "radiation"]
     return export_csv(
         analysis1_collection,
         "analysis1_data",
-        # CSV 헤더 (영문)
-        ["checkTime", "x", "y", "Energy range (Mev)", "radiation"],
-        # DB 필드 이름
-        ["time",      "x", "y", "Energy range (Mev)", "radiation"],
-        sort=[("time", DESCENDING)]
+        headers,
+        fields,
+        sort=[("checkTime", DESCENDING)]
     )
 
-# 분석1 CSV 업로드 (영문 헤더 매핑)
+
 @app.route('/upload_analysis1_csv', methods=['POST'])
 def upload_analysis1_csv():
+    """
+    CSV 업로드 → MongoDB에 저장합니다.
+    업로드할 CSV의 첫 번째 컬럼 헤더는 반드시 'checkTime'이어야 합니다.
+    """
+    # 1) 파일 유무 확인
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
     f = request.files['file']
-    if not f or not f.filename.lower().endswith('.csv'):
+    if not f or f.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    if not f.filename.lower().endswith('.csv'):
         return jsonify({"error": "Only CSV files allowed"}), 400
 
-    # 바이너리 → text
+    # 2) 바이너리 읽기 + BOM 제거 → CP949 fallback
     raw = f.read()
     try:
         text = raw.decode('utf-8-sig')
     except UnicodeDecodeError:
         text = raw.decode('cp949')
 
-    # DataFrame 생성
+    # 3) DataFrame 생성
     df = pd.read_csv(io.StringIO(text))
     df.columns = df.columns.str.replace('\ufeff', '').str.strip()
-    df = df.drop(columns=['_id'], errors='ignore')
+    df = df.drop(columns=['_id'], errors='ignore')  # 혹시 남아있는 _id 컬럼 제거
 
-    # 영문 헤더 → DB 필드 매핑
+    # 4) 컬럼 매핑 (CSV 헤더 → DB 필드명)
     mapping = {
-        "checkTime":             "time",
-        "x":                     "x",
-        "y":                     "y",
-        "Energy range (Mev)":    "Energy range (Mev)",
-        "radiation":             "radiation"
+        "checkTime":            "checkTime",
+        "X":                    "x",
+        "Y":                    "y",
+        "Energy range (Mev)":   "Energy range (Mev)",
+        "Radiation (nSv/h)":    "radiation"
     }
-    if not set(mapping.keys()).issubset(df.columns):
+    if not set(mapping.keys()).intersection(df.columns):
         return jsonify({
             "error":   "Unexpected CSV headers",
             "headers": df.columns.tolist()
         }), 400
-
     df.rename(columns=mapping, inplace=True)
 
-    # 타입 변환
-    df['time'] = pd.to_datetime(df['time'], errors='coerce')
-    for col in ["x","y","Energy range (Mev)","radiation"]:
+    # 5) 타입 변환
+    df['checkTime'] = pd.to_datetime(df['checkTime'], errors='coerce')
+    for col in ['x', 'y', 'Energy range (Mev)', 'radiation']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    # 다시 CSV 버퍼에 쓰기
+    # 6) 다시 CSV로 버퍼에 작성 (UTF-8 BOM 포함)
     buf = io.StringIO()
     df.to_csv(buf, index=False, encoding='utf-8-sig')
     buf.seek(0)
 
+    # 7) MongoDB에 업로드
     return upload_csv(analysis1_collection, buf, mapping)
-
 # ---------------------------------------------------------------------
 # 분석2 라우터 그룹 — upload_analysis2_csv 개선판
 # ---------------------------------------------------------------------
