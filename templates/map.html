@@ -226,6 +226,17 @@
             });
         }
 
+        function formatKoreanDate(dateString) {
+            const date = new Date(dateString);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}`;
+        }
+
+
         function loadLatestWeatherData() {
             const weatherGridContainer = document.getElementById("weatherGridContainer");
             weatherGridContainer.innerHTML = "";  // 기존 내용을 지우기
@@ -252,7 +263,7 @@
                             gridItem.className = "grid-item";
                             gridItem.innerHTML = `
                                 <h5>${plantNames[genName]}</h5>
-                                <p><strong>측정 시간:</strong> ${data.time || '정보 없음'}</p>
+                                <p><strong>측정 시간:</strong> ${data.time ? formatKoreanDate(data.time) : '정보 없음'}</p>
                                 <p><strong>기온:</strong> ${data.temperature || '정보 없음'}°C</p>
                                 <p><strong>습도:</strong> ${data.humidity || '정보 없음'}%</p>
                                 <p><strong>강수량:</strong> ${data.rainfall !== undefined && data.rainfall !== null ? data.rainfall : '0 '}mm</p>
