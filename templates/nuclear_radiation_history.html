@@ -220,16 +220,6 @@
                 order: [[0, 'desc']] // 측정 시간 기준으로 최신순 정렬
             });
 
-            function formatKoreanDate(dateString) {
-                const date = new Date(dateString);
-                const year = date.getFullYear();
-                const month = String(date.getMonth() + 1).padStart(2, '0');
-                const day = String(date.getDate()).padStart(2, '0');
-                const hours = String(date.getHours()).padStart(2, '0');
-                const minutes = String(date.getMinutes()).padStart(2, '0');
-                return `${year}-${month}-${day} ${hours}:${minutes}`;
-            }
-
             // 측정 지점 리스트를 가져와 표시
             function loadMeasurementPoints() {
                 var genName = '{{ genName }}'; // 발전소 이름을 사용
@@ -296,7 +286,7 @@
 
                         data.forEach(function(item) {
                             table.row.add([
-                                formatKoreanDate(item.time),  // ✅ 여기!
+                                item.time,
                                 `${parseFloat(item.value).toFixed(3)} μSv/h`
                             ]).draw(false);
                         });
