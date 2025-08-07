@@ -1066,11 +1066,13 @@ def optimal_shelter_evaluation():
     return render_template('optimal_shelter_evaluation.html', sites=sites)
 
 # 선택한 발전소 결과 페이지
-@app.route('/optimal_shelter_result/<site>')
-def optimal_shelter_result(site):
-    # 1) TOP5 정보
-    top5     = compute_top5_for(site)
-    # 2) folium map HTML
+@app.route('/optimal_shelter_result/<genName>')
+def optimal_shelter_result(genName):
+    site = genName_mapping.get(genName)
+    if not site:
+        return f"Invalid genName: {genName}", 404
+
+    top5 = compute_top5_for(site)
     map_html = generate_topsis_map_html(site)
     return render_template(
         'optimal_shelter_result.html',
