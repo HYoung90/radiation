@@ -1068,9 +1068,9 @@ def optimal_shelter_evaluation():
 # 선택한 발전소 결과 페이지
 @app.route('/optimal_shelter_result/<genName>')
 def optimal_shelter_result(genName):
-    site = genName_mapping.get(genName)
+    site = genName_to_site.get(genName)
     if not site:
-        return f"Invalid genName: {genName}", 404
+        return "올바르지 않은 발전소 코드입니다.", 400
 
     top5 = compute_top5_for(site)
     map_html = generate_topsis_map_html(site)
