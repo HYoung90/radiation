@@ -182,7 +182,7 @@
     #spectrumChart {
         width: 100%;
         height: 500px;
-        margin-top: 20px; /* 버튼과의 간격 조정 */
+        margin-top: 20px;
         border: 1px solid #e0e0e0;
         border-radius: 8px;
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
@@ -454,13 +454,18 @@
 
     // 에너지 스펙트럼 그래프 그리기 함수
     function drawSpectrumChart(spectrumData) {
-        // 채널(에너지) 데이터 추출
-        const channels = spectrumData.map(d => d.channel);
+        // 채널당 에너지(keV/ch) 계산
+        const totalChannels = 1024;
+        const maxEnergy = 3000;
+        const energyPerChannel = maxEnergy / totalChannels;
+
+        // 채널 번호를 에너지(keV)로 변환
+        const energies = spectrumData.map(d => d.channel * energyPerChannel);
         // 채널별 카운트(방사선량) 데이터 추출
         const counts = spectrumData.map(d => d.count);
 
         const data = [{
-            x: channels,
+            x: energies,
             y: counts,
             type: 'bar',
             marker: {
@@ -472,7 +477,8 @@
             title: '에너지 스펙트럼',
             xaxis: {
                 title: '에너지 (keV)',
-                range: [0, 3000]
+                range: [0, maxEnergy],
+                dtick: 500
             },
             yaxis: {
                 title: '계수 (Counts)',
@@ -483,8 +489,50 @@
                 r: 50,
                 b: 50,
                 t: 50
-            }
+            },
+            shapes: [],
+            annotations: []
         };
+
+        // 대표 핵종의 에너지 값 (keV)을 정의
+        const isotopes = [
+            { name: 'I-131', energy: 364 },
+            { name: 'Cs-134', energy: 605 },
+            { name: 'Cs-137', energy: 662 },
+            { name: 'Co-60', energy: 1173 },
+            { name: 'Co-60', energy: 1332 },
+            { name: 'Ru-106', energy: 500 }
+        ];
+
+        // 각 핵종에 대한 세로선과 주석 추가
+        isotopes.forEach(isotope => {
+            layout.shapes.push({
+                type: 'line',
+                x0: isotope.energy,
+                y0: 0,
+                x1: isotope.energy,
+                y1: 1,
+                yref: 'paper',
+                line: {
+                    color: 'rgb(255, 0, 0)',
+                    width: 2,
+                    dash: 'dash'
+                }
+            });
+
+            layout.annotations.push({
+                x: isotope.energy,
+                y: 1.05,
+                yref: 'paper',
+                text: isotope.name,
+                showarrow: false,
+                font: {
+                    color: 'rgb(255, 0, 0)',
+                    size: 12
+                },
+                xanchor: 'center'
+            });
+        });
 
         Plotly.newPlot('spectrumChart', data, layout);
     }
