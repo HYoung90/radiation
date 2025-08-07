@@ -356,7 +356,7 @@
                 cancelButtonColor: '#aaa'
               }).then((result) => {
                 if (result.isConfirmed) {
-                  window.location.href = `/optimal_shelter_result/${genName}`;
+                  window.location.href = `/optimal_shelter_result/${encodeURIComponent(genName)}`;
                 }
               });
             }
