@@ -577,6 +577,45 @@ def show_radiation_detail(genName, expl):
     logging.info(f"Received request for radiation history detail for: {genName}, {expl}")
     return render_template('nuclear_radiation_detail.html', genName=genName, expl=expl)
 
+@app.route('/api/radiation_status/<genName>', methods=['GET'])
+def radiation_status_api(genName):
+    try:
+        # MongoDB에서 해당 발전소(genName)의 방사선 데이터 전체 조회
+        radiation_data = list(nuclear_radiation_collection.find(
+            {'genName': genName},
+            {'_id': 0, 'value': 1}
+        ))
+
+        # 유효한 방사선 수치만 필터링
+        radiation_values = [float(d['value']) for d in radiation_data if d.get('value') is not None]
+        if not radiation_values:
+            return jsonify({"error": "No valid radiation values found"}), 404
+
+        # 평균 방사선량 및 기준값 계산
+        average_radiation = sum(radiation_values) / len(radiation_values)
+        threshold = average_radiation + 0.097
+
+        # 최신 방사선값 추출
+        latest = nuclear_radiation_collection.find_one(
+            {'genName': genName},
+            sort=[('time', -1)]
+        )
+        current_value = float(latest['value']) if latest and latest.get('value') else 0.0
+
+        # 결과 반환
+        return jsonify({
+            "genName": genName,
+            "current_value": round(current_value, 4),
+            "threshold": round(threshold, 4),
+            "status": "accident" if current_value > threshold else "normal"
+        })
+
+    except Exception as e:
+        logging.error(f"[ERROR] /api/radiation_status/{genName}: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+
 @app.route('/api/nuclear_radiation/backup', methods=['GET'])
 def get_backup_radiation_data():
     genName = request.args.get('genName')
