@@ -220,9 +220,8 @@
         };
 
         for (var genName in regions) {
-            const shortName = genNameToShort[genName];  // ← shortName 얻기
             var marker = L.marker([regions[genName][0], regions[genName][1]]).addTo(map)
-                .bindPopup('<div class="custom-popup-title"><a href="/optimal_shelter_result/' + encodeURIComponent(shortName) + '" style="text-decoration:none;color:black;">' + regions[genName][2] + '</a></div>');
+                .bindPopup('<div class="custom-popup-title"><a href="/' + genName + '" style="text-decoration:none;color:black;">' + regions[genName][2] + '</a></div>');
 
             marker.on('click', function() {
                 this.openPopup();
