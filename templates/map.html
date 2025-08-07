@@ -335,48 +335,57 @@
             "SU": "새울 원자력발전소"
         };
 
-        async function checkRadiationPopup(genName, displayName) {
-          try {
-            const res = await fetch(`/api/radiation_status/${genName}`);
-            const data = await res.json();
+        // ✅ genName → shortName 매핑 테이블 추가
+        const genNameToShort = {
+            "KR": "고리",
+            "WS": "월성",
+            "YK": "한빛",
+            "UJ": "한울",
+            "SU": "새울"
+        };
 
-            if (data.status === "accident") {
-              Swal.fire({
-                icon: 'warning',
-                title: `🚨 ${displayName}`,
-                html: `
-                  <p>방사선 수치가 <strong>기준(${data.threshold} µSv/h)</strong>을 초과했습니다.</p>
-                  <p><strong>현재값:</strong> ${data.current_value} µSv/h</p>
-                  <p>구호소 대피 적합도 평가 결과 페이지로 이동하시겠습니까?</p>
-                `,
-                showCancelButton: true,
-                confirmButtonText: '이동',
-                cancelButtonText: '취소',
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#aaa'
-              }).then((result) => {
-                if (result.isConfirmed) {
-                  window.location.href = `/optimal_shelter_result/${encodeURIComponent(genName)}`;
+        async function checkRadiationPopup(genName, displayName) {
+            try {
+                const res = await fetch(`/api/radiation_status/${genName}`);
+                const data = await res.json();
+
+                if (data.status === "accident") {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: `🚨 ${displayName}`,
+                        html: `
+                            <p>방사선 수치가 <strong>기준(${data.threshold} µSv/h)</strong>을 초과했습니다.</p>
+                            <p><strong>현재값:</strong> ${data.current_value} µSv/h</p>
+                            <p>구호소 대피 적합도 평가 결과 페이지로 이동하시겠습니까?</p>
+                        `,
+                        showCancelButton: true,
+                        confirmButtonText: '이동',
+                        cancelButtonText: '취소',
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#aaa'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            const shortName = genNameToShort[genName];
+                            window.location.href = `/optimal_shelter_result/${encodeURIComponent(shortName)}`;
+                        }
+                    });
                 }
-              });
+            } catch (err) {
+                console.error(`[${genName}] 판단 오류:`, err);
             }
-          } catch (err) {
-            console.error(`[${genName}] 판단 오류:`, err);
-          }
         }
 
         window.addEventListener("load", () => {
-          for (const [genName, displayName] of Object.entries(plantMap)) {
-            checkRadiationPopup(genName, displayName);
-          }
-
-          setInterval(() => {
             for (const [genName, displayName] of Object.entries(plantMap)) {
-              checkRadiationPopup(genName, displayName);
+                checkRadiationPopup(genName, displayName);
             }
-          }, 15 * 60 * 1000);
-        });
 
+            setInterval(() => {
+                for (const [genName, displayName] of Object.entries(plantMap)) {
+                    checkRadiationPopup(genName, displayName);
+                }
+            }, 15 * 60 * 1000);
+        });
     </script>
 </body>
 </html>
