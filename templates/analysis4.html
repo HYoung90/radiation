@@ -1,3 +1,15 @@
+네, 알겠습니다. 방사선 에너지 스펙트럼 그래프를 **로그 스케일이 아닌 일반 스케일**로, 그리고 **에너지 범위는 0\~3000 keV**로 수정하여 제공해 드리겠습니다.
+
+아래 코드에서 변경된 주요 부분은 다음과 같습니다.
+
+1.  **Y축 스케일**: `yaxis.type: 'log'` 부분을 제거하여 Y축(계수, Counts)이 로그 스케일이 아닌 일반 선형 스케일로 표시됩니다.
+2.  **X축 범위**: `xaxis.range: [0, 3000]`를 추가하여 X축(에너지)의 범위를 0 keV부터 3000 keV까지로 고정했습니다. 이는 업로드된 데이터의 최대값과 상관없이 그래프의 가로축을 일관되게 보여줍니다.
+
+-----
+
+### 수정된 전체 HTML & JavaScript 코드
+
+```html
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -15,55 +27,65 @@
   <style>
     /* 전체 페이지 스타일 */
     body {
-      font-family: 'Segoe UI', 'Arial', sans-serif; /* 현대적인 폰트 */
-      background-color: #f0f2f5; /* 부드러운 배경색 */
+      font-family: 'Segoe UI', 'Arial', sans-serif;
+      background-color: #f0f2f5;
       margin: 0;
-      padding: 20px; /* body padding 추가 */
+      padding: 20px;
       color: #333;
       line-height: 1.6;
     }
 
     /* 컨테이너 스타일 */
     .container {
-      max-width: 1200px; /* 컨테이너 최대 너비 설정 */
-      margin: 20px auto; /* 중앙 정렬 및 상하 여백 */
+      max-width: 1200px;
+      margin: 20px auto;
       background-color: #ffffff;
       padding: 30px;
-      border-radius: 10px; /* 모서리 둥글게 */
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); /* 그림자 */
+      border-radius: 10px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
     }
 
     /* 헤더/제목 스타일 */
     h1 {
-      font-size: 2.2em; /* 제목 크기 */
-      color: #2c3e50; /* 제목 색상 */
-      margin-top: 0; /* 기본 마진 제거 */
-      margin-bottom: 25px; /* 아래쪽 여백 추가 */
-      padding-bottom: 15px; /* 제목 아래 패딩 */
-      border-bottom: 2px solid #ddd; /* 하단 경계선 */
+      font-size: 2.2em;
+      color: #2c3e50;
+      margin-top: 0;
+      margin-bottom: 25px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #ddd;
     }
+
+    /* 그래프 섹션 제목 스타일 */
+    .chart-container h2 {
+        font-size: 1.8em;
+        color: #2c3e50;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
 
     /* 버튼 그룹 스타일 */
     .btn-group {
       display: flex;
-      justify-content: flex-end; /* 오른쪽 정렬 */
-      gap: 10px; /* 버튼 간 간격 */
-      margin-bottom: 30px; /* 아래쪽 여백 추가 */
+      justify-content: flex-end;
+      gap: 10px;
+      margin-bottom: 30px;
     }
 
     /* 공통 버튼 스타일 */
     .btn {
       display: inline-block;
-      padding: 12px 22px; /* 버튼 패딩 조정 */
-      font-size: 0.95em; /* 버튼 폰트 크기 조정 */
+      padding: 12px 22px;
+      font-size: 0.95em;
       border: none;
-      border-radius: 6px; /* 버튼 모서리 둥글게 */
+      border-radius: 6px;
       cursor: pointer;
       text-decoration: none;
       transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-      color: white; /* 기본 글자색 흰색 */
-      min-width: 120px; /* 버튼 최소 너비 */
+      color: white;
+      min-width: 120px;
       text-align: center;
     }
 
@@ -73,46 +95,43 @@
     }
 
     /* 버튼 색상 */
-    .btn-back { background-color: #34495e; } /* 어두운 청회색 */
+    .btn-back { background-color: #34495e; }
     .btn-back:hover { background-color: #2c3e50; }
 
-    .btn-refresh { background-color: #007bff; } /* 파란색 계열 */
+    .btn-refresh { background-color: #007bff; }
     .btn-refresh:hover { background-color: #0056b3; }
 
-    /* CSV 다운로드 버튼 색상 조정 (이전과 동일하게 녹색 계열) */
     .btn-download { background-color: #34495e; }
     .btn-download:hover { background-color: #218838; }
 
-    /* CSV 업로드 버튼 색상 조정 (이전과 동일하게 주황색 계열) */
     .btn-upload { background-color: #34495e;  }
     .btn-upload:hover { background-color: #e0a800; }
 
 
     /* 필터 그룹 스타일 */
     .filter-group {
-      display: flex; /* 요소들을 한 줄에 배치 */
-      align-items: center; /* 세로 중앙 정렬 */
-      flex-wrap: wrap; /* 작은 화면에서 줄바꿈 */
-      gap: 15px; /* 요소들 간 간격 */
-      margin-bottom: 30px; /* 아래쪽 여백 */
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 15px;
+      margin-bottom: 30px;
       padding: 15px;
-      background-color: #f8f9fa; /* 필터 배경색 */
+      background-color: #f8f9fa;
       border-radius: 8px;
       border: 1px solid #e9ecef;
     }
     .filter-group label {
       font-weight: bold;
       color: #34495e;
-      white-space: nowrap; /* 텍스트 줄바꿈 방지 */
+      white-space: nowrap;
     }
-    /* input type="text"로 변경되었으므로 스타일 셀렉터 변경 */
     .filter-group input[type="text"] {
       padding: 10px 15px;
       border: 1px solid #ced4da;
       border-radius: 5px;
       font-size: 1em;
-      width: 160px; /* 고정 너비 설정 */
-      box-sizing: border-box; /* 패딩과 보더를 너비에 포함 */
+      width: 160px;
+      box-sizing: border-box;
     }
     .filter-group input[type="text"]:focus {
         border-color: #80bdff;
@@ -131,18 +150,18 @@
     .ui-datepicker-trigger img {
         width: 24px;
         height: 24px;
-        opacity: 0.7; /* 아이콘 투명도 */
+        opacity: 0.7;
         transition: opacity 0.2s ease;
     }
     .ui-datepicker-trigger:hover img {
-        opacity: 1; /* 호버 시 불투명하게 */
+        opacity: 1;
     }
 
     .ui-datepicker {
-    z-index: 9999 !important; /* 매우 높은 값으로 설정하여 다른 모든 요소 위에 표시 */
+    z-index: 9999 !important;
     }
 
-    /* 적용 버튼 - 청록색 계열로 변경 (기존 btn-refresh와 유사) */
+    /* 적용 버튼 - 청록색 계열로 변경 */
     .btn-apply {
         background-color: #007bff;
     }
@@ -159,34 +178,45 @@
 
     /* 지도 높이 */
     #map {
-      height: 500px; /* 높이 조정 */
+      height: 500px;
       border: 1px solid #e0e0e0;
-      margin-bottom: 30px; /* 아래쪽 여백 추가 */
-      border-radius: 8px; /* 둥근 모서리 */
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05); /* 지도 그림자 */
+      margin-bottom: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
       overflow: hidden;
+    }
+
+    /* 새 그래프 공간 스타일 추가 */
+    #spectrumChart {
+        width: 100%;
+        height: 500px;
+        margin-top: 30px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        background-color: #ffffff;
     }
 
     /* DataTable */
     #weatherTable {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 30px; /* 위쪽 여백 추가 */
+      margin-top: 30px;
       font-size: 1.0em;
-      background-color: #ffffff; /* 테이블 배경색 */
+      background-color: #ffffff;
       border-radius: 8px;
-      overflow: hidden; /* 둥근 모서리 적용을 위해 */
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); /* 테이블 그림자 */
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     }
 
     #weatherTable thead th {
-      background-color: #6c757d; /* 헤더 배경색 */
+      background-color: #6c757d;
       color: white;
       padding: 15px;
       text-align: center;
       border-bottom: 2px solid #5a6268;
       font-weight: 600;
-      white-space: nowrap; /* 헤더 텍스트 줄바꿈 방지 */
+      white-space: nowrap;
     }
 
     #weatherTable tbody td {
@@ -197,35 +227,35 @@
     }
 
     #weatherTable tbody tr:nth-child(even) {
-      background-color: #f8f9fa; /* 짝수 행 배경색 */
+      background-color: #f8f9fa;
     }
 
     #weatherTable tbody tr:hover {
-      background-color: #e2f4f8; /* 호버 시 배경색 변경 */
+      background-color: #e2f4f8;
     }
 
     /* DataTables 페이지네이션 및 정보 영역 */
     .dataTables_wrapper .dataTables_info {
         font-size: 0.9em;
         color: #666;
-        margin-top: 15px; /* 정보 텍스트 위 여백 */
-        margin-bottom: 15px; /* 정보 텍스트 아래 여백 */
+        margin-top: 15px;
+        margin-bottom: 15px;
     }
     .dataTables_wrapper .dataTables_paginate {
-        margin-top: 20px; /* 페이지네이션 위 여백 */
-        margin-bottom: 10px; /* 페이지네이션 아래 여백 */
+        margin-top: 20px;
+        margin-bottom: 10px;
         display: flex;
-        justify-content: center; /* 중앙 정렬 */
+        justify-content: center;
         align-items: center;
-        gap: 5px; /* 페이지 버튼 간격 */
+        gap: 5px;
     }
     .dataTables_wrapper .dataTables_paginate .paginate_button {
-      background-color: #f0f0f0; /* 비활성 버튼 배경 */
-      color: #333 !important; /* 비활성 버튼 글자색 */
+      background-color: #f0f0f0;
+      color: #333 !important;
       border: 1px solid #ddd;
       border-radius: 6px;
       padding: 8px 14px;
-      margin: 0 4px; /* 버튼 간격 */
+      margin: 0 4px;
       cursor: pointer;
       transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
@@ -235,8 +265,8 @@
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     }
     .dataTables_wrapper .dataTables_paginate .paginate_button.current {
-      background-color: #007bff; /* 활성 버튼 배경 */
-      color: #fff !important; /* 활성 버튼 글자색 */
+      background-color: #007bff;
+      color: #fff !important;
       border-color: #007bff;
       font-weight: bold;
     }
@@ -254,9 +284,12 @@
       <a href="/" class="btn btn-back">처음으로</a>
       <button class="btn btn-refresh" onclick="location.reload()">새로고침</button>
       <button class="btn btn-download" onclick="downloadCSV()">CSV 다운로드</button>
-      <label for="csvUpload" class="btn btn-upload">CSV 업로드</label>
+      <label for="csvUpload" class="btn btn-upload">데이터 CSV 업로드</label>
       <input type="file" id="csvUpload" accept=".csv" style="display:none"
-             onchange="uploadCSV(event)"/>
+             onchange="uploadDataCSV(event)"/>
+      <label for="spectrumCsvUpload" class="btn btn-upload">스펙트럼 CSV 업로드</label>
+      <input type="file" id="spectrumCsvUpload" accept=".csv" style="display:none"
+             onchange="uploadSpectrumCSV(event)"/>
     </div>
 
     <div class="filter-group">
@@ -269,6 +302,11 @@
     </div>
 
     <div id="map"></div>
+
+    <div class="chart-container">
+        <h2>에너지 스펙트럼 그래프</h2>
+        <div id="spectrumChart"></div>
+    </div>
 
     <table id="weatherTable" class="display">
       <thead>
@@ -299,6 +337,7 @@
   <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
   <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 
   <script>
     // DataTable 세팅
@@ -308,7 +347,7 @@
         pageLength: 10,
         lengthChange: false,
         searching: false,
-        ordering: false, // 데이터를 Flask에서 이미 정렬해서 보낸다고 가정
+        ordering: false,
         info: true,
         autoWidth: false,
         language: {
@@ -387,18 +426,76 @@
     function clearDateFilter() {
         $('#minDate').val('');
         $('#maxDate').val('');
-        // 필터를 초기화한 후, 다시 모든 데이터를 불러오기 위해 페이지를 새로고침합니다.
-        window.location = '/analysis4'; // 또는 location.reload();
+        window.location = '/analysis4';
     }
 
-    // CSV 업로드 함수
-    function uploadCSV(e) {
+    // (기존) 데이터 CSV 업로드 함수
+    function uploadDataCSV(e) {
       const f = e.target.files[0];
       if (!f) return;
       const fd = new FormData(); fd.append('file', f);
       fetch('/upload_analysis4_csv', { method:'POST', body: fd })
         .then(r=>r.text()).then(txt=>{ alert(txt); location.reload(); })
         .catch(_=> alert('업로드 실패'));
+    }
+
+    // (새로운) 스펙트럼 CSV 업로드 함수
+    function uploadSpectrumCSV(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const csvData = event.target.result;
+            const lines = csvData.split('\n').filter(line => line.trim() !== '');
+
+            // 첫 번째 줄은 헤더로 간주하고 스킵
+            const data = lines.slice(1).map(line => {
+                const [channel, count] = line.split(',').map(Number);
+                return { channel, count };
+            });
+
+            drawSpectrumChart(data);
+        };
+        reader.readAsText(file);
+    }
+
+    // 에너지 스펙트럼 그래프 그리기 함수
+    function drawSpectrumChart(spectrumData) {
+        // 채널(에너지) 데이터 추출
+        const channels = spectrumData.map(d => d.channel);
+        // 채널별 카운트(방사선량) 데이터 추출
+        const counts = spectrumData.map(d => d.count);
+
+        const data = [{
+            x: channels,
+            y: counts,
+            type: 'bar', // 막대 그래프 유지
+            marker: {
+                color: 'rgb(0, 123, 255)'
+            }
+        }];
+
+        const layout = {
+            title: '에너지 스펙트럼',
+            xaxis: {
+                title: '에너지 (keV)',
+                range: [0, 3000] // X축 범위를 0~3000 keV로 고정
+            },
+            yaxis: {
+                title: '계수 (Counts)',
+                // 로그 스케일 제거
+                autorange: true
+            },
+            margin: {
+                l: 50,
+                r: 50,
+                b: 50,
+                t: 50
+            }
+        };
+
+        Plotly.newPlot('spectrumChart', data, layout);
     }
 
     // 지도 초기화 (CartoDB Positron)
