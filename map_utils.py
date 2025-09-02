@@ -59,7 +59,6 @@ try:
     col = db['NPP_weather']
 except Exception as e:
     logging.error(f"MongoDB 연결 실패: {e}")
-    # 웹 앱에서는 오류를 반환하거나 대체 로직을 실행해야 합니다.
     col = None
 
 
@@ -266,8 +265,27 @@ def generate_topsis_map_html(plant):
             'fillColor': cm_top(feat['properties']['topsis_score']),
             'color': 'black', 'weight': 1, 'fillOpacity': 0.9
         },
-        tooltip=GeoJsonTooltip(fields=['adm_nm', 'population', 'topsis_score'], aliases=['행정동', '인구', 'TOPSIS'],
-                               localize=True)
+        tooltip=GeoJsonTooltip(
+            fields=[
+                'adm_nm',
+                'population',
+                'distance_score',
+                'cap_pc1',
+                'wind_risk',
+                'commercial_index',
+                'topsis_score'
+            ],
+            aliases=[
+                '행정동:',
+                '인구수:',
+                '거리 점수:',
+                '통합 수용능력(PC1):',
+                '풍위험:',
+                '유동인구지수:',
+                'TOPSIS Score:'
+            ],
+            localize=True
+        )
     ).add_to(m)
     cm_top.add_to(m)
 
