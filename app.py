@@ -15,6 +15,8 @@ from datetime import datetime, timedelta
 import logging
 from dateutil import parser
 from scipy.signal import find_peaks, savgol_filter
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import os
 from pymongo import MongoClient, DESCENDING
@@ -26,15 +28,16 @@ from flask_login import LoginManager, UserMixin, login_user, user_logged_out,log
 from flask_bcrypt import Bcrypt
 from bson import ObjectId
 from functools import wraps
-from dotenv import load_dotenv # 이 줄이 없으면 추가
+from dotenv import load_dotenv
+from functools import lru_cache
 
 app = Flask(__name__)
 
 bcrypt = Bcrypt(app)
 login_manager = LoginManager(app)
-login_manager.login_view = 'login'  # 로그인 안 한 상태로 접근시 이동할 페이지
+login_manager.login_view = 'login'
 
-app.config['SECRET_KEY'] = 'supersecretkey'  # 이미 있으면 중복 금지, 없으면 꼭 추가!
+app.config['SECRET_KEY'] = 'supersecretkey'
 
 # Flask-Caching 설정 비활성화
 cache = Cache(app, config={'CACHE_TYPE': 'null'})
@@ -53,6 +56,9 @@ mongo_uri = mongo_uri.strip().lstrip('=')
 client = MongoClient(mongo_uri)
 db = client['Data']
 users = db['users'] # 사용자 컬렉션
+
+def get_mongo_connection():
+    return client
 
 
 # User 클래스 정의 바로 위나 아래에 추가
@@ -169,6 +175,42 @@ def get_average_radiation():
     latest_avg_data = avg_collection.find_one(sort=[("date", DESCENDING)])
     logging.info(f"최근 평균 방사선량 데이터 가져왔습니다.")
     return latest_avg_data
+
+def _safe_float(x, default=0.0):
+    try:
+        return float(x)
+    except (TypeError, ValueError):
+        return default
+
+@lru_cache(maxsize=64)
+def _latest_regional_avg(gen_name: str):
+    gen_name = (gen_name or "").upper()  # ← 대문자 통일
+    return regional_avg_collection.find_one(
+        {'genName': gen_name},
+        sort=[('date', DESCENDING)]
+    ) or {}
+
+def get_rain_multiplier(gen_name: str, rainfall_mm) -> float:
+    """
+    rainfall_mm > 0면 비 가중치 적용, 아니면 1.0
+    우선 rain_avg / no_rain_avg, 없으면 1 + percentage_increase/100
+    실패 시 1.0
+    """
+    if _safe_float(rainfall_mm) <= 0:
+        return 1.0
+
+    gen_name = (gen_name or "").upper()  # ← 대문자 통일
+    doc = _latest_regional_avg(gen_name)
+    if not doc:
+        return 1.0
+
+    no_rain_avg = _safe_float(doc.get('no_rain_avg'))
+    rain_avg    = _safe_float(doc.get('rain_avg'))
+    if no_rain_avg > 0 and rain_avg > 0:
+        return max(0.1, rain_avg / no_rain_avg)
+
+    pct = _safe_float(doc.get('percentage_increase')) / 100.0
+    return max(0.1, 1.0 + max(0.0, pct))
 
 # ===== [ADD] 숫자 변환 유틸 =====
 # 숫자 캐스팅 유틸 (파일 상단 헬퍼들 근처에 추가)
@@ -337,20 +379,15 @@ def region_data(genName):
 
     if date_filter:
         try:
-            # 날짜 필터가 유효한 경우에만 처리
             date_obj = pd.to_datetime(date_filter)
-            start_datetime = date_obj.replace(hour=0, minute=0, second=0, microsecond=0)
-            end_datetime = date_obj.replace(hour=23, minute=59, second=59, microsecond=999999)
+            start_str = date_obj.strftime("%Y-%m-%d 00:00")
+            end_str = (date_obj + pd.Timedelta(days=1)).strftime("%Y-%m-%d 00:00")
+            query["time"] = {"$gte": start_str, "$lt": end_str}
 
-            # MongoDB에서 날짜 필터링
-            query["time"] = {"$gte": start_datetime, "$lte": end_datetime}
-
-            # 날짜로 필터링하는 경우에는 limit을 적용하지 않거나 (해당 날짜의 모든 데이터 필요),
-            # 아니면 페이지네이션을 적용해야 합니다. 여기서는 '해당 날짜의 모든 데이터'를 원한다고 가정하고 limit을 제거합니다.
             data = list(backup_collection.find(query, {"_id": 0}).sort("time", DESCENDING))
             logging.info(f"Filtered data for {normalized_genName} on {date_filter}: {len(data)} records.")
-
         except Exception as e:
+
             logging.error(f"Date parsing error: {e}")
             # 날짜 필터가 잘못된 경우, 쿼리에서 time 필터 제거 후 default_limit 적용
             query.pop("time", None)
@@ -637,40 +674,40 @@ def show_radiation_detail(genName, expl):
 @app.route('/api/radiation_status/<genName>', methods=['GET'])
 def radiation_status_api(genName):
     try:
-        # MongoDB에서 해당 발전소(genName)의 방사선 데이터 전체 조회
-        radiation_data = list(nuclear_radiation_collection.find(
-            {'genName': genName},
-            {'_id': 0, 'value': 1}
-        ))
+        genName = (genName or "").upper()
 
-        # 유효한 방사선 수치만 필터링
-        radiation_values = [float(d['value']) for d in radiation_data if d.get('value') is not None]
-        if not radiation_values:
+        cur = nuclear_radiation_collection.find({'genName': genName}, {'_id': 0, 'value': 1})
+        vals = []
+        for d in cur:
+            try:
+                v = float(d.get('value'))
+                vals.append(v)
+            except (TypeError, ValueError):
+                pass
+
+        if not vals:
             return jsonify({"error": "No valid radiation values found"}), 404
 
-        # 평균 방사선량 및 기준값 계산
-        average_radiation = sum(radiation_values) / len(radiation_values)
-        threshold = average_radiation + 0.097
+        avg = sum(vals) / len(vals)
+        threshold = avg + 0.097
 
-        # 최신 방사선값 추출
         latest = nuclear_radiation_collection.find_one(
-            {'genName': genName},
-            sort=[('time', -1)]
+            {'genName': genName}, sort=[('time', DESCENDING)], projection={'value': 1}
         )
-        current_value = float(latest['value']) if latest and latest.get('value') else 0.0
+        try:
+            current_value = float(latest.get('value')) if latest else 0.0
+        except (TypeError, ValueError):
+            current_value = 0.0
 
-        # 결과 반환
         return jsonify({
             "genName": genName,
             "current_value": round(current_value, 4),
             "threshold": round(threshold, 4),
             "status": "accident" if current_value > threshold else "normal"
         })
-
     except Exception as e:
         logging.error(f"[ERROR] /api/radiation_status/{genName}: {e}")
         return jsonify({"error": "Internal server error"}), 500
-
 
 
 @app.route('/api/nuclear_radiation/backup', methods=['GET'])
@@ -706,32 +743,17 @@ def get_backup_radiation_data():
 def get_highest_radiation_per_plant():
     try:
         pipeline = [
-            {
-                "$sort": {
-                    "value": -1  # 방사선량 기준으로 내림차순 정렬
-                }
-            },
-            {
-                "$group": {
-                    "_id": "$genName",  # 발전소 이름으로 그룹화
-                    "max_value": {"$max": "$value"},  # 각 발전소별 최고 방사선량 가져오기
-                    "time": {"$first": "$time"},  # 첫 번째 측정 시간 가져오기
-                    "expl": {"$first": "$expl"}  # 첫 번째 측정 지역 가져오기
-                }
-            },
-            {"$sort": {"max_value": -1}}  # 방사선량이 큰 순서로 정렬
+            {"$sort": {"genName": 1, "value": -1}},          # genName→value 내림차순
+            {"$group": {"_id": "$genName", "doc": {"$first": "$$ROOT"}}},
+            {"$replaceRoot": {"newRoot": "$doc"}},           # 최고치 문서 그대로
+            {"$project": {"_id": 0, "genName": 1, "expl": 1, "time": 1, "value": 1}},
+            {"$sort": {"value": -1}}
         ]
         result = list(nuclear_radiation_collection.aggregate(pipeline))
-
-        if result:
-            return jsonify(result)
-        else:
-            return jsonify({"error": "데이터가 없습니다."}), 404
+        return jsonify(result) if result else (jsonify({"error":"데이터가 없습니다."}), 404)
     except Exception as e:
         logging.error(f"발전소별 최고 방사선량 가져오기 오류: {e}")
         return jsonify({"error": "데이터를 가져오지 못했습니다."}), 500
-
-
 
 @app.route('/api/get_recent_plant_data', methods=['GET'])
 def get_recent_plant_data():
@@ -1357,30 +1379,22 @@ def spectrum_page():
 @app.route('/radiation_summary')
 def radiation_summary_page():
     try:
-        # 최근 방사선 데이터 가져오기
-        recent_data = list(stats_collection.find({}, {"_id": 0}).sort("date", DESCENDING).limit(35))
+        recent = list(stats_collection.find({}, {"_id": 0}).sort("date", DESCENDING).limit(35))
 
-        # 필터링 로직: 'value'나 'rain'이 None인 경우 기본값을 설정
-        for item in recent_data:
-            if item.get('value') is None:
-                item['value'] = 0  # 기본값으로 0 설정
-            if item.get('rain') is None:
-                item['rain'] = False  # 기본값으로 False 설정
-            if item.get('genName') is None or item.get('value') == 'Undefined':
-                recent_data.remove(item)  # 'Undefined' 또는 'None' 값 제거
+        cleaned = []
+        for it in recent:
+            it['value'] = 0 if it.get('value') is None else it['value']
+            it['rain'] = False if it.get('rain') is None else it['rain']
+            if it.get('genName') is None or it.get('value') == 'Undefined':
+                continue
+            cleaned.append(it)
 
-        logging.debug(f"Recent Data: {recent_data}")
-
-        # regional_average에서 데이터 가져오기 (평균 방사선량)
         avg_results = list(regional_avg_collection.find({}, {"_id": 0}).sort("date", DESCENDING))
-
-        return render_template('radiation_summary.html', recent_data=recent_data, avg_results=avg_results)
+        return render_template('radiation_summary.html', recent_data=cleaned, avg_results=avg_results)
 
     except Exception as e:
         logging.error(f"Error fetching data: {e}")
         return render_template('radiation_summary.html', error="Failed to load data")
-
-
 @app.route('/accident_select')
 def accident_select():
     return render_template('accident_select.html')  # accident_select.html 페이지를 렌더링
