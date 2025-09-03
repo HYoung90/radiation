@@ -278,25 +278,35 @@
     <table id="weatherTable" class="display">
       <thead>
         <tr>
-          <th>측정시간</th>
-          <th>위도</th>
-          <th>경도</th>
-          <th>고도 (m)</th>
-          <th>풍속 (m/s)</th>
-          <th>풍향 (°)</th>
-          <th>방사선량 (nSv/h)</th>
+          <th data-field="DroneCode">드론코드</th>
+          <th data-field="Start">측정 시작 시간</th>
+          <th data-field="Stop">측정 종료 시간</th>
+          <th data-field="MesurementTime">측정 시간</th>
+          <th data-field="Latitude">위도</th>
+          <th data-field="Longitude">경도</th>
+          <th data-field="Altitude">고도(m)</th>
+          <th data-field="East">동(μSv/h)</th>
+          <th data-field="West">서(μSv/h)</th>
+          <th data-field="South">남(μSv/h)</th>
+          <th data-field="North">북(μSv/h)</th>
+          <th data-field="Average">평균 방사선량(μSv/h)</th>
         </tr>
       </thead>
       <tbody>
         {% for entry in data %}
         <tr>
-          <td>{{ entry.checkTime }}</td>
-          <td>{{ "%.4f"|format(entry.lat|float) }}</td>
-          <td>{{ "%.4f"|format(entry.lng|float) }}</td>
-          <td>{{ entry.altitude }}</td>
-          <td>{{ entry.windspeed }}</td>
-          <td>{{ entry.windDir }}</td>
-          <td>{{ entry.radiation }}</td>
+          <td>{{ entry.DroneCode }}</td>
+          <td>{{ entry.Start }}</td>
+          <td>{{ entry.Stop }}</td>
+          <td>{{ entry.MesurementTime }}</td>
+          <td>{{ "%.4f"|format(entry.Latitude|float) }}</td>
+          <td>{{ "%.4f"|format(entry.Longitude|float) }}</td>
+          <td>{{ entry.Altitude }}</td>
+          <td>{{ entry.East }}</td>
+          <td>{{ entry.West }}</td>
+          <td>{{ entry.South }}</td>
+          <td>{{ entry.North }}</td>
+          <td>{{ entry.Average }}</td>
         </tr>
         {% endfor %}
         {% if data|length == 0 %}
@@ -429,15 +439,20 @@
 
     // 마커 표시
     measurements.forEach(pt => {
-      L.marker([pt.lat, pt.lng])
-        .addTo(map)
-        .bindPopup(`
-          <strong>측정시간:</strong> ${pt.checkTime}<br>
-          <strong>고도:</strong> ${pt.altitude} m<br>
-          <strong>풍속:</strong> ${pt.windspeed} m/s<br>
-          <strong>풍향:</strong> ${pt.windDir}°<br>
-          <strong>방사선량:</strong> ${pt.radiation} nSv/h
-        `);
+      const lat = Number(pt.Latitude);
+      const lng = Number(pt.Longitude);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        L.marker([lat, lng])
+          .addTo(map)
+          .bindPopup(`
+            <div style="line-height:1.4">
+              <strong>측정 시작:</strong> ${pt.Start}<br>
+              <strong>측정 종료:</strong> ${pt.Stop}<br>
+              <strong>고도:</strong> ${pt.Altitude} m<br>
+              <strong>평균 방사선량:</strong> ${pt.Average} μSv/h
+            </div>
+          `);
+      }
     });
   </script>
 </body>

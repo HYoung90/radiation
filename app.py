@@ -922,13 +922,15 @@ def export_analysis2_csv():
     return export_csv(
         analysis2_collection,
         "analysis2_data",
-        # CSV 헤더 (영어)
-        ["checkTime", "lat", "lng", "altitude", "windspeed", "windDir", "radiation"],
-        # 필드 이름 (DB 저장 필드)
-        ["checkTime", "lat", "lng", "altitude", "windspeed", "windDir", "radiation"],
-        sort=[("checkTime", DESCENDING)]
+        # CSV 헤더(다운로드 파일의 컬럼 순서)
+        ["DroneCode","Start","Stop","MesurementTime","Latitude","Longitude",
+         "Altitude","East","West","South","North","Average"],
+        # DB 필드(컬럼과 1:1 매핑)
+        ["DroneCode","Start","Stop","MesurementTime","Latitude","Longitude",
+         "Altitude","East","West","South","North","Average"],
+        # 정렬 기준: 측정 시간(요청 포맷 그대로: MesurementTime)
+        sort=[("MesurementTime", DESCENDING)]
     )
-
 
 # -- CSV 업로드 (영문 헤더 매핑) --
 @app.route('/upload_analysis2_csv', methods=['POST'])
@@ -941,50 +943,66 @@ def upload_analysis2_csv():
     if not f.filename.lower().endswith('.csv'):
         return jsonify({"error": "Only CSV files allowed"}), 400
 
-    # 1) 바이너리 읽기
     raw_bytes = f.read()
-    # 2) BOM 제거 → CP949 fallback
     try:
         text = raw_bytes.decode('utf-8-sig')
     except UnicodeDecodeError:
         text = raw_bytes.decode('cp949')
 
-    # 3) DataFrame 생성
     df = pd.read_csv(io.StringIO(text))
     df.columns = df.columns.str.replace('\ufeff', '').str.strip()
     df = df.drop(columns=['_id'], errors='ignore')
 
-    # 4) 컬럼 매핑: 업로드된 CSV 의 '영어 헤더' → DB 필드명
+    # 업로드 CSV 헤더 -> DB 필드 (1:1)
     mapping = {
-        "checkTime": "checkTime",
-        "lat":       "lat",
-        "lng":       "lng",
-        "altitude":  "altitude",
-        "windspeed": "windspeed",
-        "windDir":   "windDir",
-        "radiation": "radiation"
+        "DroneCode":       "DroneCode",
+        "Start":           "Start",
+        "Stop":            "Stop",
+        "MesurementTime":  "MesurementTime",   # 요청 철자 그대로 사용
+        "MeasurementTime": "MesurementTime",   # (오타 보정 허용) 있으면 받아서 통일
+        "Latitude":        "Latitude",
+        "Longitude":       "Longitude",
+        "Altitude":        "Altitude",
+        "East":            "East",
+        "West":            "West",
+        "South":           "South",
+        "North":           "North",
+        "Average":         "Average",
     }
 
+    # 업로드 파일에 매핑 가능한 컬럼이 하나도 없으면 오류
     if not set(mapping.keys()).intersection(df.columns):
-        return jsonify({
-            "error":   "Unexpected CSV headers",
-            "headers": df.columns.tolist()
-        }), 400
+        return jsonify({"error": "Unexpected CSV headers",
+                        "headers": df.columns.tolist()}), 400
 
+    # 컬럼명 통일
     df.rename(columns=mapping, inplace=True)
 
-    # 날짜/숫자 타입 변환 (analysis2 전용 컬럼)
-    df['checkTime'] = pd.to_datetime(df['checkTime'], errors='coerce')
-    for col in ['lat', 'lng', 'altitude', 'windspeed', 'windDir', 'radiation']:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
+    # 타입 변환
+    # 날짜/시간
+    for dt_col in ["Start", "Stop", "MesurementTime"]:
+        if dt_col in df.columns:
+            df[dt_col] = pd.to_datetime(df[dt_col], errors='coerce')
 
-    # 다시 CSV로 작성 (UTF-8 BOM)
+    # 숫자
+    for num_col in ["Latitude","Longitude","Altitude","East","West","South","North","Average"]:
+        if num_col in df.columns:
+            df[num_col] = pd.to_numeric(df[num_col], errors='coerce')
+
+    # 좌표가 없는 행은 제거(선택)
+    if "Latitude" in df.columns and "Longitude" in df.columns:
+        df = df[~(df["Latitude"].isna() | df["Longitude"].isna())]
+
+    # 다시 CSV로 작성(UTF-8 BOM)
     buf = io.StringIO()
     df.to_csv(buf, index=False, encoding='utf-8-sig')
     buf.seek(0)
 
-    # MongoDB로 업로드
-    return upload_csv(analysis2_collection, buf, mapping)
+    # MongoDB 업로드
+    return upload_csv(analysis2_collection, buf, {
+        k: v for k, v in mapping.items()
+        if v in df.columns
+    })
 
 # ---------------------------------------------------------------------
 # 분석4 라우터 그룹
