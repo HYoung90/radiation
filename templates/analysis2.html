@@ -310,7 +310,7 @@
         </tr>
         {% endfor %}
         {% if data|length == 0 %}
-        <tr><td colspan="7">데이터가 없습니다.</td></tr>
+        <tr><td colspan="12">데이터가 없습니다.</td></tr>
         {% endif %}
       </tbody>
     </table>
@@ -332,7 +332,7 @@
         ordering: true, /* 측정 시간 기준으로 정렬할 수 있도록 변경 */
         info: true,
         autoWidth: false,
-        order: [[0,'desc']], /* 초기 로드 시 측정 시간(0번째 컬럼) 기준 내림차순 정렬 */
+        order: [[1,'desc']], /* 초기 로드 시 측정 시간(0번째 컬럼) 기준 내림차순 정렬 */
         "language": { /* 한글 설정 */
             "emptyTable": "데이터가 없습니다.",
             "zeroRecords": "검색 결과 없음",
@@ -423,37 +423,49 @@
 
     // 지도 초기화 (CartoDB Positron)
     const measurements = {{ data|tojson }};
-    const defaultLat = measurements.length ? measurements[0].lat : 36.0;
-    const defaultLng = measurements.length ? measurements[0].lng : 127.5;
+
+    // 숫자 변환 유틸 + 대/소문자 키 모두 지원
+    const toNum  = v => (v == null ? NaN : Number(v));
+    const getLat = o => toNum(o?.Latitude ?? o?.lat);
+    const getLng = o => toNum(o?.Longitude ?? o?.lng);
+
+
+    // 첫 유효 좌표를 중심으로 사용 (첫 행이 비어도 안전)
+    const firstValid = (Array.isArray(measurements) ? measurements : []).find(
+      m => Number.isFinite(getLat(m)) && Number.isFinite(getLng(m))
+    );
+    const defaultLat = firstValid ? getLat(firstValid) : 36.0;
+    const defaultLng = firstValid ? getLng(firstValid) : 127.5;
+
     const map = L.map('map').setView([defaultLat, defaultLng], 8);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: 'Map tiles by CartoDB, CC BY 3.0 — Map data © OpenStreetMap contributors',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(map);
 
-    L.tileLayer(
-      'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-      {
-        attribution:
-          'Map tiles by CartoDB, CC BY 3.0 — Map data © OpenStreetMap contributors',
-        subdomains: 'abcd',
-        maxZoom: 19
-      }
-    ).addTo(map);
-
-    // 마커 표시
+    // 마커 표시 + 팝업 (측정시작/종료, 고도, 평균 방사선량)
+    const bounds = [];
     measurements.forEach(pt => {
-      const lat = Number(pt.Latitude);
-      const lng = Number(pt.Longitude);
+      const lat = getLat(pt);
+      const lng = getLng(pt);
       if (Number.isFinite(lat) && Number.isFinite(lng)) {
-        L.marker([lat, lng])
-          .addTo(map)
-          .bindPopup(`
-            <div style="line-height:1.4">
-              <strong>측정 시작:</strong> ${pt.Start}<br>
-              <strong>측정 종료:</strong> ${pt.Stop}<br>
-              <strong>고도:</strong> ${pt.Altitude} m<br>
-              <strong>평균 방사선량:</strong> ${pt.Average} μSv/h
-            </div>
-          `);
+        L.marker([lat, lng]).addTo(map).bindPopup(`
+          <div style="line-height:1.4">
+            <strong>측정 시작:</strong> ${pt.Start ?? ''}<br>
+            <strong>측정 종료:</strong> ${pt.Stop ?? ''}<br>
+            <strong>고도:</strong> ${(pt.Altitude ?? pt.altitude ?? '')} m<br>
+            <strong>평균 방사선량:</strong> ${(pt.Average ?? pt.radiation ?? '')} μSv/h
+          </div>
+        `);
+        bounds.push([lat, lng]);
       }
     });
+
+    // 마커가 하나 이상이면 지도 영역 자동 맞춤
+    if (bounds.length > 0) {
+      map.fitBounds(bounds, { padding: [30, 30] });
+    }
   </script>
 </body>
 </html>

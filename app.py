@@ -4,8 +4,10 @@
 
 
 from flask import Flask, render_template, request, redirect, url_for, jsonify, session, flash, make_response
-from pymongo import MongoClient, DESCENDING
 from flask_caching import Cache
+from flask import Response
+import urllib.parse
+from flask_login import logout_user
 import csv
 import io
 import pandas as pd
@@ -19,11 +21,7 @@ from pymongo import MongoClient, DESCENDING
 from pymongo.errors import PyMongoError
 from map_utils import power_plants, compute_top5_for, generate_topsis_map_html
 from utils import export_csv, upload_csv
-#from chatbot_utils import get_best_match
 from flask import abort
-import numpy as np
-import json
-import pytz
 from flask_login import LoginManager, UserMixin, login_user, user_logged_out,login_required, current_user
 from flask_bcrypt import Bcrypt
 from bson import ObjectId
@@ -373,7 +371,7 @@ def get_nuclear_radiation_data():
         query['genName'] = genName
     if date:
         start_time_str = f"{date} 00:00"
-        end_date_obj = parser.parse(date) + datetime.timedelta(days=1)
+        end_date_obj = parser.parse(date) + timedelta(days=1)
         end_time_str = end_date_obj.strftime("%Y-%m-%d 00:00")
         query['time'] = {'$gte': start_time_str, '$lt': end_time_str}
 
@@ -750,13 +748,23 @@ def analysis1():
 @app.route('/analysis2')
 def analysis2():
     try:
-        # checkTime 필드 기준으로 내림차순 정렬하도록 수정
+        min_str = request.args.get('minDate')
+        max_str = request.args.get('maxDate')
+
+        q = {}
+        if min_str or max_str:
+            rng = {}
+            if min_str:
+                rng["$gte"] = pd.to_datetime(min_str)
+            if max_str:
+                rng["$lt"] = pd.to_datetime(max_str) + pd.Timedelta(days=1)  # 종료일 포함
+            q["Start"] = rng  # ✅ Start 로 필터
+
         data = list(
             analysis2_collection
-            .find({}, {"_id": 0})
-            .sort("checkTime", DESCENDING)
+            .find(q, {"_id": 0})
+            .sort("Start", DESCENDING)  # ✅ Start 로 정렬
         )
-        logging.info(f"Fetched data from analysis2_collection: {data}")
         return render_template('analysis2.html', data=data)
     except Exception as e:
         logging.error(f"Error in fetching data from MongoDB: {e}")
@@ -919,17 +927,28 @@ def upload_analysis1_csv():
 # -- CSV 내보내기 (영문 헤더) --
 @app.route('/export_analysis2_csv', methods=['GET'])
 def export_analysis2_csv():
+    # ▼ 날짜 파라미터 읽어서 Start 기준으로 필터 생성
+    min_str = request.args.get('minDate')
+    max_str = request.args.get('maxDate')
+
+    q = {}
+    if min_str or max_str:
+        rng = {}
+        if min_str:
+            rng["$gte"] = pd.to_datetime(min_str)
+        if max_str:
+            rng["$lt"]  = pd.to_datetime(max_str) + pd.Timedelta(days=1)  # 종료일 포함
+        q["Start"] = rng
+
     return export_csv(
         analysis2_collection,
         "analysis2_data",
-        # CSV 헤더(다운로드 파일의 컬럼 순서)
         ["DroneCode","Start","Stop","MesurementTime","Latitude","Longitude",
          "Altitude","East","West","South","North","Average"],
-        # DB 필드(컬럼과 1:1 매핑)
         ["DroneCode","Start","Stop","MesurementTime","Latitude","Longitude",
          "Altitude","East","West","South","North","Average"],
-        # 정렬 기준: 측정 시간(요청 포맷 그대로: MesurementTime)
-        sort=[("MesurementTime", DESCENDING)]
+        sort=[("Start", DESCENDING)],
+        query=q  # ▲ 추가
     )
 
 # -- CSV 업로드 (영문 헤더 매핑) --
@@ -953,13 +972,14 @@ def upload_analysis2_csv():
     df.columns = df.columns.str.replace('\ufeff', '').str.strip()
     df = df.drop(columns=['_id'], errors='ignore')
 
-    # 업로드 CSV 헤더 -> DB 필드 (1:1)
+    # ✅ 업로드 CSV 헤더 -> DB 필드 (오타 허용)
     mapping = {
         "DroneCode":       "DroneCode",
+        "DroneCod":        "DroneCode",          # 오타 허용
         "Start":           "Start",
         "Stop":            "Stop",
-        "MesurementTime":  "MesurementTime",   # 요청 철자 그대로 사용
-        "MeasurementTime": "MesurementTime",   # (오타 보정 허용) 있으면 받아서 통일
+        "MesurementTime":  "MesurementTime",     # 요청 철자 그대로
+        "MeasurementTime": "MesurementTime",     # 오타를 표준으로 통일
         "Latitude":        "Latitude",
         "Longitude":       "Longitude",
         "Altitude":        "Altitude",
@@ -970,26 +990,38 @@ def upload_analysis2_csv():
         "Average":         "Average",
     }
 
-    # 업로드 파일에 매핑 가능한 컬럼이 하나도 없으면 오류
     if not set(mapping.keys()).intersection(df.columns):
         return jsonify({"error": "Unexpected CSV headers",
                         "headers": df.columns.tolist()}), 400
 
-    # 컬럼명 통일
     df.rename(columns=mapping, inplace=True)
 
-    # 타입 변환
-    # 날짜/시간
-    for dt_col in ["Start", "Stop", "MesurementTime"]:
+    # ✅ 날짜/시간: Start, Stop만 변환 (MesurementTime 은 문자열 유지)
+    for dt_col in ["Start", "Stop"]:
         if dt_col in df.columns:
             df[dt_col] = pd.to_datetime(df[dt_col], errors='coerce')
 
-    # 숫자
+    # MesurementTime 이 없으면 Start/Stop 차이로 "H:MM" 형태 계산(선택)
+    if "MesurementTime" not in df.columns and {"Start","Stop"}.issubset(df.columns):
+        def fmt_duration(td):
+            if pd.isna(td):
+                return None
+            total_min = int(td.total_seconds() // 60)
+            return f"{total_min // 60}:{total_min % 60:02d}"
+        df["MesurementTime"] = (df["Stop"] - df["Start"]).apply(fmt_duration)
+
+    # ✅ 숫자형 컬럼 변환
     for num_col in ["Latitude","Longitude","Altitude","East","West","South","North","Average"]:
         if num_col in df.columns:
             df[num_col] = pd.to_numeric(df[num_col], errors='coerce')
 
-    # 좌표가 없는 행은 제거(선택)
+    # Average 자동 보정(선택)
+    if set(["East","West","South","North"]).issubset(df.columns):
+        df["Average"] = df["Average"].fillna(
+            df[["East","West","South","North"]].mean(axis=1)
+        )
+
+    # 좌표 없는 행 제거(선택)
     if "Latitude" in df.columns and "Longitude" in df.columns:
         df = df[~(df["Latitude"].isna() | df["Longitude"].isna())]
 
@@ -999,10 +1031,7 @@ def upload_analysis2_csv():
     buf.seek(0)
 
     # MongoDB 업로드
-    return upload_csv(analysis2_collection, buf, {
-        k: v for k, v in mapping.items()
-        if v in df.columns
-    })
+    return upload_csv(analysis2_collection, buf, {k: v for k, v in mapping.items() if v in df.columns})
 
 # ---------------------------------------------------------------------
 # 분석4 라우터 그룹
