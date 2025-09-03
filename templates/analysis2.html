@@ -1,471 +1,475 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>[3세부] 미래와도전 Data</title>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>[3세부] 미래와도전 Data</title>
 
-  <link rel="stylesheet"
-        href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css"/>
-  <link rel="stylesheet"
-        href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
-  <link rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.min.css">
 
-  <style>
-    /* 전체 페이지 스타일 */
-    body {
-      font-family: 'Segoe UI', 'Arial', sans-serif; /* 더 현대적인 폰트 */
-      background-color: #f0f2f5; /* 부드러운 배경색 */
-      margin: 0;
-      padding: 20px; /* 전체 패딩 추가 */
-      color: #333;
-      line-height: 1.6;
-    }
+    <style>
+        /* PC 및 기본 스타일 */
+        body {
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            line-height: 1.6;
+        }
 
-    /* 컨테이너 스타일 */
-    .container {
-      margin: 20px auto;
-      max-width: 1200px;
-      background-color: #ffffff;
-      padding: 30px;
-      border-radius: 10px; /* 둥근 모서리 */
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); /* 부드러운 그림자 */
-    }
+        .container {
+            margin: 20px auto;
+            max-width: 1200px;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
 
-    /* 헤더 스타일 */
-    .page-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 2px solid #e0e0e0; /* 연한 경계선 */
-      padding-bottom: 20px;
-      margin-bottom: 30px;
-    }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .page-header h1 {
+            font-size: 2.2em;
+            color: #2c3e50;
+            margin: 0;
+        }
 
-    .page-header h1 {
-      font-size: 2.2em; /* 제목 크기 조정 */
-      color: #2c3e50; /* 진한 제목 색상 */
-      margin: 0; /* 기본 마진 제거 */
-    }
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap; /* 버튼 줄바꿈 허용 */
+        }
+        .btn {
+            padding: 12px 22px;
+            font-size: 0.95em;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            min-width: 120px;
+            text-align: center;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+        .btn-back { background-color: #34495e; }
+        .btn-back:hover { background-color: #2c3e50; }
+        .btn-refresh { background-color: #007bff; }
+        .btn-refresh:hover { background-color: #0056b3; }
+        .btn-download { background-color: #34495e; }
+        .btn-download:hover { background-color: #218838; }
+        .btn-upload { background-color: #34495e; }
+        .btn-upload:hover { background-color: #e0a800; }
 
-    /* 버튼 그룹 스타일 */
-    .btn-group {
-      display: flex;
-      gap: 12px; /* 버튼 간격 증가 */
-    }
+        .filter-group {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 30px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        .filter-group label {
+            font-weight: bold;
+            color: #34495e;
+            white-space: nowrap;
+        }
+        .filter-group input[type="text"] {
+            padding: 10px 15px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            font-size: 1em;
+            width: 160px;
+            box-sizing: border-box;
+        }
+        .filter-group input[type="text"]:focus {
+            border-color: #80bdff;
+            outline: 0;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+        .ui-datepicker-trigger {
+            margin-left: 5px;
+            vertical-align: middle;
+            cursor: pointer;
+            border: none;
+            background: none;
+            padding: 0;
+        }
+        .ui-datepicker-trigger img {
+            width: 24px;
+            height: 24px;
+            opacity: 0.7;
+            transition: opacity 0.2s ease;
+        }
+        .ui-datepicker-trigger:hover img {
+            opacity: 1;
+        }
+        .ui-datepicker { z-index: 9999 !important; }
+        .btn-apply { background-color: #007bff; }
+        .btn-apply:hover { background-color: #0056b3; }
+        .btn-clear { background-color: #6c757d; }
+        .btn-clear:hover { background-color: #5a6268; }
 
-    .btn {
-      padding: 12px 22px; /* 버튼 패딩 조정 */
-      font-size: 0.95em; /* 폰트 크기 조정 */
-      color: white;
-      border: none;
-      border-radius: 6px; /* 둥근 모서리 */
-      text-decoration: none;
-      cursor: pointer;
-      transition: background-color 0.3s ease, transform 0.2s ease; /* 부드러운 전환 효과 */
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* 버튼 그림자 추가 */
-      min-width: 120px; /* 버튼 최소 너비 */
-      text-align: center;
-    }
+        #map {
+            height: 500px;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 40px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+        }
 
-      /* 버튼 색상 */
-      .btn-back {
-          background-color: #34495e; /* 알엠택과 동일한 색상 */
-      }
-      .btn-back:hover {
-          background-color: #2c3e50;
-          transform: translateY(-2px);
-      }
+        #weatherTable {
+            width: 100% !important;
+            border-collapse: collapse;
+            margin-top: 30px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        #weatherTable thead th {
+            background-color: #6c757d;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            border-bottom: 2px solid #5a6268;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        #weatherTable tbody td {
+            padding: 12px 15px;
+            text-align: center;
+            vertical-align: middle;
+            border-bottom: 1px solid #e9ecef;
+            color: #495057;
+            white-space: nowrap;
+        }
+        #weatherTable tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        #weatherTable tbody tr:hover {
+            background-color: #e2f4f8;
+        }
+        .dataTables_wrapper .dataTables_info {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-top: 15px;
+        }
+        .dataTables_wrapper .dataTables_paginate {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            padding: 8px 15px;
+            margin: 0 4px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f8f9fa;
+            color: #333 !important;
+            text-decoration: none;
+            transition: background-color 0.2s ease, color 0.2s ease;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+            background-color: #e9ecef;
+            color: #000 !important;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current,
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+            background-color: #007bff !important;
+            color: white !important;
+            border-color: #007bff !important;
+        }
+        .dataTables_wrapper .dataTables_filter,
+        .dataTables_wrapper .dataTables_length {
+            display: none;
+        }
 
-      .btn-refresh {
-          background-color: #007bff; /* 알엠택과 동일한 색상 */
-      }
-      .btn-refresh:hover {
-          background-color: #0056b3;
-          transform: translateY(-2px);
-      }
-
-      .btn-download {
-          background-color: #34495e; /* 알엠택과 동일한 색상 */
-      }
-      .btn-download:hover {
-          background-color: #218838;
-          transform: translateY(-2px);
-      }
-
-      .btn-upload {
-          background-color: #34495e; /* 알엠택과 동일한 색상 */
-      }
-      .btn-upload:hover {
-          background-color: #e0a800;
-          transform: translateY(-2px);
-      }
-
-
-    /* 필터 그룹 스타일 - [5세부] 알엠택 Data와 동일하게 맞춤 */
-    .filter-group {
-      display: flex; /* 요소들을 한 줄에 배치 */
-      align-items: center; /* 세로 중앙 정렬 */
-      flex-wrap: wrap; /* 작은 화면에서 줄바꿈 */
-      gap: 15px; /* 요소들 간 간격 */
-      margin-bottom: 30px; /* 아래쪽 여백 */
-      padding: 15px; /* 기존 filter-group 패딩 */
-      background-color: #f8f9fa; /* 필터 배경색 */
-      border-radius: 8px;
-      border: 1px solid #e9ecef;
-      /* justify-content: flex-end; 제거하여 왼쪽 정렬 유지 */
-    }
-    .filter-group label {
-      font-weight: bold;
-      color: #34495e; /* 기준 코드 색상 */
-      white-space: nowrap; /* 텍스트 줄바꿈 방지 */
-    }
-    /* input type="text"로 변경되었으므로 스타일 셀렉터 변경 */
-    .filter-group input[type="text"] { /* type="date"에서 type="text"로 변경되었으므로 셀렉터 수정 */
-      padding: 10px 15px;
-      border: 1px solid #ced4da;
-      border-radius: 5px;
-      font-size: 1em;
-      width: 160px; /* 고정 너비 설정 */
-      box-sizing: border-box; /* 패딩과 보더를 너비에 포함 */
-    }
-    .filter-group input[type="text"]:focus {
-        border-color: #80bdff;
-        outline: 0;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-    }
-    /* Datepicker 달력 아이콘 버튼 스타일 - [5세부] 알엠택 Data와 동일하게 맞춤 */
-    .ui-datepicker-trigger {
-        margin-left: 5px;
-        vertical-align: middle;
-        cursor: pointer;
-        border: none;
-        background: none;
-        padding: 0;
-    }
-    .ui-datepicker-trigger img {
-        width: 24px;
-        height: 24px;
-        opacity: 0.7; /* 아이콘 투명도 */
-        transition: opacity 0.2s ease;
-    }
-    .ui-datepicker-trigger:hover img {
-        opacity: 1; /* 호버 시 불투명하게 */
-    }
-    .ui-datepicker {
-    z-index: 9999 !important; /* 매우 높은 값으로 설정하여 다른 모든 요소 위에 표시 */
-    }
-
-
-    /* 적용 버튼 - [5세부] 알엠택 Data와 동일한 색상 */
-    .btn-apply { /* 클래스명 변경 */
-        background-color: #007bff; /* 파란색 계열 */
-    }
-    .btn-apply:hover {
-        background-color: #0056b3;
-    }
-    /* 초기화 버튼 - 추가 및 [5세부] 알엠택 Data와 동일한 색상 */
-    .btn-clear {
-        background-color: #6c757d; /* 회색 계열 */
-    }
-    .btn-clear:hover {
-        background-color: #5a6268;
-    }
-
-
-    /* 지도 높이 */
-    #map {
-      height: 500px; /* 지도 높이 조정 */
-      border-radius: 8px; /* 둥근 모서리 */
-      overflow: hidden;
-      margin-bottom: 40px; /* 하단 마진 증가 */
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08); /* 지도에도 그림자 */
-    }
-
-    /* DataTable */
-    #weatherTable { /* ID는 그대로 사용 */
-      width: 100% !important; /* DataTables 너비 문제 해결 */
-      border-collapse: collapse;
-      margin-top: 30px;
-      background-color: #ffffff;
-      border-radius: 8px;
-      overflow: hidden; /* 둥근 모서리 적용을 위해 */
-    }
-
-    #weatherTable thead th {
-      background-color: #6c757d; /* 헤더 배경색 진하게 */
-      color: white;
-      padding: 15px;
-      text-align: center; /* 헤더 텍스트 중앙 정렬 */
-      border-bottom: 2px solid #5a6268;
-      font-weight: 600; /* 폰트 굵기 */
-    }
-
-    #weatherTable tbody td {
-      padding: 12px 15px;
-      text-align: center; /* 본문 셀 텍스트 중앙 정렬 */
-      vertical-align: middle;
-      border-bottom: 1px solid #e9ecef; /* 연한 경계선 */
-      color: #495057;
-    }
-
-    #weatherTable tbody tr:nth-child(even) {
-      background-color: #f8f9fa; /* 짝수 행 배경색 */
-    }
-
-    #weatherTable tbody tr:hover {
-      background-color: #e2f4f8; /* 호버 시 밝은 청록색 */
-    }
-
-    /* DataTables UI 숨김 (검색, 항목 수 표시) */
-    .dataTables_wrapper .dataTables_filter,
-    .dataTables_wrapper .dataTables_length {
-        display: none;
-    }
-    .dataTables_wrapper .dataTables_info {
-        font-size: 0.9em;
-        color: #6c757d;
-        margin-top: 15px;
-    }
-    .dataTables_wrapper .dataTables_paginate {
-        margin-top: 20px;
-        text-align: center;
-    }
-    .dataTables_wrapper .dataTables_paginate .paginate_button {
-        padding: 8px 15px;
-        margin: 0 4px;
-        border: 1px solid #ddd;
-        border-radius: 5px;
-        background-color: #f8f9fa;
-        color: #333 !important;
-        text-decoration: none;
-        transition: background-color 0.2s ease, color 0.2s ease;
-    }
-    .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-        background-color: #e9ecef;
-        color: #000 !important;
-    }
-    .dataTables_wrapper .dataTables_paginate .paginate_button.current,
-    .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
-        background-color: #007bff !important;
-        color: white !important;
-        border-color: #007bff !important;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="page-header">
-      <h1>[3세부] 미래와도전 Data</h1>
-      <div class="btn-group">
-        <a href="/" class="btn btn-back">처음으로</a>
-        <button class="btn btn-refresh" onclick="location.reload()">새로고침</button>
-        <button class="btn btn-download" onclick="downloadCSV()">CSV 다운로드</button>
-        <label for="csvUpload" class="btn btn-upload">CSV 업로드</label>
-        <input type="file" id="csvUpload" accept=".csv" style="display:none"
-               onchange="uploadCSV(event)"/>
-      </div>
-    </div>
-
-    <div class="filter-group">
-      <label for="minDate">시작일:</label>
-      <input type="text" id="minDate" readonly/> <label for="maxDate">종료일:</label>
-      <input type="text" id="maxDate" readonly/> <button class="btn btn-apply" onclick="filterByDate()">적용</button> <button class="btn btn-clear" onclick="clearDateFilter()">초기화</button> </div>
-
-    <div id="map"></div>
-
-    <table id="weatherTable" class="display">
-      <thead>
-        <tr>
-          <th data-field="DroneCode">드론코드</th>
-          <th data-field="Start">측정 시작 시간</th>
-          <th data-field="Stop">측정 종료 시간</th>
-          <th data-field="MesurementTime">측정 시간</th>
-          <th data-field="Latitude">위도</th>
-          <th data-field="Longitude">경도</th>
-          <th data-field="Altitude">고도(m)</th>
-          <th data-field="East">동(μSv/h)</th>
-          <th data-field="West">서(μSv/h)</th>
-          <th data-field="South">남(μSv/h)</th>
-          <th data-field="North">북(μSv/h)</th>
-          <th data-field="Average">평균 방사선량(μSv/h)</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for entry in data %}
-        <tr>
-          <td>{{ entry.DroneCode }}</td>
-          <td>{{ entry.Start }}</td>
-          <td>{{ entry.Stop }}</td>
-          <td>{{ entry.MesurementTime }}</td>
-          <td>{{ "%.4f"|format(entry.Latitude|float) }}</td>
-          <td>{{ "%.4f"|format(entry.Longitude|float) }}</td>
-          <td>{{ entry.Altitude }}</td>
-          <td>{{ entry.East }}</td>
-          <td>{{ entry.West }}</td>
-          <td>{{ entry.South }}</td>
-          <td>{{ entry.North }}</td>
-          <td>{{ entry.Average }}</td>
-        </tr>
-        {% endfor %}
-        {% if data|length == 0 %}
-        <tr><td colspan="12">데이터가 없습니다.</td></tr>
-        {% endif %}
-      </tbody>
-    </table>
-  </div>
-
-  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-  <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
-  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
-
-  <script>
-    // DataTable 초기화
-    $(document).ready(function() {
-      $('#weatherTable').DataTable({
-        paging: true,
-        pageLength: 10,
-        lengthChange: false,
-        searching: false,
-        ordering: true, /* 측정 시간 기준으로 정렬할 수 있도록 변경 */
-        info: true,
-        autoWidth: false,
-        order: [[1,'desc']], /* 초기 로드 시 측정 시간(0번째 컬럼) 기준 내림차순 정렬 */
-        "language": { /* 한글 설정 */
-            "emptyTable": "데이터가 없습니다.",
-            "zeroRecords": "검색 결과 없음",
-            "info": "총 _TOTAL_개 항목 중 _START_에서 _END_까지 표시",
-            "infoEmpty": "0개 항목 중 0에서 0까지 표시",
-            "infoFiltered": "(전체 _MAX_개 항목 중 필터링됨)",
-            "paginate": {
-                "first": "처음",
-                "last": "마지막",
-                "next": "다음",
-                "previous": "이전"
+        /* ------------------ 반응형 스타일 (768px 이하) ------------------ */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            .container {
+                padding: 15px;
+            }
+            .page-header {
+                flex-direction: column;
+                align-items: flex-start;
+                margin-bottom: 20px;
+            }
+            .page-header h1 {
+                font-size: 1.8em;
+                margin-bottom: 15px;
+            }
+            .btn-group {
+                flex-direction: column;
+                width: 100%;
+                gap: 10px;
+            }
+            .btn {
+                width: 100%;
+                min-width: auto;
+                padding: 10px;
+            }
+            .filter-group {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+                padding: 10px;
+            }
+            .filter-group label, .filter-group input {
+                width: 100%;
+            }
+            .filter-group input[type="text"] {
+                width: 100%;
+            }
+            #map {
+                height: 300px; /* 모바일에서 지도 높이 축소 */
+                margin-bottom: 20px;
+            }
+            .dataTables_wrapper {
+                overflow-x: auto; /* 테이블이 화면을 벗어나면 가로 스크롤 생성 */
+            }
+            #weatherTable {
+                font-size: 0.8em; /* 테이블 글자 크기 축소 */
+            }
+            #weatherTable thead th, #weatherTable tbody td {
+                padding: 8px 10px; /* 테이블 셀 패딩 축소 */
+            }
+            .dataTables_wrapper .dataTables_paginate {
+                display: flex;
+                justify-content: center;
+                gap: 5px;
+            }
+            .dataTables_wrapper .dataTables_paginate .paginate_button {
+                padding: 6px 10px;
+                font-size: 0.8em;
+            }
+            .dataTables_wrapper .dataTables_info {
+                font-size: 0.8em;
             }
         }
-      });
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="page-header">
+            <h1>[3세부] 미래와도전 Data</h1>
+            <div class="btn-group">
+                <a href="/" class="btn btn-back">처음으로</a>
+                <button class="btn btn-refresh" onclick="location.reload()">새로고침</button>
+                <button class="btn btn-download" onclick="downloadCSV()">CSV 다운로드</button>
+                <label for="csvUpload" class="btn btn-upload">CSV 업로드</label>
+                <input type="file" id="csvUpload" accept=".csv" style="display:none"
+                       onchange="uploadCSV(event)"/>
+            </div>
+        </div>
 
-      // jQuery UI Datepicker 설정 (시작일/종료일) - 'both'로 변경
-      $("#minDate").datepicker({
-          dateFormat: 'yy-mm-dd',
-          showOn: 'both', // 이 부분을 'both'로 변경했습니다.
-          buttonImage: 'https://jqueryui.com/resources/demos/images/calendar.gif', // 달력 이미지 경로 유지
-          buttonImageOnly: true, // 버튼 텍스트 없이 이미지만 표시
-          buttonText: '날짜 선택', // 스크린리더 등을 위한 대체 텍스트
-          changeMonth: true,
-          changeYear: true,
-          onSelect: function(selectedDate) {
-              $("#maxDate").datepicker("option", "minDate", selectedDate);
-          }
-      });
-      $("#maxDate").datepicker({
-          dateFormat: 'yy-mm-dd',
-          showOn: 'both', // 이 부분을 'both'로 변경했습니다.
-          buttonImage: 'https://jqueryui.com/resources/demos/images/calendar.gif', // 달력 이미지 경로 유지
-          buttonImageOnly: true, // 버튼 텍스트 없이 이미지만 표시
-          buttonText: '날짜 선택', // 스크린리더 등을 위한 대체 텍스트
-          changeMonth: true,
-          changeYear: true,
-          onSelect: function(selectedDate) {
-              $("#minDate").datepicker("option", "maxDate", selectedDate);
-          }
-      });
-    });
+        <div class="filter-group">
+            <label for="minDate">시작일:</label>
+            <input type="text" id="minDate" readonly/> <label for="maxDate">종료일:</label>
+            <input type="text" id="maxDate" readonly/> <button class="btn btn-apply" onclick="filterByDate()">적용</button> <button class="btn btn-clear" onclick="clearDateFilter()">초기화</button> </div>
 
-    function downloadCSV() {
-      let url = '/export_analysis2_csv'; /* URL은 기존에 맞게 유지 */
-      const minDate = $('#minDate').val(); // minDate로 변경
-      const maxDate = $('#maxDate').val(); // maxDate 추가
-      const params = new URLSearchParams();
-      if (minDate) params.append('minDate', minDate);
-      if (maxDate) params.append('maxDate', maxDate);
+        <div id="map"></div>
 
-      if (params.toString()) {
-          url += '?' + params.toString();
-      }
-      window.location = url;
-    }
+        <table id="weatherTable" class="display">
+            <thead>
+            <tr>
+                <th data-field="DroneCode">드론코드</th>
+                <th data-field="Start">측정 시작 시간</th>
+                <th data-field="Stop">측정 종료 시간</th>
+                <th data-field="MesurementTime">측정 시간</th>
+                <th data-field="Latitude">위도</th>
+                <th data-field="Longitude">경도</th>
+                <th data-field="Altitude">고도(m)</th>
+                <th data-field="East">동(μSv/h)</th>
+                <th data-field="West">서(μSv/h)</th>
+                <th data-field="South">남(μSv/h)</th>
+                <th data-field="North">북(μSv/h)</th>
+                <th data-field="Average">평균 방사선량(μSv/h)</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for entry in data %}
+                <tr>
+                    <td>{{ entry.DroneCode }}</td>
+                    <td>{{ entry.Start }}</td>
+                    <td>{{ entry.Stop }}</td>
+                    <td>{{ entry.MesurementTime }}</td>
+                    <td>{{ "%.4f"|format(entry.Latitude|float) }}</td>
+                    <td>{{ "%.4f"|format(entry.Longitude|float) }}</td>
+                    <td>{{ entry.Altitude }}</td>
+                    <td>{{ entry.East }}</td>
+                    <td>{{ entry.West }}</td>
+                    <td>{{ entry.South }}</td>
+                    <td>{{ entry.North }}</td>
+                    <td>{{ entry.Average }}</td>
+                </tr>
+            {% endfor %}
+            {% if data|length == 0 %}
+                <tr>
+                    <td colspan="12">데이터가 없습니다.</td>
+                </tr>
+            {% endif %}
+            </tbody>
+        </table>
+    </div>
 
-    function filterByDate() {
-      const minDate = $('#minDate').val(); // minDate로 변경
-      const maxDate = $('#maxDate').val(); // maxDate 추가
-      if (!minDate && !maxDate) {
-          alert('시작일 또는 종료일을 선택해주세요.'); // 메시지 변경
-          return;
-      }
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
 
-      const params = new URLSearchParams();
-      if (minDate) params.append('minDate', minDate);
-      if (maxDate) params.append('maxDate', maxDate);
+    <script>
+        $(document).ready(function() {
+            $('#weatherTable').DataTable({
+                paging: true,
+                pageLength: 10,
+                lengthChange: false,
+                searching: false,
+                ordering: true,
+                info: true,
+                autoWidth: false,
+                order: [[1,'desc']],
+                "language": {
+                    "emptyTable": "데이터가 없습니다.",
+                    "zeroRecords": "검색 결과 없음",
+                    "info": "총 _TOTAL_개 항목 중 _START_에서 _END_까지 표시",
+                    "infoEmpty": "0개 항목 중 0에서 0까지 표시",
+                    "infoFiltered": "(전체 _MAX_개 항목 중 필터링됨)",
+                    "paginate": {
+                        "first": "처음",
+                        "last": "마지막",
+                        "next": "다음",
+                        "previous": "이전"
+                    }
+                }
+            });
 
-      window.location = '/analysis2?' + params.toString(); /* URL은 기존에 맞게 유지 */
-    }
+            $("#minDate").datepicker({
+                dateFormat: 'yy-mm-dd',
+                showOn: 'both',
+                buttonImage: 'https://jqueryui.com/resources/demos/images/calendar.gif',
+                buttonImageOnly: true,
+                buttonText: '날짜 선택',
+                changeMonth: true,
+                changeYear: true,
+                onSelect: function(selectedDate) {
+                    $("#maxDate").datepicker("option", "minDate", selectedDate);
+                }
+            });
+            $("#maxDate").datepicker({
+                dateFormat: 'yy-mm-dd',
+                showOn: 'both',
+                buttonImage: 'https://jqueryui.com/resources/demos/images/calendar.gif',
+                buttonImageOnly: true,
+                buttonText: '날짜 선택',
+                changeMonth: true,
+                changeYear: true,
+                onSelect: function(selectedDate) {
+                    $("#minDate").datepicker("option", "maxDate", selectedDate);
+                }
+            });
+        });
 
-    // 날짜 필터 초기화 함수 추가
-    function clearDateFilter() {
-        $('#minDate').val('');
-        $('#maxDate').val('');
-        window.location = '/analysis2'; // 필터 초기화 후 페이지 새로고침
-    }
+        function downloadCSV() {
+            let url = '/export_analysis2_csv';
+            const minDate = $('#minDate').val();
+            const maxDate = $('#maxDate').val();
+            const params = new URLSearchParams();
+            if (minDate) params.append('minDate', minDate);
+            if (maxDate) params.append('maxDate', maxDate);
 
-    function uploadCSV(e) {
-      const f = e.target.files[0];
-      if (!f) return;
-      const fd = new FormData();
-      fd.append('file', f);
-      fetch('/upload_analysis2_csv', { method:'POST', body: fd }) /* URL은 기존에 맞게 유지 */
-        .then(r=>r.text()).then(txt=>{ alert(txt); location.reload(); })
-        .catch(_=> alert('업로드 실패'));
-    }
+            if (params.toString()) {
+                url += '?' + params.toString();
+            }
+            window.location = url;
+        }
 
-    // 지도 초기화 (CartoDB Positron)
-    const measurements = {{ data|tojson }};
+        function filterByDate() {
+            const minDate = $('#minDate').val();
+            const maxDate = $('#maxDate').val();
+            if (!minDate && !maxDate) {
+                alert('시작일 또는 종료일을 선택해주세요.');
+                return;
+            }
 
-    // 숫자 변환 유틸 + 대/소문자 키 모두 지원
-    const toNum  = v => (v == null ? NaN : Number(v));
-    const getLat = o => toNum(o?.Latitude ?? o?.lat);
-    const getLng = o => toNum(o?.Longitude ?? o?.lng);
+            const params = new URLSearchParams();
+            if (minDate) params.append('minDate', minDate);
+            if (maxDate) params.append('maxDate', maxDate);
 
+            window.location = '/analysis2?' + params.toString();
+        }
 
-    // 첫 유효 좌표를 중심으로 사용 (첫 행이 비어도 안전)
-    const firstValid = (Array.isArray(measurements) ? measurements : []).find(
-      m => Number.isFinite(getLat(m)) && Number.isFinite(getLng(m))
-    );
-    const defaultLat = firstValid ? getLat(firstValid) : 36.0;
-    const defaultLng = firstValid ? getLng(firstValid) : 127.5;
+        function clearDateFilter() {
+            $('#minDate').val('');
+            $('#maxDate').val('');
+            window.location = '/analysis2';
+        }
 
-    const map = L.map('map').setView([defaultLat, defaultLng], 8);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: 'Map tiles by CartoDB, CC BY 3.0 — Map data © OpenStreetMap contributors',
-      subdomains: 'abcd',
-      maxZoom: 19
-    }).addTo(map);
+        function uploadCSV(e) {
+            const f = e.target.files[0];
+            if (!f) return;
+            const fd = new FormData();
+            fd.append('file', f);
+            fetch('/upload_analysis2_csv', { method:'POST', body: fd })
+                .then(r=>r.text()).then(txt=>{ alert(txt); location.reload(); })
+                .catch(_=> alert('업로드 실패'));
+        }
 
-    // 마커 표시 + 팝업 (측정시작/종료, 고도, 평균 방사선량)
-    const bounds = [];
-    measurements.forEach(pt => {
-      const lat = getLat(pt);
-      const lng = getLng(pt);
-      if (Number.isFinite(lat) && Number.isFinite(lng)) {
-        L.marker([lat, lng]).addTo(map).bindPopup(`
-          <div style="line-height:1.4">
-            <strong>측정 시작:</strong> ${pt.Start ?? ''}<br>
-            <strong>측정 종료:</strong> ${pt.Stop ?? ''}<br>
-            <strong>고도:</strong> ${(pt.Altitude ?? pt.altitude ?? '')} m<br>
-            <strong>평균 방사선량:</strong> ${(pt.Average ?? pt.radiation ?? '')} μSv/h
-          </div>
-        `);
-        bounds.push([lat, lng]);
-      }
-    });
+        const measurements = {{ data|tojson }};
+        const toNum  = v => (v == null ? NaN : Number(v));
+        const getLat = o => toNum(o?.Latitude ?? o?.lat);
+        const getLng = o => toNum(o?.Longitude ?? o?.lng);
 
-    // 마커가 하나 이상이면 지도 영역 자동 맞춤
-    if (bounds.length > 0) {
-      map.fitBounds(bounds, { padding: [30, 30] });
-    }
-  </script>
+        const firstValid = (Array.isArray(measurements) ? measurements : []).find(
+            m => Number.isFinite(getLat(m)) && Number.isFinite(getLng(m))
+        );
+        const defaultLat = firstValid ? getLat(firstValid) : 36.0;
+        const defaultLng = firstValid ? getLng(firstValid) : 127.5;
+
+        const map = L.map('map').setView([defaultLat, defaultLng], 8);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: 'Map tiles by CartoDB, CC BY 3.0 — Map data © OpenStreetMap contributors',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(map);
+
+        const bounds = [];
+        measurements.forEach(pt => {
+            const lat = getLat(pt);
+            const lng = getLng(pt);
+            if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                L.marker([lat, lng]).addTo(map).bindPopup(`
+                    <div style="line-height:1.4">
+                        <strong>측정 시작:</strong> ${pt.Start ?? ''}<br>
+                        <strong>측정 종료:</strong> ${pt.Stop ?? ''}<br>
+                        <strong>고도:</strong> ${(pt.Altitude ?? pt.altitude ?? '')} m<br>
+                        <strong>평균 방사선량:</strong> ${(pt.Average ?? pt.radiation ?? '')} μSv/h
+                    </div>
+                `);
+                bounds.push([lat, lng]);
+            }
+        });
+
+        if (bounds.length > 0) {
+            map.fitBounds(bounds, { padding: [30, 30] });
+        }
+    </script>
 </body>
 </html>

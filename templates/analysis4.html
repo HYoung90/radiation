@@ -13,7 +13,7 @@
         href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.min.css">
 
   <style>
-    /* 전체 페이지 스타일 */
+    /* PC 및 기본 스타일 */
     body {
       font-family: 'Segoe UI', 'Arial', sans-serif;
       background-color: #f0f2f5;
@@ -84,18 +84,12 @@
     /* 버튼 색상 */
     .btn-back { background-color: #34495e; }
     .btn-back:hover { background-color: #2c3e50; }
-
     .btn-refresh { background-color: #007bff; }
     .btn-refresh:hover { background-color: #0056b3; }
-
     .btn-download { background-color: #34495e; }
     .btn-download:hover { background-color: #218838; }
-
-    /* 데이터 업로드 버튼 (상단) */
     .btn-upload { background-color: #34495e; }
     .btn-upload:hover { background-color: #e0a800; }
-
-    /* 스펙트럼 업로드 버튼 (하단) */
     .btn-spectrum-upload { background-color: #007bff; }
     .btn-spectrum-upload:hover { background-color: #0056b3; }
 
@@ -130,7 +124,6 @@
         outline: 0;
         box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
     }
-    /* Datepicker 달력 아이콘 버튼 스타일 */
     .ui-datepicker-trigger {
         margin-left: 5px;
         vertical-align: middle;
@@ -148,27 +141,12 @@
     .ui-datepicker-trigger:hover img {
         opacity: 1;
     }
+    .ui-datepicker { z-index: 9999 !important; }
+    .btn-apply { background-color: #007bff; }
+    .btn-apply:hover { background-color: #0056b3; }
+    .btn-clear { background-color: #6c757d; }
+    .btn-clear:hover { background-color: #5a6268; }
 
-    .ui-datepicker {
-    z-index: 9999 !important;
-    }
-
-    /* 적용 버튼 - 청록색 계열로 변경 */
-    .btn-apply {
-        background-color: #007bff;
-    }
-    .btn-apply:hover {
-        background-color: #0056b3;
-    }
-    /* 초기화 버튼 - 회색 계열로 변경 */
-    .btn-clear {
-        background-color: #6c757d;
-    }
-    .btn-clear:hover {
-        background-color: #5a6268;
-    }
-
-    /* 지도 높이 */
     #map {
       height: 500px;
       border: 1px solid #e0e0e0;
@@ -178,7 +156,6 @@
       overflow: hidden;
     }
 
-    /* 새 그래프 공간 스타일 추가 */
     #spectrumChart {
         width: 100%;
         height: 500px;
@@ -189,7 +166,6 @@
         background-color: #ffffff;
     }
 
-    /* DataTable */
     #weatherTable {
       width: 100%;
       border-collapse: collapse;
@@ -200,7 +176,6 @@
       overflow: hidden;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
     }
-
     #weatherTable thead th {
       background-color: #6c757d;
       color: white;
@@ -210,23 +185,19 @@
       font-weight: 600;
       white-space: nowrap;
     }
-
     #weatherTable tbody td {
       padding: 12px 15px;
       text-align: center;
       vertical-align: middle;
       border-bottom: 1px solid #e9ecef;
+      white-space: nowrap;
     }
-
     #weatherTable tbody tr:nth-child(even) {
       background-color: #f8f9fa;
     }
-
     #weatherTable tbody tr:hover {
       background-color: #e2f4f8;
     }
-
-    /* DataTables 페이지네이션 및 정보 영역 */
     .dataTables_wrapper .dataTables_info {
         font-size: 0.9em;
         color: #666;
@@ -266,6 +237,78 @@
       cursor: not-allowed;
       opacity: 0.5;
     }
+
+    /* ------------------ 반응형 스타일 (768px 이하) ------------------ */
+    @media (max-width: 768px) {
+        body {
+            padding: 10px;
+        }
+        .container {
+            padding: 15px;
+            margin-top: 15px;
+        }
+        h1 {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+        }
+        .chart-container h2 {
+            font-size: 1.4em;
+            margin-bottom: 10px;
+        }
+        .btn-group {
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .btn {
+            width: 100%;
+            min-width: auto;
+            padding: 10px;
+            font-size: 0.9em;
+        }
+        .filter-group {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px;
+        }
+        .filter-group label, .filter-group input {
+            width: 100%;
+        }
+        .filter-group input[type="text"] {
+            width: 100%;
+        }
+        #map {
+            height: 300px;
+            margin-bottom: 20px;
+        }
+        #spectrumChart {
+            height: 300px;
+        }
+        .dataTables_wrapper {
+            overflow-x: auto;
+        }
+        #weatherTable {
+            font-size: 0.8em;
+        }
+        #weatherTable thead th, #weatherTable tbody td {
+            padding: 8px 10px;
+            white-space: nowrap;
+        }
+        .dataTables_wrapper .dataTables_paginate {
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            padding: 6px 10px;
+            font-size: 0.8em;
+        }
+        .dataTables_wrapper .dataTables_info {
+            font-size: 0.8em;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+    }
   </style>
 </head>
 <body>
@@ -292,29 +335,31 @@
 
     <div id="map"></div>
 
-    <table id="weatherTable" class="display">
-      <thead>
-        <tr>
-          <th>측정시간</th>
-          <th>위도</th>
-          <th>경도</th>
-          <th>방사선량<br>(nSv/h)</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% if data %}
-          {% for e in data %} <tr>
-            <td>{{ e.checkTime }}</td>
-            <td>{{ "%.4f"|format(e.lat|float) }}</td>
-            <td>{{ "%.4f"|format(e.lng|float) }}</td>
-            <td>{{ e.radiation }}</td>
-          </tr>
-          {% endfor %}
-        {% else %}
-          <tr><td colspan="4">데이터가 없습니다.</td></tr>
-        {% endif %}
-      </tbody>
-    </table>
+    <div class="dataTables_wrapper">
+        <table id="weatherTable" class="display">
+          <thead>
+            <tr>
+              <th>측정시간</th>
+              <th>위도</th>
+              <th>경도</th>
+              <th>방사선량<br>(nSv/h)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if data %}
+              {% for e in data %} <tr>
+                <td>{{ e.checkTime }}</td>
+                <td>{{ "%.4f"|format(e.lat|float) }}</td>
+                <td>{{ "%.4f"|format(e.lng|float) }}</td>
+                <td>{{ e.radiation }}</td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr><td colspan="4">데이터가 없습니다.</td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+    </div>
 
     <div class="chart-container">
         <h2>에너지 스펙트럼 그래프</h2>
@@ -441,7 +486,6 @@
             const csvData = event.target.result;
             const lines = csvData.split('\n').filter(line => line.trim() !== '');
 
-            // 첫 번째 줄은 헤더로 간주하고 스킵
             const data = lines.slice(1).map(line => {
                 const [channel, count] = line.split(',').map(Number);
                 return { channel, count };
@@ -454,14 +498,11 @@
 
     // 에너지 스펙트럼 그래프 그리기 함수
     function drawSpectrumChart(spectrumData) {
-        // 채널당 에너지(keV/ch) 계산
         const totalChannels = 1024;
         const maxEnergy = 3000;
         const energyPerChannel = maxEnergy / totalChannels;
 
-        // 채널 번호를 에너지(keV)로 변환
         const energies = spectrumData.map(d => d.channel * energyPerChannel);
-        // 채널별 카운트(방사선량) 데이터 추출
         const counts = spectrumData.map(d => d.count);
 
         const data = [{
@@ -494,7 +535,6 @@
             annotations: []
         };
 
-        // 대표 핵종의 에너지 값 (keV)을 정의
         const isotopes = [
             { name: 'I-131', energy: 364 },
             { name: 'Cs-134', energy: 605 },
@@ -504,7 +544,6 @@
             { name: 'Ru-106', energy: 500 }
         ];
 
-        // 각 핵종에 대한 세로선과 주석 추가
         isotopes.forEach(isotope => {
             layout.shapes.push({
                 type: 'line',

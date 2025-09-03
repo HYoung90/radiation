@@ -4,12 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>원자력 발전소 주변 방사선량 데이터</title>
-    <!-- DataTables CSS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css">
-    <!-- Leaflet CSS (지도용) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <style>
         /* 기존 스타일 유지 */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
         #map {
             height: 500px;
             margin-bottom: 20px;
@@ -20,12 +36,13 @@
             width: 100%;
             border-collapse: collapse;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            background-color: white;
         }
         table, th, td {
             border: 1px solid #dee2e6;
         }
         th {
-            background-color: #f8f9fa;
+            background-color: #e9ecef;
             text-align: center;
         }
         td {
@@ -36,6 +53,9 @@
         }
         .btn-group {
             margin-bottom: 15px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
         }
         .btn {
             padding: 10px 20px;
@@ -44,6 +64,8 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
+            text-decoration: none;
+            text-align: center;
         }
         .btn-secondary {
             background-color: #6c757d;
@@ -62,6 +84,9 @@
             border-radius: 5px;
             cursor: pointer;
             text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 8px;
         }
         .popup-button:hover {
             background-color: #0056b3;
@@ -74,12 +99,10 @@
 
         <div class="btn-group">
             <button id="refreshData" class="btn btn-info">새로고침</button>
-            <button class="btn btn-secondary" onclick="window.location.href='/'">처음으로</button>
+            <a href="/" class="btn btn-secondary">처음으로</a>
         </div>
 
-        <div id="map"></div> <!-- 지도 표시 영역 -->
-
-        <table id="radiationTable" class="display">
+        <div id="map"></div> <table id="radiationTable" class="display">
             <thead>
                 <tr>
                     <th>측정 시간</th>
@@ -89,12 +112,10 @@
                 </tr>
             </thead>
             <tbody>
-                <!-- 서버에서 데이터를 동적으로 채웁니다 -->
-            </tbody>
+                </tbody>
         </table>
     </div>
 
-    <!-- JS 라이브러리 -->
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
@@ -112,7 +133,7 @@
                         data: 'max_value',
                         title: '방사선량 (μSv/h)',
                         render: function(data) {
-                            return data !== null ? `${data.toFixed(3)} μSv/h` : "N/A";
+                            return data !== null && !isNaN(data) ? `${data.toFixed(3)} μSv/h` : "N/A";
                         }
                     }
                 ]
@@ -163,10 +184,16 @@
                             return;
                         }
 
+                        // 데이터를 발전소 이름으로 정렬
+                        data.sort((a, b) => {
+                            const nameA = (plantCoordinates[a._id.toUpperCase()]?.name || "Unknown").localeCompare((plantCoordinates[b._id.toUpperCase()]?.name || "Unknown"), 'ko');
+                            return nameA;
+                        });
+
                         data.forEach(function(item) {
                             var genKey = item._id.toUpperCase(); // 발전소 코드
                             var plantName = plantCoordinates[genKey] ? plantCoordinates[genKey].name : "Unknown Plant";
-                            var radiationValue = parseFloat(item.max_value) || 0; // 최대 방사선량
+                            var radiationValue = parseFloat(item.max_value); // 최대 방사선량
 
                             // 데이터를 테이블에 추가
                             table.row.add({

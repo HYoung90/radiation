@@ -9,32 +9,32 @@
     <style>
         /* 전체 페이지 스타일 */
         body {
-            font-family: 'Segoe UI', 'Arial', sans-serif; /* 현대적인 폰트 */
-            background-color: #f0f2f5; /* 부드러운 배경색 */
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            background-color: #f0f2f5;
             margin: 0;
-            padding: 20px; /* body padding 추가 */
+            padding: 20px;
             color: #333;
             line-height: 1.6;
         }
 
         /* 컨테이너 스타일 */
         .container {
-            max-width: 1200px; /* 컨테이너 최대 너비 설정 */
-            margin: 20px auto; /* 중앙 정렬 및 상하 여백 */
+            max-width: 1200px;
+            margin: 20px auto;
             background-color: #ffffff;
             padding: 30px;
-            border-radius: 10px; /* 모서리 둥글게 */
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); /* 그림자 */
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
         }
 
         /* 헤더/제목 스타일 */
         h1 {
-            font-size: 2.2em; /* 제목 크기 */
-            color: #2c3e50; /* 제목 색상 */
-            margin-top: 0; /* 기본 마진 제거 */
-            margin-bottom: 25px; /* 아래쪽 여백 추가 */
-            padding-bottom: 15px; /* 제목 아래 패딩 */
-            border-bottom: 2px solid #ddd; /* 하단 경계선 */
+            font-size: 2.2em;
+            color: #2c3e50;
+            margin-top: 0;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #ddd;
         }
 
         /* 페이지 헤더 (H1과 버튼 그룹 정렬용) */
@@ -42,34 +42,35 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 30px; /* 아래쪽 여백 추가 */
+            margin-bottom: 30px;
         }
         .page-header h1 {
-            margin: 0; /* 페이지 헤더 내부 H1 마진 제거 */
+            margin: 0;
             padding: 0;
-            border-bottom: none; /* 페이지 헤더 내부 H1 하단 경계선 제거 */
+            border-bottom: none;
         }
 
         /* 버튼 그룹 스타일 */
         .btn-group {
             display: flex;
-            justify-content: flex-end; /* 오른쪽 정렬 */
-            gap: 10px; /* 버튼 간 간격 */
+            justify-content: flex-end;
+            gap: 10px;
+            flex-wrap: wrap; /* 모바일에서 줄바꿈 허용 */
         }
 
         /* 공통 버튼 스타일 */
         .btn {
             display: inline-block;
-            padding: 12px 22px; /* 버튼 패딩 조정 */
-            font-size: 0.95em; /* 버튼 폰트 크기 조정 */
+            padding: 12px 22px;
+            font-size: 0.95em;
             border: none;
-            border-radius: 6px; /* 버튼 모서리 둥글게 */
+            border-radius: 6px;
             cursor: pointer;
             text-decoration: none;
             transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            color: white; /* 기본 글자색 흰색 */
-            min-width: 120px; /* 버튼 최소 너비 */
+            color: white;
+            min-width: 120px;
             text-align: center;
         }
 
@@ -78,148 +79,130 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
         }
 
-        /* 버튼 색상 (기준 코드에 맞춤) */
-        .btn-back { background-color: #34495e; } /* 어두운 청회색 */
+        /* 버튼 색상 */
+        .btn-back { background-color: #34495e; }
         .btn-back:hover { background-color: #2c3e50; }
-
-        .btn-refresh { background-color: #007bff; } /* 파란색 계열 */
+        .btn-refresh { background-color: #007bff; }
         .btn-refresh:hover { background-color: #0056b3; }
-
-        .btn-download { background-color: #34495e; } /* 기준 코드 색상 */
-        .btn-download:hover { background-color: #218838; } /* 기존 녹색 */
-
-        .btn-upload { background-color: #34495e; } /* 기준 코드 색상 */
-        .btn-upload:hover { background-color: #e0a800; } /* 기존 주황색 */
-
+        .btn-download { background-color: #34495e; }
+        .btn-download:hover { background-color: #218838; }
+        .btn-upload { background-color: #34495e; }
+        .btn-upload:hover { background-color: #e0a800; }
 
         /* 필터 그룹 스타일 */
         .filter-group {
-          display: flex; /* 요소들을 한 줄에 배치 */
-          align-items: center; /* 세로 중앙 정렬 */
-          flex-wrap: wrap; /* 작은 화면에서 줄바꿈 */
-          gap: 15px; /* 요소들 간 간격 */
-          margin-bottom: 30px; /* 아래쪽 여백 */
+          display: flex;
+          align-items: center;
+          flex-wrap: wrap;
+          gap: 15px;
+          margin-bottom: 30px;
           padding: 15px;
-          background-color: #f8f9fa; /* 필터 배경색 */
+          background-color: #f8f9fa;
           border-radius: 8px;
           border: 1px solid #e9ecef;
         }
         .filter-group label {
           font-weight: bold;
           color: #34495e;
-          white-space: nowrap; /* 텍스트 줄바꿈 방지 */
+          white-space: nowrap;
         }
         .filter-group input[type="text"] {
           padding: 10px 15px;
           border: 1px solid #ced4da;
           border-radius: 5px;
           font-size: 1em;
-          width: 160px; /* 고정 너비 설정 */
-          box-sizing: border-box; /* 패딩과 보더를 너비에 포함 */
+          width: 160px;
+          box-sizing: border-box;
         }
         .filter-group input[type="text"]:focus {
             border-color: #80bdff;
             outline: 0;
             box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
         }
-
-        /* Datepicker 달력 아이콘 버튼 스타일 (이 CSS는 이제 텍스트 버튼에 영향을 주지 않음) */
         .ui-datepicker-trigger {
-            margin-left: 5px; /* input 필드와의 간격 */
-            vertical-align: middle; /* 텍스트와 세로 정렬 */
-            cursor: pointer; /* 마우스 오버 시 포인터 변경 */
+            margin-left: 5px;
+            vertical-align: middle;
+            cursor: pointer;
             border: none;
             background: none;
             padding: 0;
-            /* 이미지 버튼 자체에 적용되는 스타일 */
         }
         .ui-datepicker-trigger img {
-            width: 24px; /* 아이콘 크기 */
+            width: 24px;
             height: 24px;
-            opacity: 0.7; /* 기본 투명도 */
-            transition: opacity 0.2s ease; /* 호버 시 부드러운 전환 */
+            opacity: 0.7;
+            transition: opacity 0.2s ease;
         }
         .ui-datepicker-trigger:hover img {
-            opacity: 1; /* 호버 시 불투명하게 */
+            opacity: 1;
         }
 
         /* 적용 버튼 - 기준 코드 색상 적용 */
-        .btn-apply {
-            background-color: #007bff; /* 파란색 계열 */
-        }
-        .btn-apply:hover {
-            background-color: #0056b3;
-        }
+        .btn-apply { background-color: #007bff; }
+        .btn-apply:hover { background-color: #0056b3; }
         /* 초기화 버튼 - 기준 코드 색상 적용 */
-        .btn-clear {
-            background-color: #6c757d; /* 회색 계열 */
-        }
-        .btn-clear:hover {
-            background-color: #5a6268;
-        }
+        .btn-clear { background-color: #6c757d; }
+        .btn-clear:hover { background-color: #5a6268; }
 
-        /* 달력 팝업 창 자체의 z-index 설정 (만약을 대비해 유지) */
-        .ui-datepicker {
-            z-index: 9999 !important; /* 매우 높은 값으로 설정하여 다른 모든 요소 위에 표시 */
-        }
-
+        .ui-datepicker { z-index: 9999 !important; }
 
         /* DataTables 스타일 */
         #weatherTable {
-            width: 100% !important; /* DataTables 이슈 방지 */
+            width: 100% !important;
             border-collapse: collapse;
-            margin-top: 30px; /* 위쪽 여백 추가 */
+            margin-top: 30px;
             font-size: 1.0em;
-            background-color: #ffffff; /* 테이블 배경색 */
+            background-color: #ffffff;
             border-radius: 8px;
-            overflow: hidden; /* 둥근 모서리 적용을 위해 */
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); /* 테이블 그림자 */
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
         #weatherTable thead th {
-            background-color: #6c757d; /* 헤더 배경색 */
+            background-color: #6c757d;
             color: white;
             padding: 15px;
             text-align: center;
             border-bottom: 2px solid #5a6268;
             font-weight: 600;
-            white-space: nowrap; /* 헤더 텍스트 줄바꿈 방지 */
+            white-space: nowrap;
         }
         #weatherTable tbody td {
             padding: 12px 15px;
             text-align: center;
             vertical-align: middle;
             border-bottom: 1px solid #e9ecef;
+            white-space: nowrap; /* 모바일에서 줄바꿈 방지 */
         }
         #weatherTable tbody tr:nth-child(even) {
-            background-color: #f8f9fa; /* 짝수 행 배경색 */
+            background-color: #f8f9fa;
         }
         #weatherTable tbody tr:hover {
-            background-color: #e2f4f8; /* 호버 시 배경색 변경 */
-            cursor: pointer; /* 클릭 가능한 요소처럼 커서 변경 */
+            background-color: #e2f4f8;
+            cursor: pointer;
         }
 
         /* DataTables 페이지네이션 및 정보 영역 */
         .dataTables_wrapper .dataTables_info {
             font-size: 0.9em;
             color: #666;
-            margin-top: 15px; /* 정보 텍스트 위 여백 */
-            margin-bottom: 15px; /* 정보 텍스트 아래 여백 */
+            margin-top: 15px;
+            margin-bottom: 15px;
         }
         .dataTables_wrapper .dataTables_paginate {
-            margin-top: 20px; /* 페이지네이션 위 여백 */
-            margin-bottom: 10px; /* 페이지네이션 아래 여백 */
+            margin-top: 20px;
+            margin-bottom: 10px;
             display: flex;
-            justify-content: center; /* 중앙 정렬 */
+            justify-content: center;
             align-items: center;
-            gap: 5px; /* 페이지 버튼 간격 */
+            gap: 5px;
         }
         .dataTables_wrapper .dataTables_paginate .paginate_button {
-          background-color: #f0f0f0; /* 비활성 버튼 배경 */
-          color: #333 !important; /* 비활성 버튼 글자색 */
+          background-color: #f0f0f0;
+          color: #333 !important;
           border: 1px solid #ddd;
           border-radius: 6px;
           padding: 8px 14px;
-          margin: 0 4px; /* 버튼 간격 */
+          margin: 0 4px;
           cursor: pointer;
           transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
           box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
@@ -229,9 +212,9 @@
           box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
         .dataTables_wrapper .dataTables_paginate .paginate_button.current,
-        .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover { /* current 상태와 hover 상태를 함께 처리 */
-          background-color: #007bff !important; /* 활성 버튼 배경 */
-          color: #fff !important; /* 활성 버튼 글자색 */
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+          background-color: #007bff !important;
+          color: #fff !important;
           border-color: #007bff !important;
           font-weight: bold;
         }
@@ -239,9 +222,61 @@
           cursor: not-allowed;
           opacity: 0.5;
         }
+
         /* 파일 선택 버튼 숨기기 스타일 */
         #file-upload {
             display: none;
+        }
+
+        /* ------------------ 반응형 스타일 (768px 이하) ------------------ */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px; /* 모바일 패딩 축소 */
+            }
+            .container {
+                padding: 15px; /* 컨테이너 패딩 축소 */
+            }
+            .page-header {
+                flex-direction: column; /* 헤더를 세로로 나열 */
+                align-items: flex-start; /* 좌측 정렬 */
+                margin-bottom: 20px;
+            }
+            .page-header h1 {
+                font-size: 1.8em; /* 제목 크기 축소 */
+                margin-bottom: 15px; /* 제목과 버튼 그룹 사이 간격 */
+            }
+            .btn-group {
+                flex-direction: column; /* 버튼을 세로로 나열 */
+                width: 100%; /* 너비 100% */
+                gap: 10px; /* 버튼 간격 유지 */
+            }
+            .btn {
+                width: 100%; /* 버튼 너비를 100%로 설정 */
+                min-width: auto;
+                padding: 10px; /* 패딩 축소 */
+            }
+            .filter-group {
+                flex-direction: column; /* 필터 그룹을 세로로 나열 */
+                align-items: flex-start; /* 좌측 정렬 */
+                gap: 10px;
+                padding: 10px;
+            }
+            .filter-group label, .filter-group input {
+                width: 100%; /* 입력 필드와 라벨의 너비를 100%로 설정 */
+            }
+            .filter-group input[type="text"] {
+                width: 100%;
+            }
+            .dataTables_wrapper {
+                overflow-x: auto; /* 테이블이 화면을 벗어나면 가로 스크롤 생성 */
+            }
+            #weatherTable {
+                font-size: 0.8em; /* 테이블 글자 크기 축소 */
+            }
+            #weatherTable thead th, #weatherTable tbody td {
+                white-space: nowrap; /* 텍스트 줄바꿈 방지 */
+                padding: 8px 10px; /* 테이블 셀 패딩 축소 */
+            }
         }
     </style>
 </head>
@@ -293,7 +328,6 @@
           </tbody>
         </table>
 
-
     <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
     <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
@@ -302,15 +336,15 @@
         $(document).ready(function() {
             // DataTables 초기화
             $('#weatherTable').DataTable({
-                "paging": true,          // 페이지네이션 활성화
-                "lengthChange": false,   // 페이지당 항목 수 선택 비활성화
-                "searching": false,      // 검색 기능 비활성화
-                "ordering": false,       // 컬럼 정렬 기능 비활성화
-                "info": true,            // 테이블 정보 (몇 개 중 몇 개 표시) 활성화
-                "autoWidth": false,      // 자동 너비 조정 비활성화 (CSS 우선)
-                "order": [[0, 'desc']],  // 첫 번째 컬럼 (측정 시간) 기준으로 내림차순 정렬
-                "pageLength": 20,        // 한 페이지에 20개 항목 표시
-                "language": {            // DataTables 언어 설정 (한글)
+                "paging": true,
+                "lengthChange": false,
+                "searching": false,
+                "ordering": false,
+                "info": true,
+                "autoWidth": false,
+                "order": [[0, 'desc']],
+                "pageLength": 20,
+                "language": {
                     "emptyTable": "데이터가 없습니다.",
                     "zeroRecords": "검색 결과 없음",
                     "loadingRecords": "로딩 중...",
@@ -333,29 +367,22 @@
 
             // jQuery UI Datepicker 설정 (시작일/종료일)
             $("#minDate").datepicker({
-                dateFormat: 'yy-mm-dd', // 날짜 형식 설정
-                showOn: 'button', // 'both' 대신 'button'으로만 설정 (필드 클릭 시 팝업 방지)
-                // buttonImage: 'https://jqueryui.com/resources/demos/images/calendar.gif', // 이 줄을 주석 처리 또는 삭제
-                // buttonImageOnly: true, // 이 줄을 주석 처리 또는 삭제
-                buttonText: '달력', // 임시로 간단한 텍스트로 변경하여 버튼 생성 여부 확인
-                changeMonth: true, // 월 선택 드롭다운 활성화
-                changeYear: true, // 년도 선택 드롭다운 활성화
-                onSelect: function(selectedDate) {
-                    // 시작 날짜 선택 시, 종료 날짜의 최소 날짜를 선택된 시작 날짜로 설정
-                    $("#maxDate").datepicker("option", "minDate", selectedDate);
-                }
-            });
-
-            $("#maxDate").datepicker({
-                dateFormat: 'yy-mm-dd', // 날짜 형식 설정
+                dateFormat: 'yy-mm-dd',
                 showOn: 'button',
-                // buttonImage: 'https://jqueryui.com/resources/demos/images/calendar.gif', // 이 줄을 주석 처리 또는 삭제
-                // buttonImageOnly: true, // 이 줄을 주석 처리 또는 삭제
                 buttonText: '달력',
                 changeMonth: true,
                 changeYear: true,
                 onSelect: function(selectedDate) {
-                    // 종료 날짜 선택 시, 시작 날짜의 최대 날짜를 선택된 종료 날짜로 설정
+                    $("#maxDate").datepicker("option", "minDate", selectedDate);
+                }
+            });
+            $("#maxDate").datepicker({
+                dateFormat: 'yy-mm-dd',
+                showOn: 'button',
+                buttonText: '달력',
+                changeMonth: true,
+                changeYear: true,
+                onSelect: function(selectedDate) {
                     $("#minDate").datepicker("option", "maxDate", selectedDate);
                 }
             });
@@ -365,67 +392,60 @@
         function downloadCSV() {
             const minDate = document.getElementById('minDate').value;
             const maxDate = document.getElementById('maxDate').value;
-            let url = "/export_analysis1_csv"; // CSV 다운로드를 처리할 백엔드 API 엔드포인트
-            const params = new URLSearchParams(); // URL 쿼리 파라미터 생성
+            let url = "/export_analysis1_csv";
+            const params = new URLSearchParams();
             if (minDate) params.append('minDate', minDate);
             if (maxDate) params.append('maxDate', maxDate);
 
             if (params.toString()) {
-                url += '?' + params.toString(); // 파라미터가 있으면 URL에 추가
+                url += '?' + params.toString();
             }
-            window.location.href = url; // 해당 URL로 이동하여 CSV 다운로드 트리거
+            window.location.href = url;
         }
 
         // 날짜 필터 적용 함수
         function filterByDate() {
             const minDate = document.getElementById('minDate').value;
             const maxDate = document.getElementById('maxDate').value;
-
-            // 시작일 또는 종료일 중 하나라도 입력되어야 필터링
             if (!minDate && !maxDate) {
                 alert("시작일 또는 종료일을 선택해주세요.");
                 return;
             }
-
             const params = new URLSearchParams();
             if (minDate) params.append('minDate', minDate);
             if (maxDate) params.append('maxDate', maxDate);
-
-            // 필터링된 데이터 요청을 위해 현재 페이지 URL에 파라미터를 추가하여 이동
-            // 백엔드에서 이 파라미터를 받아 데이터 필터링 후 렌더링해야 합니다.
             window.location.href = `/analysis1?` + params.toString();
         }
 
         // 날짜 필터 초기화 함수
         function clearDateFilter() {
-            $('#minDate').val(''); // 시작일 입력 필드 초기화
-            $('#maxDate').val(''); // 종료일 입력 필드 초기화
-            window.location.href = '/analysis1'; // 필터 초기화 후 페이지 새로고침하여 전체 데이터 로드
+            $('#minDate').val('');
+            $('#maxDate').val('');
+            window.location.href = '/analysis1';
         }
 
         // CSV 업로드 함수
         function uploadCSV(event) {
-            const file = event.target.files[0]; // 선택된 파일 가져오기
+            const file = event.target.files[0];
             if (file) {
-                const formData = new FormData(); // FormData 객체 생성 (파일 전송용)
-                formData.append('file', file); // 'file'이라는 이름으로 파일 추가
-
-                fetch('/upload_analysis1_csv', { // CSV 업로드를 처리할 백엔드 API 엔드포인트
-                    method: 'POST', // POST 메소드 사용
-                    body: formData // FormData를 요청 본문에 포함
+                const formData = new FormData();
+                formData.append('file', file);
+                fetch('/upload_analysis1_csv', {
+                    method: 'POST',
+                    body: formData
                 })
-                .then(response => response.json()) // 응답을 JSON 형태로 파싱
+                .then(response => response.json())
                 .then(data => {
                     if (data.message) {
-                        alert(data.message); // 성공 메시지 표시
-                        location.reload(); // 페이지 새로고침하여 업데이트된 데이터 반영
+                        alert(data.message);
+                        location.reload();
                     } else if (data.error) {
-                        alert(data.error); // 에러 메시지 표시
+                        alert(data.error);
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    alert('CSV 업로드에 실패했습니다.'); // 네트워크 또는 기타 에러 시 메시지
+                    alert('CSV 업로드에 실패했습니다.');
                 });
             }
         }

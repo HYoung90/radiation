@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
     <style>
+        /* PC 및 기본 스타일 */
         body {
             font-family: 'Noto Sans KR', sans-serif;
             background-color: #f8f9fa;
@@ -62,7 +63,6 @@
             border-color: #545b62;
         }
 
-        /* 사고 상태 색상 */
         .status-normal {
             color: green;
         }
@@ -73,6 +73,32 @@
 
         .status-accident {
             color: red;
+        }
+
+        /* ------------------ 반응형 스타일 (768px 이하) ------------------ */
+        @media (max-width: 768px) {
+            .container {
+                margin-top: 20px;
+                padding: 15px;
+            }
+
+            h3 {
+                font-size: 1.5rem; /* 제목 크기 줄이기 */
+                margin-bottom: 20px;
+            }
+
+            .alert {
+                padding: 15px; /* 알림창 패딩 줄이기 */
+            }
+
+            .alert p, .alert strong, .alert span {
+                font-size: 0.9rem; /* 텍스트 크기 줄이기 */
+            }
+
+            .btn-secondary {
+                width: 100%; /* 버튼 너비를 100%로 변경 */
+                font-size: 0.9rem;
+            }
         }
     </style>
 </head>
