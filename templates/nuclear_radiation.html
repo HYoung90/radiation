@@ -121,102 +121,93 @@
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
 
     <script>
-        $(document).ready(function() {
-            var table = $('#radiationTable').DataTable({
-                searching: false,
-                order: [[3, 'desc']], // 방사선량 기준으로 초기 정렬
-                columns: [
-                    { data: 'time', title: '측정 시간' },
-                    { data: 'genName', title: '발전소 이름' },
-                    { data: 'expl', title: '측정 지역' },
-                    {
-                        data: 'max_value',
-                        title: '방사선량 (μSv/h)',
-                        render: function(data) {
-                            return data !== null && !isNaN(data) ? `${data.toFixed(3)} μSv/h` : "N/A";
-                        }
-                    }
-                ]
-            });
+      $(document).ready(function () {
+        // 발전소 좌표/이름 매핑
+        const plantCoordinates = {
+          "KR": { lat: 35.3213, lng: 129.2941, name: "고리 원자력발전소" },
+          "WS": { lat: 35.7131, lng: 129.4775, name: "월성 원자력발전소" },
+          "YK": { lat: 35.4165, lng: 126.4178, name: "한빛 원자력발전소" },
+          "UJ": { lat: 37.0941, lng: 129.3819, name: "한울 원자력발전소" },
+          "SU": { lat: 35.3376, lng: 129.3115, name: "새울 원자력발전소" }
+        };
 
-            // 지도 설정
-            var map = L.map('map').setView([36.5, 127.5], 7);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; <a href="https://carto.com/">CARTO</a> | &copy; OpenStreetMap contributors',
-                subdomains: 'abcd',
-                maxZoom: 19
-            }).addTo(map);
-
-            // 발전소 좌표
-            const plantCoordinates = {
-                "KR": { lat: 35.3213, lng: 129.2941, name: "고리 원자력발전소" },
-                "WS": { lat: 35.7131, lng: 129.4775, name: "월성 원자력발전소" },
-                "YK": { lat: 35.4165, lng: 126.4178, name: "한빛 원자력발전소" },
-                "UJ": { lat: 37.0941, lng: 129.3819, name: "한울 원자력발전소" },
-                "SU": { lat: 35.3376, lng: 129.3115, name: "새울 원자력발전소" }
-            };
-
-            // 마커 추가
-            Object.keys(plantCoordinates).forEach(function(key) {
-                var plant = plantCoordinates[key];
-                L.marker([plant.lat, plant.lng]).addTo(map)
-                    .bindPopup(`
-                        <b>${plant.name}</b><br>
-                        <button class="popup-button" onclick="window.location.href='/nuclear_radiation_history/${encodeURIComponent(plant.name)}'">과거 데이터 보기</button>
-                    `);
-            });
-
-            // 데이터를 가져와 테이블에 채우는 함수
-            function loadHighestRadiationData() {
-                table.clear();
-
-                $.ajax({
-                    url: '/api/nuclear_radiation/highest_per_plant',
-                    method: 'GET',
-                    success: function(data) {
-                        if (!Array.isArray(data)) {
-                            console.error("데이터 형식 오류:", data);
-                            return;
-                        }
-
-                        if (data.length === 0) {
-                            console.log("데이터가 없습니다.");
-                            return;
-                        }
-
-                        // 데이터를 발전소 이름으로 정렬
-                        data.sort((a, b) => {
-                            const nameA = (plantCoordinates[a._id.toUpperCase()]?.name || "Unknown").localeCompare((plantCoordinates[b._id.toUpperCase()]?.name || "Unknown"), 'ko');
-                            return nameA;
-                        });
-
-                        data.forEach(function(item) {
-                            var genKey = item._id.toUpperCase(); // 발전소 코드
-                            var plantName = plantCoordinates[genKey] ? plantCoordinates[genKey].name : "Unknown Plant";
-                            var radiationValue = parseFloat(item.max_value); // 최대 방사선량
-
-                            // 데이터를 테이블에 추가
-                            table.row.add({
-                                time: item.time, // 측정 시간
-                                genName: plantName,
-                                expl: item.expl, // 측정 지역
-                                max_value: radiationValue
-                            });
-                        });
-
-                        table.draw();
-                    },
-                    error: function() {
-                        console.error("최고 방사선량 정보를 불러오지 못했습니다.");
-                    }
-                });
+        // DataTable
+        var table = $('#radiationTable').DataTable({
+          searching: false,
+          order: [[3, 'desc']], // 3번 컬럼(방사선량) 내림차순
+          columns: [
+            { data: 'time', title: '측정 시간' },
+            {
+              data: 'genName',
+              title: '발전소 이름',
+              render: function (code) {
+                return plantCoordinates[code]?.name || code || "Unknown";
+              }
+            },
+            { data: 'expl', title: '측정 지역' },
+            {
+              data: 'value',
+              title: '방사선량 (μSv/h)',
+              render: function (data, type, row) {
+                const n = Number(data);
+                // 정렬/타입 판별 시엔 숫자를 그대로 반환해 정확한 숫자 정렬 보장
+                if (type === 'sort' || type === 'type') return isFinite(n) ? n : null;
+                return isFinite(n) ? n.toFixed(3) + ' μSv/h' : "N/A";
+              }
             }
-
-            loadHighestRadiationData(); // 최대 방사선량 데이터 로드
-            $('#refreshData').click(function() {
-                loadHighestRadiationData(); // 새로 고침 시 데이터 로드
-            });
+          ]
         });
+
+        // 지도
+        var map = L.map('map').setView([36.5, 127.5], 7);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+          attribution: '&copy; <a href="https://carto.com/">CARTO</a> | &copy; OpenStreetMap contributors',
+          subdomains: 'abcd',
+          maxZoom: 19
+        }).addTo(map);
+
+        // 발전소 마커
+        Object.keys(plantCoordinates).forEach(function (key) {
+          var plant = plantCoordinates[key];
+          L.marker([plant.lat, plant.lng]).addTo(map)
+            .bindPopup(`
+              <b>${plant.name}</b><br>
+              <button class="popup-button" onclick="window.location.href='/nuclear_radiation_history/${encodeURIComponent(plant.name)}'">과거 데이터 보기</button>
+            `);
+        });
+
+        // 데이터 로드
+        function loadHighestRadiationData() {
+          $.ajax({
+            url: '/api/nuclear_radiation/highest_per_plant',
+            method: 'GET',
+            success: function (data) {
+              if (!Array.isArray(data) || data.length === 0) {
+                table.clear().draw();
+                return;
+              }
+
+              // 이름 기준(한글)으로 정렬
+              data.sort((a, b) => {
+                const an = plantCoordinates[a.genName]?.name || "Unknown";
+                const bn = plantCoordinates[b.genName]?.name || "Unknown";
+                return an.localeCompare(bn, 'ko');
+              });
+
+              // 테이블 채우기
+              table.clear();
+              table.rows.add(data); // data 항목은 {genName, expl, time, value}
+              table.draw();
+            },
+            error: function () {
+              console.error("최고 방사선량 정보를 불러오지 못했습니다.");
+            }
+          });
+        }
+
+        loadHighestRadiationData();
+        $('#refreshData').click(loadHighestRadiationData);
+      });
     </script>
 </body>
 </html>
