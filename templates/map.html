@@ -326,17 +326,18 @@
         });
       }
     </script>
+
+    <!-- ✅ 사고 감지 팝업: 요약 API 한 번만 호출해서 순차 팝업 -->
     <script>
-        const plantMap = {
+        // 코드 → 표시 이름 / 짧은 이름 매핑
+        const codeToDisplay = {
             "KR": "고리 원자력발전소",
             "WS": "월성 원자력발전소",
             "YK": "한빛 원자력발전소",
             "UJ": "한울 원자력발전소",
             "SU": "새울 원자력발전소"
         };
-
-        // ✅ genName → shortName 매핑 테이블 추가
-        const genNameToShort = {
+        const codeToShort = {
             "KR": "고리",
             "WS": "월성",
             "YK": "한빛",
@@ -344,47 +345,53 @@
             "SU": "새울"
         };
 
-        async function checkRadiationPopup(genName, displayName) {
+        async function pollAccidentSummary() {
             try {
-                const res = await fetch(`/api/radiation_status/${genName}`);
-                const data = await res.json();
+                const res = await fetch('/api/radiation_status/summary', { cache: 'no-store' });
+                if (!res.ok) return;
+                const arr = await res.json();
+                if (!Array.isArray(arr)) return;
 
-                if (data.status === "accident") {
-                    Swal.fire({
+                // 사고만 필터
+                const accidents = arr.filter(item => item && item.status === 'accident');
+
+                // 순차 팝업(사용자가 확인/이동 선택할 때까지 대기)
+                for (const it of accidents) {
+                    const code = it.genName;
+                    const display = codeToDisplay[code] || code;
+                    const shortName = codeToShort[code] || code;
+
+                    const { isConfirmed } = await Swal.fire({
                         icon: 'warning',
-                        title: `🚨 ${displayName}`,
+                        title: `🚨 ${display}`,
                         html: `
-                            <p>방사선 수치가 <strong>기준(${data.threshold} µSv/h)</strong>을 초과했습니다.</p>
-                            <p><strong>현재값:</strong> ${data.current_value} µSv/h</p>
+                            <p>방사선 수치가 <strong>기준(${it.threshold} µSv/h)</strong>을 초과했습니다.</p>
+                            <p><strong>현재값:</strong> ${it.current_value} µSv/h</p>
+                            ${it.average ? `<p><small>표본 평균: ${it.average} µSv/h</small></p>` : ''}
                             <p>구호소 대피 적합도 평가 결과 페이지로 이동하시겠습니까?</p>
                         `,
                         showCancelButton: true,
                         confirmButtonText: '이동',
-                        cancelButtonText: '취소',
+                        cancelButtonText: '닫기',
                         confirmButtonColor: '#d33',
-                        cancelButtonColor: '#aaa'
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            const shortName = genNameToShort[genName];
-                            window.location.href = `/optimal_shelter_result/${encodeURIComponent(shortName)}`;
-                        }
+                        cancelButtonColor: '#aaa',
+                        allowOutsideClick: false
                     });
+
+                    if (isConfirmed) {
+                        // site 파라미터는 한글 '짧은 이름' 사용
+                        window.location.href = `/optimal_shelter_result/${encodeURIComponent(shortName)}`;
+                        break; // 이동 선택 시 뒤 팝업은 생략
+                    }
                 }
-            } catch (err) {
-                console.error(`[${genName}] 판단 오류:`, err);
+            } catch (e) {
+                console.error('summary poll failed', e);
             }
         }
 
-        window.addEventListener("load", () => {
-            for (const [genName, displayName] of Object.entries(plantMap)) {
-                checkRadiationPopup(genName, displayName);
-            }
-
-            setInterval(() => {
-                for (const [genName, displayName] of Object.entries(plantMap)) {
-                    checkRadiationPopup(genName, displayName);
-                }
-            }, 15 * 60 * 1000);
+        window.addEventListener('load', () => {
+            pollAccidentSummary();                    // 최초 1회
+            setInterval(pollAccidentSummary, 15 * 60 * 1000);  // 15분 간격
         });
     </script>
 </body>

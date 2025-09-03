@@ -90,6 +90,12 @@ analysis2_collection = FNC_collection    # ← 여기가 핵심!
 analysis3_collection = KAERI_collection
 analysis4_collection = RMT_collection
 
+# === 인덱스 ===
+nuclear_radiation_collection.create_index(
+    [('genName', 1), ('time', -1)],
+    name='ix_nuclear_gen_time'
+)
+
 # 로깅 설정
 class ColoredFormatter(logging.Formatter):
     COLORS = {
@@ -164,6 +170,14 @@ def get_average_radiation():
     logging.info(f"최근 평균 방사선량 데이터 가져왔습니다.")
     return latest_avg_data
 
+# ===== [ADD] 숫자 변환 유틸 =====
+# 숫자 캐스팅 유틸 (파일 상단 헬퍼들 근처에 추가)
+def _to_float_or_none(v):
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
 class User(UserMixin):
     def __init__(self, user_doc):
         self.id = str(user_doc['_id'])  # Flask-Login에서 user.id 필수
@@ -182,6 +196,51 @@ class User(UserMixin):
             return User(user_doc) if user_doc else None
         except Exception:
             return None
+
+def _compute_status_for(gen_name: str, recent_n: int = 500):
+    try:
+        # DB 키가 대문자라면 통일
+        gen_name = gen_name.upper()
+
+        cur = (nuclear_radiation_collection
+               .find({'genName': gen_name}, {'value': 1, 'time': 1})
+               .sort('time', DESCENDING)  # DESCENDING 상수로 일관
+               .limit(recent_n))
+        docs = list(cur)
+        if not docs:
+            return None
+
+        # 최신의 "숫자" 값을 가진 레코드 선택 (최신값이 문자열/None이면 다음으로)
+        latest_val = next(
+            (_to_float_or_none(d.get('value')) for d in docs
+             if _to_float_or_none(d.get('value')) is not None),
+            None
+        )
+        if latest_val is None:
+            return None
+
+        # 평균용 표본
+        vals = [_to_float_or_none(d.get('value')) for d in docs]
+        vals = [v for v in vals if v is not None]
+        if not vals:
+            return None  # 표본 전부 무효
+
+        avg = sum(vals) / len(vals)
+        threshold = avg + 0.097
+        status = 'accident' if latest_val > threshold else 'normal'
+
+        return {
+            "genName": gen_name,
+            "current_value": round(latest_val, 4),
+            "threshold": round(threshold, 4),
+            "average": round(avg, 4),   # 디버깅/표시용(선택)
+            "count": len(vals),         # 표본 수(선택)
+            "status": status
+        }
+    except Exception as e:
+        logging.error(f"_compute_status_for({gen_name}) error: {e}")
+        return None
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -681,7 +740,7 @@ def get_recent_plant_data():
         recent_data = []
 
         for plant in plants:
-            data = collection.find_one({"region": plant}, {"_id": 0}, sort=[("time", DESCENDING)])
+            data = collection.find_one({"genName": plant}, {"_id": 0}, sort=[("time", DESCENDING)])
             if data:
                 recent_data.append({
                     "name": genName_mapping.get(plant, "Unknown Plant"),
@@ -1393,6 +1452,16 @@ def accident_result_page(genName):
         logging.error(f"Error fetching data for {genName}: {e}")
         return render_template('accident_result.html', genName=genName,
                                error="An unexpected error occurred.")
+
+@app.route('/api/radiation_status/summary', methods=['GET'])
+def radiation_status_summary():
+    plants = list(genName_mapping.keys())  # ['KR','WS','YK','UJ','SU']
+    out = []
+    for g in plants:
+        st = _compute_status_for(g, recent_n=500)
+        if st:
+            out.append(st)
+    return jsonify(out)
 
 
 if __name__ == '__main__':
