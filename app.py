@@ -1331,54 +1331,58 @@ def accident_select():
 @app.route('/accident_result/<genName>', methods=['GET'])
 def accident_result_page(genName):
     try:
-        logging.info(f"Fetching data for plant: {genName}")
+        # genName 대문자 통일 (DB 키 일관성)
+        genName = genName.upper()
+        logging.info(f"[accident_result] plant={genName}")
 
-        # 최신 데이터 가져오기 (genName 기준)
-        latest_data = collection.find_one({'genName': genName}, sort=[('time', -1)])
-        logging.info(f"Latest data: {latest_data}")
+        # 1) 최신 방사선값(판정용)
+        latest_rad = nuclear_radiation_collection.find_one(
+            {'genName': genName},
+            sort=[('time', DESCENDING)],
+            projection={'value': 1, 'time': 1}
+        )
+        if not latest_rad or latest_rad.get('value') is None:
+            logging.warning("No latest nuclear_radiation value")
+            return render_template('accident_result.html', genName=genName,
+                                   error="최신 방사선 데이터가 없습니다.")
 
-        if not latest_data:
-            logging.warning(f"No data found for plant: {genName}")
-            return render_template('accident_result.html', genName=genName, error="No data found for this plant.")
+        current_value = float(latest_rad['value'])
 
-        # 강우 유무 판단 (NPP_weather 컬렉션에서 최신 기상 데이터 가져오기)
-        weather_data = db.NPP_weather.find_one({'genName': genName}, sort=[('time', -1)])
-        rainfall = weather_data.get('rainfall', 0) if weather_data else 0
-        logging.info(f"Rainfall: {rainfall} mm")
+        # 2) 기준선: 과거 평균(필요하면 최근 N건/최근 N일로 제한 가능)
+        values_cur = nuclear_radiation_collection.find(
+            {'genName': genName},
+            {'value': 1}
+        )
+        radiation_values = [float(d['value']) for d in values_cur if d.get('value') is not None]
 
-        # nuclear_radiation에서 해당 발전소(genName) 방사선량 데이터 가져오기
-        radiation_data = list(nuclear_radiation_collection.find({'genName': genName}, {'_id': 0, 'value': 1}))
-        logging.info(f"Radiation data: {radiation_data}")
+        if not radiation_values:
+            return render_template('accident_result.html', genName=genName,
+                                   error="평균 계산용 데이터가 없습니다.")
 
-        # 해당 발전소의 방사선량 평균 계산
-        radiation_values = [float(data['value']) for data in radiation_data if data['value'] is not None]  # float으로 변환
-        average_radiation = sum(radiation_values) / len(radiation_values) if radiation_values else 0.0
-        logging.info(f"Calculated average radiation for {genName}: {average_radiation} µSv/h")
+        average_radiation = sum(radiation_values) / len(radiation_values)
 
-        # 기준값 계산: 방사선량 평균 + 0.097
+        # 3) 강우량(표시용)
+        weather = db.NPP_weather.find_one(
+            {'genName': genName},
+            sort=[('time', DESCENDING)],
+            projection={'rainfall': 1}
+        )
+        rainfall = (weather or {}).get('rainfall', 0)
+
+        # 4) 임계치 & 판정
         threshold = average_radiation + 0.097
-        radiation_level = round(average_radiation, 4)  # 평균 방사선량을 현재 방사선량으로 설정, 소수점 4자리로 반올림
+        status = "accident" if current_value > threshold else "normal"
 
-        logging.info(f"Radiation level: {radiation_level}, Threshold: {threshold}")
+        result = {
+            "status": status,
+            "message": "사고 발생 가능성 있음" if status == "accident" else "정상",
+            "radiation_level": round(current_value, 4),     # ← 최신값으로 표시
+            "average": round(average_radiation, 4),         # 참고용(디버깅/설명)
+            "threshold": round(threshold, 4),
+            "rainfall": rainfall
+        }
 
-        # 사고 유무 판단
-        if radiation_level > threshold:
-            result = {
-                "status": "accident",
-                "message": "사고 발생 가능성 있음",
-                "radiation_level": radiation_level,
-                "threshold": round(threshold, 4),  # 소수점 4자리로 표시
-                "rainfall": rainfall  # 강우량 추가
-            }
-        else:
-            result = {
-                "status": "normal",
-                "message": "정상",
-                "radiation_level": radiation_level,
-                "threshold": round(threshold, 4),  # 소수점 4자리로 표시
-                "rainfall": rainfall  # 강우량 추가
-            }
-        logging.info(f"Result: {result}")
+        logging.info(f"[accident_result] {result}")
         return render_template('accident_result.html', genName=genName, result=result)
 
     except PyMongoError as pe:
@@ -1389,7 +1393,7 @@ def accident_result_page(genName):
         logging.error(f"Error fetching data for {genName}: {e}")
         return render_template('accident_result.html', genName=genName,
                                error="An unexpected error occurred.")
-#text
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
