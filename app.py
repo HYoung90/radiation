@@ -3,7 +3,9 @@
 # 데이터 필터링, 최신 데이터 조회, CSV 내보내기 등의 기능을 제공합니다.
 
 
-from flask import Flask, render_template, request, redirect, url_for, jsonify, session, flash, make_response, Response, stream_with_context
+from flask import Flask, render_template, request, redirect, url_for, jsonify, session, flash, make_response
+from flask_caching import Cache
+from flask import Response
 import urllib.parse
 from flask_login import logout_user
 import csv
@@ -822,6 +824,8 @@ def analysis1():
         logging.error(f"Error in fetching data from MongoDB: {e}")
         return render_template('analysis1.html', data=[], error="Failed to load data")
 
+
+
 @app.route('/analysis2')
 def analysis2():
     try:
@@ -927,70 +931,29 @@ def export_csv_by_genName(genName):
 # ---------------------------------------------------------------------
 @app.route('/export_analysis1_csv', methods=['GET'])
 def export_analysis1_csv():
-    try:
-        # --- 날짜 필터 처리 ---
-        min_str = request.args.get('minDate')
-        max_str = request.args.get('maxDate')
-
-        q = {}
-        if min_str or max_str:
-            rng = {}
-            if min_str:
-                rng['$gte'] = pd.to_datetime(min_str).to_pydatetime()
-            if max_str:
-                rng['$lt']  = (pd.to_datetime(max_str) + pd.Timedelta(days=1)).to_pydatetime()
-            q['checkTime'] = rng
-
-        projection = {
-            "_id": 0,
-            "checkTime": 1,
-            "x": 1,
-            "y": 1,
-            "Energy range (Mev)": 1,
-            "radiation": 1
-        }
-
-        # --- 스트리밍으로 CSV 내보내기 (메모리 안전) ---
-        def generate():
-            # BOM
-            yield '\ufeff'
-            # 헤더
-            buf = io.StringIO()
-            w = csv.writer(buf)
-            w.writerow(["checkTime", "X", "Y", "Energy range (Mev)", "Radiation (nSv/h)"])
-            yield buf.getvalue(); buf.seek(0); buf.truncate(0)
-
-            cursor = analysis1_collection.find(q, projection).sort("checkTime", DESCENDING)
-            for d in cursor:
-                ct = d.get("checkTime", "")
-                if isinstance(ct, datetime):
-                    ct = ct.strftime("%Y-%m-%d %H:%M:%S")
-                w.writerow([
-                    ct,
-                    d.get("x", ""),
-                    d.get("y", ""),
-                    d.get("Energy range (Mev)", ""),
-                    d.get("radiation", "")
-                ])
-                yield buf.getvalue(); buf.seek(0); buf.truncate(0)
-
-        resp = Response(stream_with_context(generate()),
-                        mimetype='text/csv; charset=utf-8')
-        # RFC5987: 한글 파일명 안전
-        resp.headers.set('Content-Disposition',
-                         "attachment; filename*=UTF-8''analysis1_data.csv")
-        return resp
-
-    except Exception as e:
-        logging.exception("export_analysis1_csv failed")
-        return jsonify({"error": "export failed", "detail": str(e)}), 500
-
+    """
+    CSV 다운로드: checkTime, x, y, Energy range (Mev), radiation
+    """
+    return export_csv(
+        analysis1_collection,
+        filename="analysis1_data",
+        headers=["checkTime", "X", "Y", "Energy range (Mev)", "Radiation (nSv/h)"],
+        fields=["checkTime", "x", "y", "Energy range (Mev)", "radiation"],
+        sort=[("checkTime", DESCENDING)]
+    )
 @app.route('/upload_analysis1_csv', methods=['POST'])
 def upload_analysis1_csv():
     """
     CSV 업로드: 영문 헤더를 checkTime 등 DB 필드로 매핑 후 업로드
+    1) 파일 존재 및 확장자 체크
+    2) 바이너리 읽기 → utf-8-sig 또는 cp949 디코딩
+    3) pandas DataFrame 생성, 컬럼 정리
+    4) CSV 헤더 → DB 필드 매핑 (mapping 딕셔너리)
+    5) checkTime → datetime, 나머지 수치 칼럼 → numeric
+    6) UTF-8 BOM 포함하여 다시 CSV 작성
+    7) upload_csv 헬퍼로 MongoDB 업로드
     """
-    # 1) 파일 체크
+    # 1) 파일 유무 & 확장자 체크
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
     f = request.files['file']
@@ -1031,7 +994,7 @@ def upload_analysis1_csv():
     for col in ['x', 'y', 'Energy range (Mev)', 'radiation']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    # 6) 버퍼에 다시 CSV 작성 (UTF-8 BOM)
+    # 6) 다시 CSV로 버퍼 작성 (UTF-8 BOM)
     buf = io.StringIO()
     df.to_csv(buf, index=False, encoding='utf-8-sig')
     buf.seek(0)
