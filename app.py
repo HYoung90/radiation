@@ -933,14 +933,30 @@ def export_csv_by_genName(genName):
 def export_analysis1_csv():
     """
     CSV 다운로드: checkTime, x, y, Energy range (Mev), radiation
+    (minDate/maxDate 필터 지원)
     """
+    # 날짜 파라미터 읽기
+    min_str = request.args.get('minDate')
+    max_str = request.args.get('maxDate')
+
+    q = {}
+    if min_str or max_str:
+        rng = {}
+        if min_str:
+            rng["$gte"] = pd.to_datetime(min_str)
+        if max_str:
+            rng["$lt"] = pd.to_datetime(max_str) + pd.Timedelta(days=1)  # 종료일 포함
+        q["checkTime"] = rng
+
     return export_csv(
         analysis1_collection,
-        filename="analysis1_data",
-        headers=["checkTime", "X", "Y", "Energy range (Mev)", "Radiation (nSv/h)"],
-        fields=["checkTime", "x", "y", "Energy range (Mev)", "radiation"],
-        sort=[("checkTime", DESCENDING)]
+        "analysis1_data",
+        ["checkTime", "X", "Y", "Energy range (Mev)", "Radiation (nSv/h)"],
+        ["checkTime", "x", "y", "Energy range (Mev)", "radiation"],
+        sort=[("checkTime", DESCENDING)],
+        query=q
     )
+
 @app.route('/upload_analysis1_csv', methods=['POST'])
 def upload_analysis1_csv():
     """
