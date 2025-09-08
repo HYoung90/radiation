@@ -228,55 +228,53 @@
             display: none;
         }
 
+        /* ------------------ 하단 GIF 업로드 섹션 ------------------ */
+        .extra-section {
+            margin-top: 40px;
+            padding-top: 30px;
+            border-top: 2px dashed #e9ecef;
+        }
+        .extra-section h2 {
+            margin: 0 0 16px 0;
+            font-size: 1.4em;
+            color: #2c3e50;
+        }
+        .gif-toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .gif-dropzone {
+            border: 2px dashed #ced4da;
+            border-radius: 10px;
+            padding: 24px;
+            text-align: center;
+            background: #f8f9fa;
+            transition: border-color .2s ease, background-color .2s ease;
+        }
+        .gif-dropzone.dragover { border-color: #007bff; background: #eef6ff; }
+        .gif-info { font-size: .9em; color:#6c757d; margin-top: 8px; }
+        #gif-file { display: none; }
+        .preview { margin-top: 16px; display: none; }
+        .preview img { max-width: 100%; height: auto; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+        .saved-url { margin-top: 6px; font-size: .9em; word-break: break-all; }
+
         /* ------------------ 반응형 스타일 (768px 이하) ------------------ */
         @media (max-width: 768px) {
-            body {
-                padding: 10px; /* 모바일 패딩 축소 */
-            }
-            .container {
-                padding: 15px; /* 컨테이너 패딩 축소 */
-            }
-            .page-header {
-                flex-direction: column; /* 헤더를 세로로 나열 */
-                align-items: flex-start; /* 좌측 정렬 */
-                margin-bottom: 20px;
-            }
-            .page-header h1 {
-                font-size: 1.8em; /* 제목 크기 축소 */
-                margin-bottom: 15px; /* 제목과 버튼 그룹 사이 간격 */
-            }
-            .btn-group {
-                flex-direction: column; /* 버튼을 세로로 나열 */
-                width: 100%; /* 너비 100% */
-                gap: 10px; /* 버튼 간격 유지 */
-            }
-            .btn {
-                width: 100%; /* 버튼 너비를 100%로 설정 */
-                min-width: auto;
-                padding: 10px; /* 패딩 축소 */
-            }
-            .filter-group {
-                flex-direction: column; /* 필터 그룹을 세로로 나열 */
-                align-items: flex-start; /* 좌측 정렬 */
-                gap: 10px;
-                padding: 10px;
-            }
-            .filter-group label, .filter-group input {
-                width: 100%; /* 입력 필드와 라벨의 너비를 100%로 설정 */
-            }
-            .filter-group input[type="text"] {
-                width: 100%;
-            }
-            .dataTables_wrapper {
-                overflow-x: auto; /* 테이블이 화면을 벗어나면 가로 스크롤 생성 */
-            }
-            #weatherTable {
-                font-size: 0.8em; /* 테이블 글자 크기 축소 */
-            }
-            #weatherTable thead th, #weatherTable tbody td {
-                white-space: nowrap; /* 텍스트 줄바꿈 방지 */
-                padding: 8px 10px; /* 테이블 셀 패딩 축소 */
-            }
+            body { padding: 10px; }
+            .container { padding: 15px; }
+            .page-header { flex-direction: column; align-items: flex-start; margin-bottom: 20px; }
+            .page-header h1 { font-size: 1.8em; margin-bottom: 15px; }
+            .btn-group { flex-direction: column; width: 100%; gap: 10px; }
+            .btn { width: 100%; min-width: auto; padding: 10px; }
+            .filter-group { flex-direction: column; align-items: flex-start; gap: 10px; padding: 10px; }
+            .filter-group label, .filter-group input { width: 100%; }
+            .filter-group input[type="text"] { width: 100%; }
+            .dataTables_wrapper { overflow-x: auto; }
+            #weatherTable { font-size: 0.8em; }
+            #weatherTable thead th, #weatherTable tbody td { white-space: nowrap; padding: 8px 10px; }
         }
     </style>
 </head>
@@ -327,6 +325,34 @@
             {% endif %}
           </tbody>
         </table>
+
+        <!-- 하단 추가 섹션: GIF 업로드 & 즉시 미리보기 -->
+        <div class="extra-section" id="gifSection">
+            <h2>GIF 업로드 & 미리보기</h2>
+            <div class="gif-toolbar">
+                <label for="gif-file" class="btn btn-upload">GIF 선택</label>
+                <button class="btn btn-apply" id="gifResetBtn" type="button">초기화</button>
+                <span class="gif-info">*.gif 파일을 드래그&드롭하거나 버튼으로 선택하세요. 업로드 즉시 아래에서 재생됩니다.</span>
+            </div>
+            <input id="gif-file" type="file" accept="image/gif">
+
+            <div class="gif-dropzone" id="gifDropzone">
+                <strong>여기에 GIF를 드래그&드롭</strong><br>
+                또는 상단의 <em>GIF 선택</em> 버튼을 사용하세요.
+            </div>
+
+            <div class="preview" id="gifPreviewWrap">
+                <h3>미리보기</h3>
+                <img id="gifPreview" alt="GIF preview">
+            </div>
+
+            <div class="preview" id="gifSavedWrap">
+                <h3>서버 저장본</h3>
+                <img id="gifSaved" alt="Saved GIF">
+                <div class="saved-url">URL: <a id="gifSavedLink" href="#" target="_blank" rel="noopener"></a></div>
+            </div>
+        </div>
+        <!-- // 하단 추가 섹션 끝 -->
 
     <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
     <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
@@ -386,6 +412,85 @@
                     $("#minDate").datepicker("option", "maxDate", selectedDate);
                 }
             });
+
+            // ----------------- 하단 GIF 업로드 섹션 -----------------
+            const gifFileInput = document.getElementById('gif-file');
+            const gifDropzone  = document.getElementById('gifDropzone');
+            const gifPreviewWrap = document.getElementById('gifPreviewWrap');
+            const gifPreview   = document.getElementById('gifPreview');
+            const gifSavedWrap = document.getElementById('gifSavedWrap');
+            const gifSaved     = document.getElementById('gifSaved');
+            const gifSavedLink = document.getElementById('gifSavedLink');
+            const gifResetBtn  = document.getElementById('gifResetBtn');
+
+            function isGif(file) {
+                return file && (file.type === 'image/gif' || file.name.toLowerCase().endsWith('.gif'));
+            }
+
+            function handleGif(file) {
+                if (!isGif(file)) {
+                    alert('GIF 파일만 업로드할 수 있어요.');
+                    return;
+                }
+                // 1) 미리보기 (object URL)
+                const url = URL.createObjectURL(file);
+                gifPreview.src = url;
+                gifPreviewWrap.style.display = 'block';
+                gifPreview.onload = () => URL.revokeObjectURL(url);
+
+                // 2) 서버 업로드 (백엔드에 /upload/gif 라우트가 있어야 합니다)
+                const form = new FormData();
+                form.append('file', file);
+                fetch('/upload/gif', { method: 'POST', body: form })
+                  .then(r => {
+                    if (!r.ok) throw new Error('업로드 실패');
+                    return r.json();
+                  })
+                  .then(({ url }) => {
+                    gifSaved.src = url;
+                    gifSavedLink.textContent = url;
+                    gifSavedLink.href = url;
+                    gifSavedWrap.style.display = 'block';
+                  })
+                  .catch(err => {
+                    console.error(err);
+                    alert(err.message || '업로드 중 오류가 발생했습니다. (백엔드 라우트 확인)');
+                  });
+            }
+
+            gifFileInput.addEventListener('change', (e) => {
+                const f = e.target.files && e.target.files[0];
+                if (f) handleGif(f);
+            });
+
+            ;['dragenter','dragover'].forEach(ev =>
+                gifDropzone.addEventListener(ev, e => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'copy';
+                    gifDropzone.classList.add('dragover');
+                })
+            );
+            ;['dragleave','drop'].forEach(ev =>
+                gifDropzone.addEventListener(ev, e => {
+                    e.preventDefault();
+                    gifDropzone.classList.remove('dragover');
+                })
+            );
+            gifDropzone.addEventListener('drop', e => {
+                const f = e.dataTransfer.files && e.dataTransfer.files[0];
+                if (f) handleGif(f);
+            });
+
+            gifResetBtn.addEventListener('click', () => {
+                gifFileInput.value = '';
+                gifPreview.src = '';
+                gifSaved.src = '';
+                gifSavedLink.textContent = '';
+                gifSavedLink.removeAttribute('href');
+                gifPreviewWrap.style.display = 'none';
+                gifSavedWrap.style.display = 'none';
+            });
+            // ----------------- // -----------------
         });
 
         // CSV 다운로드 함수

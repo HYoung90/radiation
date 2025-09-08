@@ -30,6 +30,9 @@ from bson import ObjectId
 from functools import wraps
 from dotenv import load_dotenv
 from functools import lru_cache
+from werkzeug.utils import secure_filename
+from werkzeug.exceptions import RequestEntityTooLarge
+
 
 app = Flask(__name__)
 
@@ -39,9 +42,12 @@ login_manager.login_view = 'login'
 
 app.config['SECRET_KEY'] = 'supersecretkey'
 
-# Flask-Caching 설정 비활성화
-cache = Cache(app, config={'CACHE_TYPE': 'null'})
 app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['GIF_UPLOAD_FOLDER'] = os.path.join(app.static_folder, 'gifs')
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['GIF_UPLOAD_FOLDER'], exist_ok=True)
+
 
 # MongoDB 연결
 load_dotenv() # .env 파일에서 환경 변수를 로드합니다. (로컬 개발용)
@@ -162,6 +168,15 @@ def get_radiation_data():
     data = list(stats_collection.find({}, {"_id": 0}).sort("date", DESCENDING).limit(10))
     logging.info(f"최근 데이터 {len(data)}개 가져왔습니다.")
     return data
+
+ALLOWED_GIF_EXTENSIONS = {'gif'}
+
+def _allowed_gif(filename: str, mimetype: str) -> bool:
+    return (
+        '.' in filename
+        and filename.rsplit('.', 1)[1].lower() in ALLOWED_GIF_EXTENSIONS
+        and (mimetype or '').lower() == 'image/gif'
+    )
 
 
 
@@ -957,6 +972,38 @@ def export_analysis1_csv():
         query=q
     )
 
+@app.route('/upload/gif', methods=['POST'])
+def upload_gif():
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No file part"}), 400
+        f = request.files['file']
+        if not f or f.filename == '':
+            return jsonify({"error": "No selected file"}), 400
+
+        # GIF 시그니처 확인
+        head = f.stream.read(6)
+        f.stream.seek(0)
+        if head not in (b'GIF87a', b'GIF89a'):
+            return jsonify({"error": "유효한 GIF 파일이 아닙니다."}), 400
+
+        # 확장자 확인(시그니처 통과했으니 mimetype 느슨화 가능)
+        if not ('.' in f.filename and f.filename.rsplit('.', 1)[1].lower() == 'gif'):
+            return jsonify({"error": "GIF 확장자만 허용됩니다."}), 400
+
+        name, _ = os.path.splitext(secure_filename(f.filename))
+        stamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
+        final_name = f"{name}-{stamp}.gif"
+        save_path = os.path.join(app.config['GIF_UPLOAD_FOLDER'], final_name)
+        f.save(save_path)
+
+        file_url = url_for('static', filename=f"gifs/{final_name}")
+        return jsonify({"url": file_url}), 200
+    except Exception:
+        app.logger.exception("GIF 업로드 오류")
+        return jsonify({"error": "업로드 처리 중 오류가 발생했습니다."}), 500
+
+
 @app.route('/upload_analysis1_csv', methods=['POST'])
 def upload_analysis1_csv():
     """
@@ -1018,6 +1065,10 @@ def upload_analysis1_csv():
     # 7) MongoDB 업로드
     return upload_csv(analysis1_collection, buf, mapping)
 
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_file_too_large(e):
+    return jsonify({"error": "파일이 너무 큽니다. 최대 50MB까지 업로드 가능합니다."}), 413
 # ---------------------------------------------------------------------
 # 분석2 라우터 그룹
 # ---------------------------------------------------------------------
@@ -1051,84 +1102,104 @@ def export_analysis2_csv():
 # -- CSV 업로드 (영문 헤더 매핑) --
 @app.route('/upload_analysis2_csv', methods=['POST'])
 def upload_analysis2_csv():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file part"}), 400
-    f = request.files['file']
-    if not f or f.filename == '':
-        return jsonify({"error": "No selected file"}), 400
-    if not f.filename.lower().endswith('.csv'):
-        return jsonify({"error": "Only CSV files allowed"}), 400
-
-    raw_bytes = f.read()
     try:
-        text = raw_bytes.decode('utf-8-sig')
-    except UnicodeDecodeError:
-        text = raw_bytes.decode('cp949')
+        if 'file' not in request.files:
+            return jsonify({"error": "No file part"}), 400
+        f = request.files['file']
+        if not f or f.filename == '':
+            return jsonify({"error": "No selected file"}), 400
+        if not f.filename.lower().endswith('.csv'):
+            return jsonify({"error": "Only CSV files allowed"}), 400
 
-    df = pd.read_csv(io.StringIO(text))
-    df.columns = df.columns.str.replace('\ufeff', '').str.strip()
-    df = df.drop(columns=['_id'], errors='ignore')
+        raw_bytes = f.read()
+        try:
+            text = raw_bytes.decode('utf-8-sig')
+        except UnicodeDecodeError:
+            text = raw_bytes.decode('cp949')
 
-    # ✅ 업로드 CSV 헤더 -> DB 필드 (오타 허용)
-    mapping = {
-        "DroneCode":       "DroneCode",
-        "DroneCod":        "DroneCode",          # 오타 허용
-        "Start":           "Start",
-        "Stop":            "Stop",
-        "MesurementTime":  "MesurementTime",     # 요청 철자 그대로
-        "MeasurementTime": "MesurementTime",     # 오타를 표준으로 통일
-        "Latitude":        "Latitude",
-        "Longitude":       "Longitude",
-        "Altitude":        "Altitude",
-        "East":            "East",
-        "West":            "West",
-        "South":           "South",
-        "North":           "North",
-        "Average":         "Average",
-    }
+        df = pd.read_csv(io.StringIO(text))
+        df.columns = df.columns.str.replace('\ufeff', '').str.strip()
+        df = df.drop(columns=['_id'], errors='ignore')
 
-    if not set(mapping.keys()).intersection(df.columns):
-        return jsonify({"error": "Unexpected CSV headers",
-                        "headers": df.columns.tolist()}), 400
+        # ✅ 업로드 CSV 헤더 -> DB 필드 (오타 허용)
+        mapping = {
+            "DroneCode":       "DroneCode",
+            "DroneCod":        "DroneCode",          # 오타 허용
+            "Start":           "Start",
+            "Stop":            "Stop",
+            "MesurementTime":  "MesurementTime",     # 요청 철자 그대로
+            "MeasurementTime": "MesurementTime",     # 오타를 표준으로 통일
+            "Latitude":        "Latitude",
+            "Longitude":       "Longitude",
+            "Altitude":        "Altitude",
+            "East":            "East",
+            "West":            "West",
+            "South":           "South",
+            "North":           "North",
+            "Average":         "Average",
+        }
 
-    df.rename(columns=mapping, inplace=True)
+        if not set(mapping.keys()).intersection(df.columns):
+            return jsonify({
+                "error": "Unexpected CSV headers",
+                "headers": df.columns.tolist()
+            }), 400
 
-    # ✅ 날짜/시간: Start, Stop만 변환 (MesurementTime 은 문자열 유지)
-    for dt_col in ["Start", "Stop"]:
-        if dt_col in df.columns:
-            df[dt_col] = pd.to_datetime(df[dt_col], errors='coerce')
+        # 존재하는 컬럼만 적용하여 리네임
+        present = {k: v for k, v in mapping.items() if k in df.columns}
+        df.rename(columns=present, inplace=True)
 
-    # MesurementTime 이 없으면 Start/Stop 차이로 "H:MM" 형태 계산(선택)
-    if "MesurementTime" not in df.columns and {"Start","Stop"}.issubset(df.columns):
-        def fmt_duration(td):
-            if pd.isna(td):
-                return None
-            total_min = int(td.total_seconds() // 60)
-            return f"{total_min // 60}:{total_min % 60:02d}"
-        df["MesurementTime"] = (df["Stop"] - df["Start"]).apply(fmt_duration)
+        # ✅ 날짜/시간: Start, Stop만 변환 (MesurementTime 은 문자열 유지)
+        for dt_col in ["Start", "Stop"]:
+            if dt_col in df.columns:
+                df[dt_col] = pd.to_datetime(df[dt_col], errors='coerce')
 
-    # ✅ 숫자형 컬럼 변환
-    for num_col in ["Latitude","Longitude","Altitude","East","West","South","North","Average"]:
-        if num_col in df.columns:
-            df[num_col] = pd.to_numeric(df[num_col], errors='coerce')
+        # MesurementTime: 없거나 값이 비어 있으면 Start/Stop 차이로 "H:MM" 보충
+        if "MesurementTime" not in df.columns:
+            df["MesurementTime"] = None
+        if {"Start", "Stop"}.issubset(df.columns):
+            need_fill = df["MesurementTime"].isna() | (df["MesurementTime"].astype(str).str.strip() == "")
+            def fmt_duration(a, b):
+                if pd.isna(a) or pd.isna(b):
+                    return None
+                total_min = int((b - a).total_seconds() // 60)
+                return f"{total_min // 60}:{total_min % 60:02d}"
+            df.loc[need_fill, "MesurementTime"] = [
+                fmt_duration(a, b) for a, b in zip(df.loc[need_fill, "Start"], df.loc[need_fill, "Stop"])
+            ]
 
-    # Average 자동 보정(선택)
-    if set(["East","West","South","North"]).issubset(df.columns):
-        df["Average"] = df["Average"].fillna(
-            df[["East","West","South","North"]].mean(axis=1)
-        )
+        # ✅ 숫자형 컬럼 변환
+        for num_col in ["Latitude", "Longitude", "Altitude", "East", "West", "South", "North", "Average"]:
+            if num_col in df.columns:
+                df[num_col] = pd.to_numeric(df[num_col], errors='coerce')
 
-    # 좌표 없는 행 제거(선택)
-    if "Latitude" in df.columns and "Longitude" in df.columns:
-        df = df[~(df["Latitude"].isna() | df["Longitude"].isna())]
+        # Average 자동 보정(선택)
+        if set(["East", "West", "South", "North"]).issubset(df.columns):
+            df["Average"] = df["Average"].fillna(
+                df[["East", "West", "South", "North"]].mean(axis=1)
+            )
 
-    # 다시 CSV로 작성(UTF-8 BOM)
-    buf = io.StringIO()
-    df.to_csv(buf, index=False, encoding='utf-8-sig')
-    buf.seek(0)
+        # 좌표 없는 행 제거(선택)
+        if "Latitude" in df.columns and "Longitude" in df.columns:
+            df = df[~(df["Latitude"].isna() | df["Longitude"].isna())]
 
-    # MongoDB 업로드
-    return upload_csv(analysis2_collection, buf, {k: v for k, v in mapping.items() if v in df.columns})
+        # NaN → None (MongoDB null)
+        df = df.where(pd.notnull(df), None)
+
+        # ✅ DataFrame → MongoDB 직접 삽입 (CSV 재직렬화 금지)
+        records = df.to_dict(orient='records')
+        if records:
+            result = analysis2_collection.insert_many(records)
+            inserted = len(result.inserted_ids)
+        else:
+            inserted = 0
+
+        return jsonify({"ok": True, "inserted": inserted}), 200
+
+    except Exception as e:
+        logging.error(f"upload_analysis2_csv error: {e}")
+        return jsonify({"error": "Failed to process the uploaded file", "details": str(e)}), 500
+
 
 # ---------------------------------------------------------------------
 # 분석4 라우터 그룹
