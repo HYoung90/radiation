@@ -1010,14 +1010,19 @@ def upload_analysis1_csv():
     for col in ['x', 'y', 'Energy range (Mev)', 'radiation']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    # 6) 다시 CSV로 버퍼 작성 (UTF-8 BOM)
+    # 6) 다시 CSV로 버퍼 작성
     buf = io.StringIO()
     df.to_csv(buf, index=False, encoding='utf-8-sig')
     buf.seek(0)
 
-    # 7) MongoDB 업로드
-    return upload_csv(analysis1_collection, buf, mapping)
-
+    # 7) MongoDB 업로드 - ✅ 현재 CSV 헤더와 DB필드명이 같으니 '동일 매핑' 사용
+    return upload_csv(analysis1_collection, buf, {
+        'checkTime': 'checkTime',
+        'x': 'x',
+        'y': 'y',
+        'Energy range (Mev)': 'Energy range (Mev)',
+        'radiation': 'radiation'
+    })
 # ---------------------------------------------------------------------
 # 분석2 라우터 그룹
 # ---------------------------------------------------------------------
@@ -1069,67 +1074,125 @@ def upload_analysis2_csv():
     df.columns = df.columns.str.replace('\ufeff', '').str.strip()
     df = df.drop(columns=['_id'], errors='ignore')
 
-    # ✅ 업로드 CSV 헤더 -> DB 필드 (오타 허용)
-    mapping = {
-        "DroneCode":       "DroneCode",
-        "DroneCod":        "DroneCode",          # 오타 허용
-        "Start":           "Start",
-        "Stop":            "Stop",
-        "MesurementTime":  "MesurementTime",     # 요청 철자 그대로
-        "MeasurementTime": "MesurementTime",     # 오타를 표준으로 통일
-        "Latitude":        "Latitude",
-        "Longitude":       "Longitude",
-        "Altitude":        "Altitude",
-        "East":            "East",
-        "West":            "West",
-        "South":           "South",
-        "North":           "North",
-        "Average":         "Average",
+    # ===== 1) 헤더 표준화(영/한글, 공백/괄호/단위/미크로 기호 정리) =====
+    def norm(s: str) -> str:
+        s = (s or '').strip().lower()
+        s = s.replace('μ', 'u').replace('µ', 'u')   # micro 통일
+        # 영문/숫자/한글만 남기기
+        return ''.join(ch for ch in s if ch.isalnum())
+
+    # 표준키 -> DB필드
+    alias_map = {
+        # 드론 코드
+        'dronecode': 'DroneCode',
+        'dronecod':  'DroneCode',
+        '드론코드':    'DroneCode',
+
+        # 시간
+        'start':        'Start',
+        '측정시작시간':   'Start',
+        '측정시작':      'Start',
+
+        'stop':         'Stop',
+        '측정종료시간':    'Stop',
+        '측정종료':       'Stop',
+
+        'mesurementtime':  'MesurementTime',   # 기존 DB 철자 유지
+        'measurementtime': 'MesurementTime',
+        '측정시간':          'MesurementTime',
+
+        # 좌표/고도
+        'latitude':  'Latitude',
+        '위도':        'Latitude',
+        'longitude': 'Longitude',
+        '경도':        'Longitude',
+        'altitude':  'Altitude',
+        '고도':        'Altitude',
+        '고도m':       'Altitude',
+
+        # 동/서/남/북(단위 포함 변형 흡수)
+        'east':       'East',
+        '동':          'East',
+        'eastusvh':   'East',
+        '동usvh':      'East',
+
+        'west':       'West',
+        '서':          'West',
+        'westusvh':   'West',
+        '서usvh':      'West',
+
+        'south':      'South',
+        '남':          'South',
+        'southusvh':  'South',
+        '남usvh':       'South',
+
+        'north':      'North',
+        '북':          'North',
+        'northusvh':  'North',
+        '북usvh':       'North',
+
+        # 평균
+        'average':                 'Average',
+        '평균':                     'Average',
+        '평균방사선량':              'Average',
+        '평균방사선량usvh':          'Average',
     }
 
-    if not set(mapping.keys()).intersection(df.columns):
-        return jsonify({"error": "Unexpected CSV headers",
-                        "headers": df.columns.tolist()}), 400
+    # 실제 컬럼 -> DB필드로 rename 매핑 구성
+    rename_map = {}
+    for col in list(df.columns):
+        key = norm(col)
+        if key in alias_map:
+            rename_map[col] = alias_map[key]
 
-    df.rename(columns=mapping, inplace=True)
+    df.rename(columns=rename_map, inplace=True)
 
-    # ✅ 날짜/시간: Start, Stop만 변환 (MesurementTime 은 문자열 유지)
-    for dt_col in ["Start", "Stop"]:
+    # ===== 2) 타입 변환 =====
+    for dt_col in ['Start', 'Stop']:
         if dt_col in df.columns:
             df[dt_col] = pd.to_datetime(df[dt_col], errors='coerce')
 
-    # MesurementTime 이 없으면 Start/Stop 차이로 "H:MM" 형태 계산(선택)
-    if "MesurementTime" not in df.columns and {"Start","Stop"}.issubset(df.columns):
+    # MesurementTime 없으면 Start/Stop으로 계산(H:MM)
+    if 'MesurementTime' not in df.columns and {'Start', 'Stop'}.issubset(df.columns):
         def fmt_duration(td):
             if pd.isna(td):
                 return None
-            total_min = int(td.total_seconds() // 60)
-            return f"{total_min // 60}:{total_min % 60:02d}"
-        df["MesurementTime"] = (df["Stop"] - df["Start"]).apply(fmt_duration)
+            mins = int(td.total_seconds() // 60)
+            return f"{mins // 60}:{mins % 60:02d}"
+        df['MesurementTime'] = (df['Stop'] - df['Start']).apply(fmt_duration)
 
-    # ✅ 숫자형 컬럼 변환
-    for num_col in ["Latitude","Longitude","Altitude","East","West","South","North","Average"]:
+    for num_col in ['Latitude','Longitude','Altitude','East','West','South','North','Average']:
         if num_col in df.columns:
             df[num_col] = pd.to_numeric(df[num_col], errors='coerce')
 
-    # Average 자동 보정(선택)
-    if set(["East","West","South","North"]).issubset(df.columns):
-        df["Average"] = df["Average"].fillna(
-            df[["East","West","South","North"]].mean(axis=1)
-        )
+    # Average 자동 보정(없으면 동서남북 평균)
+    if 'Average' not in df.columns and set(['East','West','South','North']).issubset(df.columns):
+        df['Average'] = df[['East','West','South','North']].mean(axis=1)
 
-    # 좌표 없는 행 제거(선택)
-    if "Latitude" in df.columns and "Longitude" in df.columns:
-        df = df[~(df["Latitude"].isna() | df["Longitude"].isna())]
+    # 좌표 없는 행 제거(옵션)
+    if {'Latitude','Longitude'}.issubset(df.columns):
+        df = df[~(df['Latitude'].isna() | df['Longitude'].isna())]
 
-    # 다시 CSV로 작성(UTF-8 BOM)
+    # ===== 3) 업로드(동일 매핑) =====
+    # 이제 df 컬럼명이 DB필드와 동일하므로, 동일 매핑으로 업로드
     buf = io.StringIO()
     df.to_csv(buf, index=False, encoding='utf-8-sig')
     buf.seek(0)
 
-    # MongoDB 업로드
-    return upload_csv(analysis2_collection, buf, {k: v for k, v in mapping.items() if v in df.columns})
-
+    return upload_csv(analysis2_collection, buf, {
+        'DroneCode':'DroneCode',
+        'Start':'Start',
+        'Stop':'Stop',
+        'MesurementTime':'MesurementTime',
+        'Latitude':'Latitude',
+        'Longitude':'Longitude',
+        'Altitude':'Altitude',
+        'East':'East',
+        'West':'West',
+        'South':'South',
+        'North':'North',
+        'Average':'Average',
+    })
 # ---------------------------------------------------------------------
 # 분석4 라우터 그룹
 # ---------------------------------------------------------------------
