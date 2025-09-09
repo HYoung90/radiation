@@ -9,10 +9,10 @@
     <style>
         /* 전체 페이지 스타일 */
         body {
-            font-family: 'Segoe UI', 'Arial', sans-serif; /* 현대적인 폰트 */
-            background-color: #f0f2f5; /* 부드러운 배경색 */
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            background-color: #f0f2f5;
             margin: 0;
-            padding: 20px; /* body padding 추가 */
+            padding: 20px;
             color: #333;
             line-height: 1.6;
         }
@@ -20,11 +20,11 @@
         /* 컨테이너 스타일 */
         .container {
             max-width: 1200px;
-            margin: 20px auto; /* 중앙 정렬 */
+            margin: 20px auto;
             background-color: #ffffff;
             padding: 30px;
-            border-radius: 10px; /* 모서리 둥글게 */
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); /* 그림자 */
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
         }
 
         /* 헤더 스타일 */
@@ -38,34 +38,34 @@
         }
 
         .page-header h1 {
-            font-size: 2.2em; /* 제목 크기 */
-            color: #2c3e50; /* 제목 색상 */
-            margin: 0; /* 기본 마진 제거 */
-            text-align: left; /* 왼쪽 정렬 유지 */
+            font-size: 2.2em;
+            color: #2c3e50;
+            margin: 0;
+            text-align: left;
         }
 
         /* 버튼 그룹 스타일 */
         .btn-group {
-            margin-bottom: 0; /* 페이지 헤더 내부에 있으므로 마진 제거 */
+            margin-bottom: 0;
             display: flex;
-            justify-content: flex-end; /* 오른쪽 정렬 */
-            gap: 10px; /* 버튼 간격 추가 */
+            justify-content: flex-end;
+            gap: 10px;
         }
 
         /* 공통 버튼 스타일 */
         .btn {
             display: inline-block;
-            padding: 12px 22px; /* 버튼 패딩 조정 */
-            font-size: 0.95em; /* 버튼 폰트 크기 조정 */
+            padding: 12px 22px;
+            font-size: 0.95em;
             border: none;
-            border-radius: 6px; /* 버튼 모서리 둥글게 */
+            border-radius: 6px;
             cursor: pointer;
             text-decoration: none;
-            margin: 0; /* btn-group에서 간격 처리하므로 개별 마진 제거 */
+            margin: 0;
             transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
             color: white;
-            min-width: 120px; /* 버튼 최소 너비 */
+            min-width: 120px;
             text-align: center;
         }
 
@@ -74,28 +74,23 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
         }
 
-        /* 버튼 색상 (어두운 회색 계열 유지) */
+        /* 버튼 색상 */
         .btn-back,
         .btn-csv,
-        .btn-windrose {
-            background-color: #34495e; /* 어두운 청회색 */
+        .btn-windrose,
+        .btn-refresh {
+            background-color: #34495e;
         }
 
         .btn-back:hover,
         .btn-csv:hover,
-        .btn-windrose:hover {
-            background-color: #2c3e50; /* Hover 시 더 어둡게 */
-        }
-
-        .btn-refresh {
-            background-color: #34495e; /* 파란색 계열 */
-        }
+        .btn-windrose:hover,
         .btn-refresh:hover {
-            background-color: #0056b3;
+            background-color: #2c3e50;
         }
 
-        /* 날짜 필터 영역 스타일 - 이전 파일의 스타일 적용 */
-        .date-filter-section { /* 기존 .date-filter를 이 클래스로 변경 */
+        /* 날짜 필터 영역 스타일 */
+        .date-filter-section {
             display: flex;
             justify-content: flex-start;
             align-items: center;
@@ -103,7 +98,7 @@
             gap: 15px;
             margin-bottom: 30px;
             padding: 20px;
-            background-color: #f7f9fa; /* 필터 섹션 배경색 */
+            background-color: #f7f9fa;
             border-radius: 8px;
             box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.04);
         }
@@ -140,22 +135,22 @@
         .ui-datepicker-trigger img {
             width: 24px;
             height: 24px;
-            opacity: 0.7; /* 아이콘 투명도 */
+            opacity: 0.7;
             transition: opacity 0.2s ease;
         }
         .ui-datepicker-trigger:hover img {
-            opacity: 1; /* 호버 시 불투명하게 */
+            opacity: 1;
         }
 
-        /* 날짜 필터 적용 및 초기화 버튼 스타일 - 새로고침 버튼 색상과 동일하게 */
+        /* 날짜 필터 적용 및 초기화 버튼 스타일 */
         .btn-filter-apply,
         .btn-filter-clear {
-            background-color: #34495e; /* 새로고침 버튼과 동일한 파란색 */
-            color: white; /* 텍스트 색상 흰색으로 유지 */
+            background-color: #34495e;
+            color: white;
         }
         .btn-filter-apply:hover,
         .btn-filter-clear:hover {
-            background-color: #0056b3; /* 새로고침 버튼과 동일한 hover 색상 */
+            background-color: #2c3e50;
         }
 
 
@@ -165,14 +160,14 @@
             border-collapse: collapse;
             margin-top: 30px;
             font-size: 1.0em;
-            background-color: #ffffff; /* 테이블 배경색 */
+            background-color: #ffffff;
             border-radius: 8px;
-            overflow: hidden; /* 둥근 모서리 적용을 위해 */
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); /* 테이블 그림자 */
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
 
         #weatherTable thead th {
-            background-color: #6c757d; /* 헤더 배경색 */
+            background-color: #6c757d;
             color: white;
             padding: 15px;
             text-align: center;
@@ -196,7 +191,7 @@
             cursor: pointer;
         }
 
-        /* DataTable 정보 텍스트, 검색 필드, 길이 선택 숨기기 (페이지네이션은 유지) */
+        /* DataTable 정보 텍스트, 검색 필드, 길이 선택 숨기기 */
         .dataTables_wrapper .dataTables_info,
         .dataTables_wrapper .dataTables_filter,
         .dataTables_wrapper .dataTables_length {
@@ -228,16 +223,6 @@
             margin-top: 20px;
             text-align: center;
         }
-
-        /* 차트 스타일 (이 섹션은 제거됩니다) */
-        /*
-        .chart-container {
-            position: relative;
-            height: 40vh;
-            width: 100%;
-            margin: 20px auto;
-        }
-        */
     </style>
 </head>
 <body>
@@ -252,9 +237,14 @@
             </div>
         </div>
 
-        <div class="date-filter-section"> <label for="start-date">시작일: </label>
-            <input type="text" id="start-date" name="start-date" readonly> <label for="end-date">종료일: </label>
-            <input type="text" id="end-date" name="end-date" readonly> <button class="btn btn-filter-apply" onclick="applyDateFilter()">적용</button> <button class="btn btn-filter-clear" onclick="clearDateFilter()">초기화</button> </div>
+        <div class="date-filter-section">
+            <label for="start-date">시작일: </label>
+            <input type="text" id="start-date" name="start-date" readonly>
+            <label for="end-date">종료일: </label>
+            <input type="text" id="end-date" name="end-date" readonly>
+            <button class="btn btn-filter-apply" onclick="applyDateFilter()">적용</button>
+            <button class="btn btn-filter-clear" onclick="clearDateFilter()">초기화</button>
+        </div>
 
         <table id="weatherTable" class="display">
             <thead>
@@ -289,15 +279,13 @@
             </tbody>
         </table>
 
-        </div>
+    </div>
 
     <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
     <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
     <script>
         $(document).ready(function() {
-            // var weatherChartInstance; // 차트 인스턴스를 저장할 변수 (제거)
-
             $('#weatherTable').DataTable({
                 "paging": true,
                 "lengthChange": false,
@@ -307,7 +295,7 @@
                 "autoWidth": false,
                 "order": [[0, 'desc']],
                 "pageLength": 20,
-                "language": { // DataTables 언어를 한글로 설정
+                "language": {
                     "emptyTable": "데이터가 없습니다.",
                     "zeroRecords": "검색 결과 없음",
                     "loadingRecords": "로딩 중...",
@@ -323,11 +311,11 @@
                         "sortDescending": ": 내림차순 정렬"
                     }
                 },
-                "columns": [ // DataTables 컬럼 정의를 추가하여 한글 제목과 데이터 매핑
+                "columns": [
                     { "data": "time", "title": "시간" },
                     { "data": "temperature", "title": "온도 (°C)" },
                     { "data": "humidity", "title": "습도 (%)" },
-                    { "data": "rainfall", "title": "누적 일일강수량 (mm)" },
+                    { "data": "rainfall", "title": "강수량 (mm)" },
                     { "data": "windspeed", "title": "풍속 (m/s)" },
                     { "data": "winddirection", "title": "풍향 (°)" },
                     { "data": "stability", "title": "대기 안정도" }
@@ -338,7 +326,7 @@
             $("#start-date").datepicker({
                 dateFormat: 'yy-mm-dd',
                 showOn: 'button',
-                buttonText: "<img src='https://jqueryui.com/resources/demos/images/calendar.gif' alt='달력 아이콘'>", /* 달력 아이콘 추가 */
+                buttonText: "<img src='https://jqueryui.com/resources/demos/images/calendar.gif' alt='달력 아이콘'>",
                 changeMonth: true,
                 changeYear: true,
                 onSelect: function(selectedDate) {
@@ -349,7 +337,7 @@
             $("#end-date").datepicker({
                 dateFormat: 'yy-mm-dd',
                 showOn: 'button',
-                buttonText: "<img src='https://jqueryui.com/resources/demos/images/calendar.gif' alt='달력 아이콘'>", /* 달력 아이콘 추가 */
+                buttonText: "<img src='https://jqueryui.com/resources/demos/images/calendar.gif' alt='달력 아이콘'>",
                 changeMonth: true,
                 changeYear: true,
                 onSelect: function(selectedDate) {
@@ -380,34 +368,27 @@
                     })
                     .then(data => {
                         const table = $('#weatherTable').DataTable();
-                        table.clear(); // 기존 데이터 지우기
-
-                        data.forEach(entry => {
-                            table.row.add(entry); // DataTables의 columns 정의를 사용하여 객체 자체를 추가
-                        });
-
-                        table.draw(false); // 새 데이터를 추가한 후 테이블 다시 그리기
+                        table.clear();
+                        table.rows.add(data).draw(false);
                     })
                     .catch(error => {
                         console.error('Error applying date filter:', error);
                         alert(`데이터를 불러오는 데 실패했습니다: ${error.message || '알 수 없는 오류'}`);
-                        // 데이터가 없는 경우 테이블 초기화
                         $('#weatherTable').DataTable().clear().draw();
                     });
-            }
+            };
 
-            // 초기화 버튼 함수 (추가됨)
+            // 초기화 버튼 함수
             window.clearDateFilter = function() {
                 $('#start-date').val('');
                 $('#end-date').val('');
-                // 필터 초기화 후 모든 데이터 다시 불러오기
                 loadAllWeatherData();
             };
 
-            // 초기 로드 시 모든 데이터를 불러오는 함수 (날짜 필터 없음)
+            // 초기 로드 시 모든 데이터를 불러오는 함수
             function loadAllWeatherData() {
                 const region = "{{ region }}";
-                fetch(`/api/data/${region}/filtered`) // 필터링 파라미터 없이 호출하면 모든 데이터 로드 (서버 API 로직에 따름)
+                fetch(`/api/data/${region}/filtered`)
                     .then(response => {
                         if (!response.ok) {
                             if (response.status === 404) {
@@ -420,11 +401,7 @@
                     .then(data => {
                         const table = $('#weatherTable').DataTable();
                         table.clear();
-
-                        data.forEach(entry => {
-                            table.row.add(entry); // DataTables의 columns 정의를 사용하여 객체 자체를 추가
-                        });
-                        table.draw(false);
+                        table.rows.add(data).draw(false);
                     })
                     .catch(error => {
                         console.error('Error loading all weather data:', error);
@@ -441,20 +418,18 @@
         function downloadCSV() {
             var table = $('#weatherTable').DataTable();
             var data = table.rows().data().toArray();
-            var csv = "시간,온도 (°C),습도 (%),강수량 (mm),풍속 (m/s),풍향 (°),대기 안정도\n"; // 한글 헤더로 변경
+            var csv = "시간,온도 (°C),습도 (%),강수량 (mm),풍속 (m/s),풍향 (°),대기 안정도\n";
             data.forEach(function(row) {
-                // row가 DataTables의 columns 정의에 따라 객체 형태로 반환되므로, 필드 이름을 사용하여 값에 접근합니다.
                 csv += `${row.time},${row.temperature},${row.humidity},${row.rainfall},${row.windspeed},${row.winddirection},${row.stability}\n`;
             });
 
-            // BOM (Byte Order Mark)을 추가합니다.
             var unicode = "\ufeff";
             var blob = new Blob([unicode + csv], { type: 'text/csv;charset=utf-8;' });
             var link = document.createElement("a");
             if (link.download !== undefined) {
                 var url = URL.createObjectURL(blob);
                 link.setAttribute("href", url);
-                link.setAttribute("download", "{{ plant_name }}_기상_데이터.csv"); // 한글 파일명 변경
+                link.setAttribute("download", "{{ plant_name }}_기상_데이터.csv");
                 link.style.visibility = 'hidden';
                 document.body.appendChild(link);
                 link.click();
