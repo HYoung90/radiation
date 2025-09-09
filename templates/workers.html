@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>방재요원 정보</title>
+
+  <!-- DataTables & Leaflet CSS -->
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.min.css">
+
+  <style>
+    /* PC 및 기본 스타일 */
+    body { font-family: 'Segoe UI','Arial',sans-serif; background-color:#f0f2f5; margin:0; padding:20px; color:#333; line-height:1.6; }
+    .container { max-width:1200px; margin:20px auto; background:#fff; padding:30px; border-radius:10px; box-shadow:0 4px 15px rgba(0,0,0,0.08); }
+    h1 { font-size:2.2em; color:#2c3e50; margin:0 0 25px; padding-bottom:15px; border-bottom:2px solid #ddd; }
+
+    .btn-group { display:flex; justify-content:flex-end; gap:10px; margin-bottom:20px; }
+    .btn { display:inline-block; padding:12px 22px; font-size:.95em; border:none; border-radius:6px; cursor:pointer; text-decoration:none;
+           transition:background-color .3s, transform .2s, box-shadow .3s; box-shadow:0 2px 5px rgba(0,0,0,.1); color:#fff; min-width:120px; text-align:center; }
+    .btn:hover { transform:translateY(-2px); box-shadow:0 4px 8px rgba(0,0,0,.15); }
+    .btn-back { background:#34495e; } .btn-back:hover{ background:#2c3e50; }
+    .btn-refresh { background:#007bff; } .btn-refresh:hover{ background:#0056b3; }
+    .btn-download { background:#34495e; } .btn-download:hover{ background:#218838; }
+    .btn-upload { background:#34495e; } .btn-upload:hover{ background:#e0a800; }
+
+    #map { height:500px; border:1px solid #e0e0e0; margin-bottom:30px; border-radius:8px; box-shadow:0 2px 10px rgba(0,0,0,.05); overflow:hidden; }
+
+    #workerTable { width:100%; border-collapse:collapse; margin-top:10px; font-size:1.0em; background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,.05); }
+    #workerTable thead th { background:#6c757d; color:#fff; padding:15px; text-align:center; border-bottom:2px solid #5a6268; font-weight:600; white-space:nowrap; }
+    #workerTable tbody td { padding:12px 15px; text-align:center; vertical-align:middle; border-bottom:1px solid #e9ecef; white-space:nowrap; }
+    #workerTable tbody tr:nth-child(even){ background:#f8f9fa; }
+    #workerTable tbody tr:hover { background:#e2f4f8; }
+
+    .dataTables_wrapper .dataTables_info { font-size:.9em; color:#666; margin:15px 0; }
+    .dataTables_wrapper .dataTables_paginate { margin:15px 0 10px; display:flex; justify-content:center; align-items:center; gap:5px; }
+    .dataTables_wrapper .dataTables_paginate .paginate_button { background:#f0f0f0; color:#333!important; border:1px solid #ddd; border-radius:6px; padding:8px 14px; margin:0 4px; cursor:pointer;
+      transition:background-color .2s, color .2s, box-shadow .2s; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+    .dataTables_wrapper .dataTables_paginate .paginate_button:hover:not(.current):not(.disabled){ background:#e9ecef; box-shadow:0 2px 5px rgba(0,0,0,.1); }
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current { background:#007bff; color:#fff!important; border-color:#007bff; font-weight:bold; }
+    .dataTables_wrapper .dataTables_paginate .paginate_button.disabled { cursor:not-allowed; opacity:.5; }
+
+    @media (max-width:768px){
+      body{ padding:10px; } .container{ padding:15px; margin-top:15px; } h1{ font-size:1.8em; margin-bottom:20px; }
+      .btn-group{ flex-direction:column; gap:10px; margin-bottom:20px; } .btn{ width:100%; min-width:auto; padding:10px; font-size:.9em; }
+      #map{ height:300px; margin-bottom:20px; } #workerTable{ font-size:.9em; }
+      #workerTable thead th, #workerTable tbody td{ padding:10px; white-space:nowrap; }
+      .dataTables_wrapper .dataTables_paginate{ flex-wrap:wrap; margin-top:10px; }
+      .dataTables_wrapper .dataTables_paginate .paginate_button{ padding:6px 10px; font-size:.8em; }
+      .dataTables_wrapper .dataTables_info{ font-size:.8em; margin:10px 0; }
+    }
+
+    /* 개별 마커 divIcon 스타일 */
+    .dose-marker .dose-dot {
+      width:14px; height:14px; border-radius:50%; display:block; border:1px solid #333; opacity:.9;
+    }
+
+    /* 코드별 범례(체크리스트) */
+    .code-legend{ background:#fff; border:1px solid #ddd; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.1);
+      padding:10px 12px; font-size:12px; color:#333; max-height:280px; overflow:auto; min-width:220px; }
+    .code-legend h4{ margin:0 0 8px; font-size:13px; color:#2c3e50; }
+    .code-legend .toolbar{ display:flex; gap:6px; margin:6px 0; }
+    .code-legend .toolbar input{ flex:1; padding:4px 6px; border:1px solid #ccc; border-radius:4px; font-size:12px; }
+    .code-legend .toolbar button{ padding:4px 6px; font-size:11px; border:1px solid #ddd; background:#f8f9fa; border-radius:4px; cursor:pointer; }
+    .code-legend .item{ display:flex; align-items:center; gap:6px; margin:4px 0; }
+    .code-legend .count{ color:#666; font-size:11px; margin-left:auto; }
+
+    /* 날짜 필터 */
+    .filter-group{ display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin:12px 0 18px; padding:12px; background:#f8f9fa; border:1px solid #e9ecef; border-radius:8px; }
+    .filter-group label{ font-weight:600; color:#34495e; }
+    .filter-group input[type="text"]{ padding:8px 10px; border:1px solid #ced4da; border-radius:5px; font-size:.95em; width:160px; }
+    .filter-group .btn{ padding:8px 12px; min-width:90px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>방재요원 정보</h1>
+
+    <div class="btn-group">
+      <a href="/" class="btn btn-back">처음으로</a>
+      <button class="btn btn-refresh" onclick="location.reload()">새로고침</button>
+      <button class="btn btn-download" onclick="downloadCSV()">CSV 다운로드</button>
+      <label for="csvUpload" class="btn btn-upload">데이터 CSV 업로드</label>
+      <input type="file" id="csvUpload" accept=".csv" style="display:none" onchange="uploadDataCSV(event)"/>
+    </div>
+
+    <!-- 날짜 필터 -->
+    <div class="filter-group">
+      <label for="minDate">시작일:</label>
+      <input type="text" id="minDate" readonly />
+      <label for="maxDate">종료일:</label>
+      <input type="text" id="maxDate" readonly />
+      <button class="btn btn-refresh" onclick="applyDateFilter()">적용</button>
+      <button class="btn btn-clear" onclick="clearDateFilter()">초기화</button>
+    </div>
+
+    <div id="map"></div>
+
+    <div class="dataTables_wrapper">
+      <table id="workerTable" class="display">
+        <thead>
+          <tr>
+            <th>선량계 코드</th>
+            <th>위도</th>
+            <th>경도</th>
+            <th>현재 방사선량<br>(nSv/h)</th>
+            <th>누적 방사선량<br>(nSv)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if data %}
+            {% for e in data %}
+              <tr>
+                <td>{{ e.genName|default(e.deviceCode)|default(e.code)|default('-') }}</td>
+                <td>{% if e.lat is not none %}{{ "%.4f"|format(e.lat|float) }}{% else %}-{% endif %}</td>
+                <td>{% if e.lng is not none %}{{ "%.4f"|format(e.lng|float) }}{% else %}-{% endif %}</td>
+                <td>{{ e.radiation|default(e.doseRate)|default('-') }}</td>
+                <td>{{ e.cumulativeRadiation|default(e.cumulativeDose)|default('-') }}</td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr><td colspan="5">데이터가 없습니다.</td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- JS -->
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+
+  <script>
+    // DataTable 전역 참조 (범례에서 table.draw() 호출 필요)
+    let table;
+
+    $(function () {
+      table = $('#workerTable').DataTable({
+        paging: true,
+        pageLength: 10,
+        lengthChange: false,
+        searching: true,
+        ordering: false,
+        info: true,
+        autoWidth: false,
+        language: {
+          emptyTable: '데이터가 없습니다.',
+          zeroRecords: '검색 결과 없음',
+          loadingRecords: '로딩 중...',
+          processing: '처리 중...',
+          paginate: { first: '처음', last: '마지막', next: '다음', previous: '이전' },
+          aria: { sortAscending: ': 오름차순 정렬', sortDescending: ': 내림차순 정렬' }
+        }
+      });
+
+      // jQuery UI Datepicker
+      $('#minDate').datepicker({ dateFormat: 'yy-mm-dd', changeMonth: true, changeYear: true });
+      $('#maxDate').datepicker({ dateFormat: 'yy-mm-dd', changeMonth: true, changeYear: true });
+    });
+
+    // CSV 다운로드
+    function downloadCSV() {
+      const selected = Array.from(document.querySelectorAll('.code-legend input[type="checkbox"]:checked')).map(cb => cb.value);
+      const minD = $('#minDate').val();
+      const maxD = $('#maxDate').val();
+      let url = '/export_workers_csv';
+      const params = new URLSearchParams();
+      if (selected.length) params.set('codes', selected.join(','));
+      if (minD) params.set('minDate', minD);
+      if (maxD) params.set('maxDate', maxD);
+      const q = params.toString();
+      window.location = q ? `${url}?${q}` : url;
+    }
+
+    function applyDateFilter() {
+      const minD = $('#minDate').val();
+      const maxD = $('#maxDate').val();
+      if (!minD && !maxD) { alert('시작일 또는 종료일을 선택해주세요.'); return; }
+      const params = new URLSearchParams();
+      if (minD) params.set('minDate', minD);
+      if (maxD) params.set('maxDate', maxD);
+      const selected = Array.from(document.querySelectorAll('.code-legend input[type="checkbox"]:checked')).map(cb => cb.value);
+      if (selected.length) params.set('codes', selected.join(',')); // 북마크용
+      window.location = params.toString() ? `/workers?${params.toString()}` : '/workers';
+    }
+
+    function clearDateFilter() {
+      $('#minDate').val('');
+      $('#maxDate').val('');
+      window.location = '/workers';
+    }
+
+    // (선택) 업로드 라우트가 있을 때만 사용
+    function uploadDataCSV(e) {
+      const f = e.target.files[0];
+      if (!f) return;
+      const fd = new FormData();
+      fd.append('file', f);
+      fetch('/upload_workers_csv', { method: 'POST', body: fd })
+        .then(r => r.text())
+        .then(txt => { alert(txt); location.reload(); })
+        .catch(_ => alert('업로드 실패'));
+    }
+
+    // 지도 초기화
+    const measurementData = {{ data|tojson }};
+    const points = Array.isArray(measurementData)
+      ? measurementData.filter(pt => pt && pt.lat != null && pt.lng != null && !isNaN(pt.lat) && !isNaN(pt.lng))
+      : [];
+
+    const map = L.map('map');
+    if (points.length > 0) {
+      const latlngs = points.map(p => [Number(p.lat), Number(p.lng)]);
+      map.fitBounds(latlngs, { padding: [20, 20] });
+    } else {
+      map.setView([36.5, 127.8], 8);
+    }
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: 'Map tiles by CartoDB, CC BY 3.0 — Map data © OpenStreetMap contributors',
+      subdomains: 'abcd', maxZoom: 19
+    }).addTo(map);
+
+    // 마커 색상 로직
+    function levelFromThresholds(value, steps) {
+      if (value == null || isNaN(value)) return 0;
+      let level = 0;
+      for (let i = 0; i < steps.length; i++) if (value >= steps[i]) level = i + 1;
+      return level;
+    }
+    const currentSteps = [150, 200, 500, 1000];
+    const cumulativeSteps = [300, 500, 1000, 2000];
+    const colors = ['#2ecc71', '#f1c40f', '#e67e22', '#e74c3c', '#8e44ad'];
+    function colorFor(doseRate, cumDose) {
+      const lvCur = levelFromThresholds(Number(doseRate), currentSteps);
+      const lvCum = levelFromThresholds(Number(cumDose), cumulativeSteps);
+      const lv = Math.max(lvCur, lvCum);
+      return colors[lv] || '#9aa0a6';
+    }
+
+    const clustersByCode = {};
+    const overlayLayers = {};
+
+    if (Array.isArray(measurementData)) {
+      measurementData.forEach(pt => {
+        const code = pt.genName || pt.deviceCode || pt.code || 'N/A';
+        const doseRate = (pt.radiation ?? pt.doseRate);
+        const cumDose = (pt.cumulativeRadiation ?? pt.cumulativeDose);
+
+        if (pt.lat != null && pt.lng != null) {
+          const lat = Number(pt.lat), lng = Number(pt.lng);
+          const fill = colorFor(doseRate, cumDose);
+
+          if (!clustersByCode[code]) {
+            const group = L.markerClusterGroup({ spiderfyOnMaxZoom:true, showCoverageOnHover:false, maxClusterRadius:50 });
+            clustersByCode[code] = group; overlayLayers[code] = group; map.addLayer(group);
+          }
+
+          const icon = L.divIcon({
+            className: 'dose-marker',
+            html: `<span class="dose-dot" style="background:${fill}"></span>`,
+            iconSize: [16, 16], iconAnchor: [8, 8]
+          });
+
+          const marker = L.marker([lat, lng], { icon });
+          marker.bindPopup(`
+            <strong>선량계 코드:</strong> ${code}<br>
+            <strong>현재 방사선량:</strong> ${doseRate ?? '-'} nSv/h<br>
+            <strong>누적 방사선량:</strong> ${cumDose ?? '-'} nSv
+          `);
+          clustersByCode[code].addLayer(marker);
+        }
+      });
+
+      // 코드별 범례 + DataTables 필터
+      const countsByCode = {};
+      Object.keys(clustersByCode).forEach(code => countsByCode[code] = clustersByCode[code].getLayers().length);
+
+      const legendCtrlCode = L.control({ position: 'topright' });
+      legendCtrlCode.onAdd = function () {
+        const div = L.DomUtil.create('div', 'code-legend');
+        div.innerHTML = '<h4>코드별 표시</h4>';
+
+        const toolbar = document.createElement('div'); toolbar.className = 'toolbar';
+        const search = document.createElement('input'); search.type = 'text'; search.placeholder = '코드 검색';
+        const btnAll = document.createElement('button'); btnAll.textContent = '전체 선택';
+        const btnNone = document.createElement('button'); btnNone.textContent = '전체 해제';
+        const btnSel = document.createElement('button'); btnSel.textContent = '필터 선택';
+        toolbar.appendChild(search); toolbar.appendChild(btnAll); toolbar.appendChild(btnNone); toolbar.appendChild(btnSel);
+        div.appendChild(toolbar);
+
+        const wrap = document.createElement('div');
+        const selectedCodes = new Set();
+
+        const makeRow = (code) => {
+          const row = document.createElement('label'); row.className = 'item';
+          const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = code;
+          cb.checked = map.hasLayer(clustersByCode[code]); if (cb.checked) selectedCodes.add(code);
+          cb.addEventListener('change', () => {
+            if (cb.checked) { map.addLayer(clustersByCode[code]); selectedCodes.add(code); }
+            else { map.removeLayer(clustersByCode[code]); selectedCodes.delete(code); }
+            if (window.table) table.draw();
+          });
+          const spanCode = document.createElement('span'); spanCode.textContent = code;
+          const spanCnt = document.createElement('span'); spanCnt.className = 'count'; spanCnt.textContent = `(${countsByCode[code] || 0})`;
+          row.appendChild(cb); row.appendChild(spanCode); row.appendChild(spanCnt);
+          row.dataset.code = code;
+          return row;
+        };
+
+        const codesSorted = Object.keys(clustersByCode).sort();
+        codesSorted.forEach(code => wrap.appendChild(makeRow(code)));
+        div.appendChild(wrap);
+
+        const filterRows = () => {
+          const q = (search.value || '').toLowerCase();
+          Array.from(wrap.children).forEach(child => {
+            const code = child.dataset.code.toLowerCase();
+            child.style.display = code.includes(q) ? '' : 'none';
+          });
+        };
+        search.addEventListener('input', filterRows);
+
+        btnAll.addEventListener('click', () => {
+          Array.from(wrap.querySelectorAll('input[type="checkbox"]')).forEach(cb => {
+            if (!cb.checked) { cb.checked = true; map.addLayer(clustersByCode[cb.value]); selectedCodes.add(cb.value); }
+          });
+          if (window.table) table.draw();
+        });
+        btnNone.addEventListener('click', () => {
+          Array.from(wrap.querySelectorAll('input[type="checkbox"]')).forEach(cb => {
+            if (cb.checked) { cb.checked = false; map.removeLayer(clustersByCode[cb.value]); selectedCodes.delete(cb.value); }
+          });
+          if (window.table) table.draw();
+        });
+        btnSel.addEventListener('click', () => {
+          const q = (search.value || '').toLowerCase();
+          Array.from(wrap.children).forEach(child => {
+            const code = child.dataset.code;
+            const match = child.style.display !== 'none';
+            const cb = child.querySelector('input[type="checkbox"]');
+            if (match && !cb.checked) { cb.checked = true; map.addLayer(clustersByCode[code]); selectedCodes.add(code); }
+            if (!match && cb.checked) { cb.checked = false; map.removeLayer(clustersByCode[code]); selectedCodes.delete(code); }
+          });
+          if (window.table) table.draw();
+        });
+
+        // DataTables 필터 등록
+        $.fn.dataTable.ext.search.push(function (_settings, data) {
+          const code = data[0];
+          if (selectedCodes.size === 0) return true;
+          return selectedCodes.has(code);
+        });
+
+        return div;
+      };
+      legendCtrlCode.addTo(map);
+
+      // 색상 범례
+      const legend = L.control({ position: 'bottomright' });
+      legend.onAdd = function () {
+        const div = L.DomUtil.create('div', 'info legend');
+        div.style.background = 'white'; div.style.padding='8px 10px'; div.style.border='1px solid #ddd';
+        div.style.borderRadius='6px'; div.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)';
+        const labels = [
+          { c: colors[0], t: '정상' }, { c: colors[1], t: '1단계' }, { c: colors[2], t: '2단계' }, { c: colors[3], t: '3단계' }, { c: colors[4], t: '4단계' }
+        ];
+        div.innerHTML = `<div style="font-weight:600;margin-bottom:6px">마커 색상 기준</div>
+          <div style="font-size:12px;line-height:1.5">
+            <div>색상은 <strong>현재/누적</strong> 중 더 높은 단계 기준</div>
+            <div style="margin-top:6px"><u>현재(nSv/h)</u>: < 150 (정상), ≥150, ≥200, ≥500, ≥1000</div>
+            <div><u>누적(nSv)</u>: < 300 (정상), ≥300, ≥500, ≥1000, ≥2000</div>
+          </div>`;
+        const rowWrap = document.createElement('div'); rowWrap.style.display='flex'; rowWrap.style.gap='6px'; rowWrap.style.marginTop='6px';
+        labels.forEach(l => {
+          const item = document.createElement('div'); item.style.display='flex'; item.style.alignItems='center'; item.style.gap='4px';
+          item.innerHTML = `<span style="display:inline-block;width:12px;height:12px;background:${l.c};border:1px solid #999"></span><span style="font-size:12px">${l.t}</span>`;
+          rowWrap.appendChild(item);
+        });
+        div.appendChild(rowWrap);
+        return div;
+      };
+      legend.addTo(map);
+    }
+  </script>
+</body>
+</html>

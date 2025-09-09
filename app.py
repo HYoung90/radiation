@@ -3,7 +3,7 @@
 # 데이터 필터링, 최신 데이터 조회, CSV 내보내기 등의 기능을 제공합니다.
 
 
-from flask import Flask, render_template, request, redirect, url_for, jsonify, session, flash, make_response
+from flask import Flask, render_template, request, redirect, jsonify, session, flash, make_response
 from flask_caching import Cache
 from flask import Response
 import urllib.parse
@@ -100,6 +100,7 @@ FNC_collection = db['Data_FNC']
 KAERI_collection = db['Data_KAERI']
 RMT_collection = db['Data_RMT']
 uploads_collection = db['uploads']  # GIF 업로드 메타 저장
+workers_collection = db['Data_RMT_workers']
 
 analysis1_collection = CAU_collection
 analysis2_collection = FNC_collection
@@ -113,6 +114,11 @@ nuclear_radiation_collection.create_index(
 )
 
 uploads_collection.create_index([('type', 1), ('created_at', -1)], name='ix_uploads_type_created')
+
+workers_collection.create_index(
+    [('code', 1), ('checkTime', -1)],
+    name='ix_workers_code_time'
+)
 
 # 로깅 설정
 class ColoredFormatter(logging.Formatter):
@@ -1613,6 +1619,196 @@ def list_uploaded_gifs():
 @app.route('/uploads/<path:filename>')
 def serve_uploads(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+@app.route('/workers')
+@login_required
+def workers_page():
+    """
+    방재요원 정보 페이지.
+    쿼리 파라미터:
+      - minDate, maxDate: checkTime 기준(YYYY-MM-DD)
+    문자열로 저장된 checkTime도 $expr/$toDate로 필터링.
+    """
+    try:
+        q_and = []   # 다른 필터가 생기면 여기에 and 조건 추가
+        min_str = request.args.get('minDate')
+        max_str = request.args.get('maxDate')
+
+        # 날짜 파싱(+유효성)
+        min_dt = pd.to_datetime(min_str, errors='coerce') if min_str else None
+        max_dt = pd.to_datetime(max_str, errors='coerce') if max_str else None
+
+        if min_str and pd.isna(min_dt):
+            return render_template('workers.html', data=[], error="Invalid minDate format. Use YYYY-MM-DD")
+        if max_str and pd.isna(max_dt):
+            return render_template('workers.html', data=[], error="Invalid maxDate format. Use YYYY-MM-DD")
+
+        # 뒤바뀐 범위 자동 스왑
+        if min_dt is not None and max_dt is not None and min_dt > max_dt:
+            min_dt, max_dt = max_dt, min_dt
+
+        # 날짜 조건(둘 중 하나만 있어도 동작)
+        if min_dt is not None or max_dt is not None:
+            or_clauses = []
+
+            # 1) BSON Date 타입 직접 비교
+            rng = {}
+            if min_dt is not None:
+                rng["$gte"] = min_dt
+            if max_dt is not None:
+                rng["$lt"]  = max_dt + pd.Timedelta(days=1)  # 종료일 포함
+            if rng:
+                or_clauses.append({"checkTime": rng})
+
+            # 2) 문자열인 경우 $toDate 변환해서 비교 ($expr 사용)
+            expr_ands = []
+            if min_dt is not None:
+                expr_ands.append({"$gte": [ {"$toDate": "$checkTime"}, min_dt ]})
+            if max_dt is not None:
+                expr_ands.append({"$lt":  [ {"$toDate": "$checkTime"}, max_dt + pd.Timedelta(days=1) ]})
+            if expr_ands:
+                or_clauses.append({"$expr": {"$and": expr_ands}})
+
+            if or_clauses:
+                q_and.append({"$or": or_clauses})
+
+        # 최종 쿼리
+        q = {"$and": q_and} if q_and else {}
+
+        data = list(
+            workers_collection
+            .find(q, {'_id': 0})
+            .sort([('checkTime', DESCENDING), ('code', 1)])
+        )
+        return render_template('workers.html', data=data)
+    except Exception as e:
+        logging.error(f"[workers_page] DB error: {e}")
+        return render_template('workers.html', data=[], error="Failed to load data")
+
+@app.route('/export_workers_csv', methods=['GET'])
+@login_required
+def export_workers_csv():
+    """
+    방재요원 CSV 다운로드
+    - 선택 파라미터:
+      * codes: 콤마로 구분된 코드 목록 (예: KR01,KR02)
+      * minDate, maxDate: checkTime 기준 (YYYY-MM-DD)
+    문자열로 저장된 checkTime도 $expr/$toDate로 필터링.
+    """
+    q_and = []
+
+    # 코드 필터
+    codes = request.args.get('codes')
+    if codes:
+        code_list = [c.strip() for c in codes.split(',') if c.strip()]
+        if code_list:
+            q_and.append({'code': {'$in': code_list}})
+
+    # 날짜 필터 + 유효성 가드
+    min_str = request.args.get('minDate')
+    max_str = request.args.get('maxDate')
+
+    min_dt = pd.to_datetime(min_str, errors='coerce') if min_str else None
+    max_dt = pd.to_datetime(max_str, errors='coerce') if max_str else None
+
+    if min_str and pd.isna(min_dt):
+        return jsonify({"error": "Invalid minDate format. Use YYYY-MM-DD."}), 400
+    if max_str and pd.isna(max_dt):
+        return jsonify({"error": "Invalid maxDate format. Use YYYY-MM-DD."}), 400
+
+    # 뒤바뀐 범위 자동 스왑
+    if min_dt is not None and max_dt is not None and min_dt > max_dt:
+        min_dt, max_dt = max_dt, min_dt
+
+    if min_dt is not None or max_dt is not None:
+        or_clauses = []
+
+        # 1) BSON Date
+        rng = {}
+        if min_dt is not None:
+            rng["$gte"] = min_dt
+        if max_dt is not None:
+            rng["$lt"]  = max_dt + pd.Timedelta(days=1)
+        if rng:
+            or_clauses.append({"checkTime": rng})
+
+        # 2) 문자열 → $toDate
+        expr_ands = []
+        if min_dt is not None:
+            expr_ands.append({"$gte": [ {"$toDate": "$checkTime"}, min_dt ]})
+        if max_dt is not None:
+            expr_ands.append({"$lt":  [ {"$toDate": "$checkTime"}, max_dt + pd.Timedelta(days=1) ]})
+        if expr_ands:
+            or_clauses.append({"$expr": {"$and": expr_ands}})
+
+        if or_clauses:
+            q_and.append({"$or": or_clauses})
+
+    q = {"$and": q_and} if q_and else {}
+
+    return export_csv(
+        workers_collection,
+        "workers_data",
+        ["선량계 코드", "위도", "경도", "현재 방사선량(nSv/h)", "누적 방사선량(nSv)"],
+        ["code", "lat", "lng", "doseRate", "cumulativeDose"],
+        sort=[("checkTime", DESCENDING)],
+        query=q
+    )
+
+@app.route('/admin/workers/normalize_checktime', methods=['POST'])
+@login_required
+@admin_required
+def normalize_workers_checktime():
+    """
+    문자열 checkTime -> BSON Date로 마이그레이션
+    - checkTime 타입이 str인 문서를 찾아 파싱 후 datetime으로 저장
+    - ISO 형식(YYYY-MM-DD HH:mm[:ss]) 가정, 파싱 실패 문서는 건너뜀
+    """
+    from pymongo import UpdateOne
+
+    batch = []
+    scanned = 0
+    converted = 0
+    skipped = 0
+
+    # 문자열 타입만 스캔
+    cursor = workers_collection.find(
+        {"$expr": {"$eq": [{"$type": "$checkTime"}, "string"]}},
+        {"_id": 1, "checkTime": 1}
+    )
+
+    for doc in cursor:
+        scanned += 1
+        s = doc.get("checkTime")
+        if not isinstance(s, str):
+            skipped += 1
+            continue
+        # pandas로 관대하게 파싱
+        dt = pd.to_datetime(s, errors='coerce')
+        if pd.isna(dt):
+            skipped += 1
+            continue
+        batch.append(UpdateOne({"_id": doc["_id"]}, {"$set": {"checkTime": dt.to_pydatetime()}}))
+
+        # 대량일 때는 배치 커밋
+        if len(batch) >= 1000:
+            res = workers_collection.bulk_write(batch, ordered=False)
+            converted += res.modified_count
+            batch.clear()
+
+    if batch:
+        res = workers_collection.bulk_write(batch, ordered=False)
+        converted += res.modified_count
+        batch.clear()
+
+    msg = {
+        "scanned": scanned,
+        "converted": converted,
+        "skipped": skipped
+    }
+    logging.info(f"[normalize_workers_checktime] {msg}")
+    return jsonify({"message": "OK", **msg}), 200
+
 
 
 if __name__ == '__main__':
