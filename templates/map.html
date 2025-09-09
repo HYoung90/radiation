@@ -205,16 +205,16 @@
 </head>
 <body>
     <div class="sidebar">
-        <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="방사선 데이터" onclick="location.reload()">
-        <a href="/radiation_summary">주간 방사선량 데이터</a>
-        <a href="/nuclear_radiation">원자력 발전소 주변 방사선량 데이터</a>
-        <a href="/busan_radiation">부산 환경방사선량 데이터</a>
-        <a href="{{ url_for('accident_select') }}">원자력 발전소 사고 판단</a>
-        <a href="{{ url_for('optimal_shelter_evaluation') }}">구호소 대피 적합도 평가</a>
-        <a href="/spectrum">방사성 핵종 스펙트럼 분석</a>
-        <a href="/analysis1">토양 방사능 데이터</a>
-        <a href="/analysis2">대기 중 방사능 데이터</a>
-        <a href="/analysis4">수중 방사능 데이터</a>
+      <img src="{{ url_for('static', filename='images/logo.jpg') }}" alt="방사선 데이터" onclick="location.reload()">
+      <a href="/radiation_summary">주간 방사선량 데이터</a>
+      <a href="/nuclear_radiation">원자력 발전소 주변 방사선량 데이터</a>
+      <a href="{{ url_for('accident_select') }}">원자력 발전소 사고 판단</a>
+      <a href="{{ url_for('optimal_shelter_evaluation') }}">구호소 적합도 평가</a>
+      <a href="/analysis1">토양 방사능 데이터</a>
+      <a href="/analysis2">대기 방사능 데이터</a>
+      <a href="/analysis4">수중 방사능 데이터</a>
+      <a href="/spectrum">방사성 핵종 스펙트럼 분석</a>
+      <a href="/busan_radiation">부산 환경방사선량 데이터</a>
     </div>
 
     <div class="container mt-5">
