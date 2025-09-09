@@ -99,9 +99,10 @@ CAU_collection = db['Data_CAU']
 FNC_collection = db['Data_FNC']
 KAERI_collection = db['Data_KAERI']
 RMT_collection = db['Data_RMT']
+uploads_collection = db['uploads']  # GIF 업로드 메타 저장
 
 analysis1_collection = CAU_collection
-analysis2_collection = FNC_collection    # ← 여기가 핵심!
+analysis2_collection = FNC_collection
 analysis3_collection = KAERI_collection
 analysis4_collection = RMT_collection
 
@@ -110,6 +111,8 @@ nuclear_radiation_collection.create_index(
     [('genName', 1), ('time', -1)],
     name='ix_nuclear_gen_time'
 )
+
+uploads_collection.create_index([('type', 1), ('created_at', -1)], name='ix_uploads_type_created')
 
 # 로깅 설정
 class ColoredFormatter(logging.Formatter):
@@ -1563,24 +1566,49 @@ def upload_gif():
         return jsonify({"error": "GIF만 업로드"}), 400
 
     name = f"{datetime.now():%Y%m%d-%H%M%S}-{secure_filename(f.filename)}"
-    f.save(os.path.join(app.config['UPLOAD_FOLDER'], name))
-    # ✅ 절대 URL(_external=True) 말고 상대경로로 반환
-    return jsonify({"url": url_for('serve_uploads', filename=name)}), 200
+    save_path = os.path.join(app.config['UPLOAD_FOLDER'], name)
+    f.save(save_path)
 
-@app.route('/uploads/list')
-def list_gifs():
-    base = app.config['UPLOAD_FOLDER']
+    # 상대경로(URL) — 프론트에서 그대로 <img src={url}> 사용 가능
+    rel_url = url_for('serve_uploads', filename=name)
+
+    # DB 기록
     try:
-        files = [f for f in os.listdir(base) if f.lower().endswith('.gif')]
-        files.sort(reverse=True)
-    except FileNotFoundError:
-        files = []
-    # 간단 템플릿 없이 바로 출력해도 됨
-    items = '\n'.join(
-        f'<li><a href="{url_for("serve_uploads", filename=f)}" target="_blank" rel="noopener">{f}</a></li>'
-        for f in files
-    )
-    return f"<h1>GIF 목록</h1><ul>{items or '<li>없음</li>'}</ul>"
+        uploads_collection.insert_one({
+            "type": "gif",
+            "filename": name,
+            "url": rel_url,
+            "uploader": (current_user.email if hasattr(current_user, "is_authenticated") and current_user.is_authenticated else None),
+            "created_at": datetime.utcnow()
+        })
+    except Exception as e:
+        app.logger.error(f"[uploads_collection] insert error: {e}")
+
+    return jsonify({"url": rel_url}), 200
+
+
+@app.route('/api/uploads/gifs', methods=['GET'])
+def list_uploaded_gifs():
+    try:
+        limit = int(request.args.get('limit', 24))
+    except ValueError:
+        limit = 24
+
+    cur = (uploads_collection
+           .find({"type": "gif"})
+           .sort("created_at", DESCENDING)
+           .limit(limit))
+
+    out = []
+    for d in cur:
+        created_at = d.get("created_at")
+        out.append({
+            "url": d.get("url"),
+            "filename": d.get("filename"),
+            "uploader": d.get("uploader"),
+            "created_at": created_at.isoformat() if created_at else None
+        })
+    return jsonify(out), 200
 
 @app.route('/uploads/<path:filename>')
 def serve_uploads(filename):
