@@ -931,6 +931,11 @@ def export_csv_by_genName(genName):
 # ---------------------------------------------------------------------
 @app.route('/export_analysis1_csv', methods=['GET'])
 def export_analysis1_csv():
+    """
+    CSV 다운로드: checkTime, x, y, Energy range (Mev), radiation
+    (minDate/maxDate 필터 지원)
+    """
+    # 날짜 파라미터 읽기
     min_str = request.args.get('minDate')
     max_str = request.args.get('maxDate')
 
@@ -938,26 +943,33 @@ def export_analysis1_csv():
     if min_str or max_str:
         rng = {}
         if min_str:
-            rng["$gte"] = f"{pd.to_datetime(min_str):%Y-%m-%d} 00:00:00"
+            rng["$gte"] = pd.to_datetime(min_str)
         if max_str:
-            end = pd.to_datetime(max_str) + pd.Timedelta(days=1)  # 종료일 포함
-            rng["$lt"] = f"{end:%Y-%m-%d} 00:00:00"
+            rng["$lt"] = pd.to_datetime(max_str) + pd.Timedelta(days=1)  # 종료일 포함
         q["checkTime"] = rng
-
-    export_headers = ["checkTime", "x", "y", "Energy range (Mev)", "radiation"]
 
     return export_csv(
         analysis1_collection,
         "analysis1_data",
-        export_headers,     # CSV 헤더
-        export_headers,     # DB 필드명
+        ["checkTime", "X", "Y", "Energy range (Mev)", "Radiation (nSv/h)"],
+        ["checkTime", "x", "y", "Energy range (Mev)", "radiation"],
         sort=[("checkTime", DESCENDING)],
         query=q
     )
 
 @app.route('/upload_analysis1_csv', methods=['POST'])
 def upload_analysis1_csv():
-    # 1) 파일 체크
+    """
+    CSV 업로드: 영문 헤더를 checkTime 등 DB 필드로 매핑 후 업로드
+    1) 파일 존재 및 확장자 체크
+    2) 바이너리 읽기 → utf-8-sig 또는 cp949 디코딩
+    3) pandas DataFrame 생성, 컬럼 정리
+    4) CSV 헤더 → DB 필드 매핑 (mapping 딕셔너리)
+    5) checkTime → datetime, 나머지 수치 칼럼 → numeric
+    6) UTF-8 BOM 포함하여 다시 CSV 작성
+    7) upload_csv 헬퍼로 MongoDB 업로드
+    """
+    # 1) 파일 유무 & 확장자 체크
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
     f = request.files['file']
@@ -966,19 +978,19 @@ def upload_analysis1_csv():
     if not f.filename.lower().endswith('.csv'):
         return jsonify({"error": "Only CSV files allowed"}), 400
 
-    # 2) 디코딩 (utf-8-sig → cp949 폴백)
+    # 2) 바이너리 읽기 → BOM 제거 → cp949 fallback
     raw = f.read()
     try:
         text = raw.decode('utf-8-sig')
     except UnicodeDecodeError:
         text = raw.decode('cp949')
 
-    # 3) DataFrame
+    # 3) DataFrame 생성 & 컬럼 정리
     df = pd.read_csv(io.StringIO(text))
     df.columns = df.columns.str.replace('\ufeff', '').str.strip()
     df = df.drop(columns=['_id'], errors='ignore')
 
-    # 4) 헤더 매핑 (있을 때만 적용; 일부 컬럼 없어도 통과)
+    # 4) 헤더 → DB 필드 매핑
     mapping = {
         "checkTime": "checkTime",
         "X": "x",
@@ -986,78 +998,57 @@ def upload_analysis1_csv():
         "Energy range (Mev)": "Energy range (Mev)",
         "Radiation (nSv/h)": "radiation"
     }
-    present = [k for k in mapping.keys() if k in df.columns]
-    if "checkTime" not in present or ("Radiation (nSv/h)" not in present and "radiation" not in df.columns):
-        return jsonify({"error": "CSV must contain at least 'checkTime' and radiation column",
-                        "headers": df.columns.tolist()}), 400
-    df.rename(columns={k: mapping[k] for k in present}, inplace=True)
+    if not set(mapping.keys()).issubset(df.columns):
+        return jsonify({
+            "error": "Unexpected CSV headers",
+            "headers": df.columns.tolist()
+        }), 400
+    df.rename(columns=mapping, inplace=True)
 
-    # 5) 날짜/숫자 변환 (여러 포맷 허용)
-    def parse_dt(s):
-        for fmt in ('%Y/%m/%d %H:%M', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M'):
-            try:
-                return pd.to_datetime(s, format=fmt)
-            except Exception:
-                pass
-        return pd.to_datetime(s, errors='coerce')
-
-    df['checkTime'] = df['checkTime'].apply(parse_dt)
+    # 5) 타입 변환
+    df['checkTime'] = pd.to_datetime(df['checkTime'], errors='coerce')
     for col in ['x', 'y', 'Energy range (Mev)', 'radiation']:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
+        df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    # 필수값 보강/정리
-    df.dropna(subset=['checkTime'], inplace=True)
-    if 'radiation' in df.columns:
-        df.dropna(subset=['radiation'], inplace=True)
-
-    # 중복 제거(시간+방사선 기준)
-    if 'radiation' in df.columns:
-        df.drop_duplicates(subset=['checkTime', 'radiation'], keep='first', inplace=True)
-    else:
-        df.drop_duplicates(subset=['checkTime'], keep='first', inplace=True)
-
-    # DB에 문자열/날짜 혼재를 피하려면 한 포맷으로 통일(문자열 권장)
-    df['checkTime'] = df['checkTime'].dt.strftime('%Y-%m-%d %H:%M:%S')
-
-    # 6) 다시 CSV (UTF-8 BOM)
+    # 6) 다시 CSV로 버퍼 작성 (UTF-8 BOM)
     buf = io.StringIO()
     df.to_csv(buf, index=False, encoding='utf-8-sig')
     buf.seek(0)
 
-    # 7) 업로드 (CSV 헤더 그대로 저장 = 아이덴티티 매핑)
-    return upload_csv(analysis1_collection, buf, {c: c for c in df.columns})
+    # 7) MongoDB 업로드
+    return upload_csv(analysis1_collection, buf, mapping)
 
 # ---------------------------------------------------------------------
 # 분석2 라우터 그룹
 # ---------------------------------------------------------------------
 # -- CSV 내보내기 (영문 헤더) --
-@app.route('/analysis2')
-def analysis2():
-    try:
-        min_str = request.args.get('minDate')
-        max_str = request.args.get('maxDate')
+@app.route('/export_analysis2_csv', methods=['GET'])
+def export_analysis2_csv():
+    # ▼ 날짜 파라미터 읽어서 Start 기준으로 필터 생성
+    min_str = request.args.get('minDate')
+    max_str = request.args.get('maxDate')
 
-        q = {}
-        if min_str or max_str:
-            rng = {}
-            if min_str:
-                rng["$gte"] = f"{pd.to_datetime(min_str):%Y-%m-%d} 00:00:00"
-            if max_str:
-                end = pd.to_datetime(max_str) + pd.Timedelta(days=1)
-                rng["$lt"] = f"{end:%Y-%m-%d} 00:00:00"
-            q["Start"] = rng  # Start 문자열 범위 비교
+    q = {}
+    if min_str or max_str:
+        rng = {}
+        if min_str:
+            rng["$gte"] = pd.to_datetime(min_str)
+        if max_str:
+            rng["$lt"]  = pd.to_datetime(max_str) + pd.Timedelta(days=1)  # 종료일 포함
+        q["Start"] = rng
 
-        data = list(
-            analysis2_collection
-            .find(q, {"_id": 0})
-            .sort("Start", DESCENDING)
-        )
-        return render_template('analysis2.html', data=data)
-    except Exception as e:
-        logging.error(f"Error in fetching data from MongoDB: {e}")
-        return render_template('analysis2.html', data=[], error="Failed to load data")
+    return export_csv(
+        analysis2_collection,
+        "analysis2_data",
+        ["DroneCode","Start","Stop","MesurementTime","Latitude","Longitude",
+         "Altitude","East","West","South","North","Average"],
+        ["DroneCode","Start","Stop","MesurementTime","Latitude","Longitude",
+         "Altitude","East","West","South","North","Average"],
+        sort=[("Start", DESCENDING)],
+        query=q  # ▲ 추가
+    )
 
+# -- CSV 업로드 (영문 헤더 매핑) --
 @app.route('/upload_analysis2_csv', methods=['POST'])
 def upload_analysis2_csv():
     if 'file' not in request.files:
@@ -1078,14 +1069,14 @@ def upload_analysis2_csv():
     df.columns = df.columns.str.replace('\ufeff', '').str.strip()
     df = df.drop(columns=['_id'], errors='ignore')
 
-    # 헤더 매핑(오타 허용)
+    # ✅ 업로드 CSV 헤더 -> DB 필드 (오타 허용)
     mapping = {
         "DroneCode":       "DroneCode",
-        "DroneCod":        "DroneCode",
+        "DroneCod":        "DroneCode",          # 오타 허용
         "Start":           "Start",
         "Stop":            "Stop",
-        "MesurementTime":  "MesurementTime",
-        "MeasurementTime": "MesurementTime",
+        "MesurementTime":  "MesurementTime",     # 요청 철자 그대로
+        "MeasurementTime": "MesurementTime",     # 오타를 표준으로 통일
         "Latitude":        "Latitude",
         "Longitude":       "Longitude",
         "Altitude":        "Altitude",
@@ -1095,55 +1086,33 @@ def upload_analysis2_csv():
         "North":           "North",
         "Average":         "Average",
     }
-    present = [k for k in mapping if k in df.columns]
-    if not present:
-        return jsonify({"error":"Unexpected CSV headers", "headers": df.columns.tolist()}), 400
-    df.rename(columns={k: mapping[k] for k in present}, inplace=True)
 
-    # 필수 필드
-    if "DroneCode" in df.columns:
-        df.dropna(subset=["DroneCode"], inplace=True)
+    if not set(mapping.keys()).intersection(df.columns):
+        return jsonify({"error": "Unexpected CSV headers",
+                        "headers": df.columns.tolist()}), 400
 
-    # 날짜 파싱 (여러 포맷 허용) → 문자열 통일
-    def parse_dt(s):
-        for fmt in ('%Y/%m/%d %H:%M', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d %H:%M'):
-            try:
-                return pd.to_datetime(s, format=fmt)
-            except Exception:
-                pass
-        return pd.to_datetime(s, errors='coerce')
+    df.rename(columns=mapping, inplace=True)
 
+    # ✅ 날짜/시간: Start, Stop만 변환 (MesurementTime 은 문자열 유지)
     for dt_col in ["Start", "Stop"]:
         if dt_col in df.columns:
-            df[dt_col] = df[dt_col].apply(parse_dt)
-            df.dropna(subset=[dt_col], inplace=True)
-            df[dt_col] = df[dt_col].dt.strftime('%Y-%m-%d %H:%M:%S')
+            df[dt_col] = pd.to_datetime(df[dt_col], errors='coerce')
 
-    # MesurementTime 보정
-    if {"Start", "Stop"}.issubset(df.columns):
-        def fmt_duration_str(s1, s2):
-            try:
-                t1 = pd.to_datetime(s1)
-                t2 = pd.to_datetime(s2)
-                total_min = int((t2 - t1).total_seconds() // 60)
-                return f"{total_min // 60}:{total_min % 60:02d}"
-            except Exception:
+    # MesurementTime 이 없으면 Start/Stop 차이로 "H:MM" 형태 계산(선택)
+    if "MesurementTime" not in df.columns and {"Start","Stop"}.issubset(df.columns):
+        def fmt_duration(td):
+            if pd.isna(td):
                 return None
+            total_min = int(td.total_seconds() // 60)
+            return f"{total_min // 60}:{total_min % 60:02d}"
+        df["MesurementTime"] = (df["Stop"] - df["Start"]).apply(fmt_duration)
 
-        if "MesurementTime" in df.columns:
-            nan_rows = df["MesurementTime"].isna()
-            df.loc[nan_rows, "MesurementTime"] = [
-                fmt_duration_str(a, b) for a, b in zip(df.loc[nan_rows, "Start"], df.loc[nan_rows, "Stop"])
-            ]
-        else:
-            df["MesurementTime"] = [fmt_duration_str(a, b) for a, b in zip(df["Start"], df["Stop"])]
-
-    # 숫자형 변환
+    # ✅ 숫자형 컬럼 변환
     for num_col in ["Latitude","Longitude","Altitude","East","West","South","North","Average"]:
         if num_col in df.columns:
             df[num_col] = pd.to_numeric(df[num_col], errors='coerce')
 
-    # Average 없으면 방향 평균으로 보정
+    # Average 자동 보정(선택)
     if set(["East","West","South","North"]).issubset(df.columns):
         df["Average"] = df["Average"].fillna(
             df[["East","West","South","North"]].mean(axis=1)
@@ -1153,13 +1122,13 @@ def upload_analysis2_csv():
     if "Latitude" in df.columns and "Longitude" in df.columns:
         df = df[~(df["Latitude"].isna() | df["Longitude"].isna())]
 
-    # 다시 CSV
+    # 다시 CSV로 작성(UTF-8 BOM)
     buf = io.StringIO()
     df.to_csv(buf, index=False, encoding='utf-8-sig')
     buf.seek(0)
 
-    # 아이덴티티 매핑으로 업로드
-    return upload_csv(analysis2_collection, buf, {c: c for c in df.columns})
+    # MongoDB 업로드
+    return upload_csv(analysis2_collection, buf, {k: v for k, v in mapping.items() if v in df.columns})
 
 # ---------------------------------------------------------------------
 # 분석4 라우터 그룹
