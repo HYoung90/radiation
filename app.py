@@ -1707,7 +1707,6 @@ def export_workers_csv():
     # 날짜 필터 + 유효성 가드
     min_str = request.args.get('minDate')
     max_str = request.args.get('maxDate')
-
     min_dt = pd.to_datetime(min_str, errors='coerce') if min_str else None
     max_dt = pd.to_datetime(max_str, errors='coerce') if max_str else None
 
@@ -1728,16 +1727,16 @@ def export_workers_csv():
         if min_dt is not None:
             rng["$gte"] = min_dt
         if max_dt is not None:
-            rng["$lt"]  = max_dt + pd.Timedelta(days=1)
+            rng["$lt"] = max_dt + pd.Timedelta(days=1)
         if rng:
             or_clauses.append({"checkTime": rng})
 
         # 2) 문자열 → $toDate
         expr_ands = []
         if min_dt is not None:
-            expr_ands.append({"$gte": [ {"$toDate": "$checkTime"}, min_dt ]})
+            expr_ands.append({"$gte": [{"$toDate": "$checkTime"}, min_dt]})
         if max_dt is not None:
-            expr_ands.append({"$lt":  [ {"$toDate": "$checkTime"}, max_dt + pd.Timedelta(days=1) ]})
+            expr_ands.append({"$lt": [{"$toDate": "$checkTime"}, max_dt + pd.Timedelta(days=1)]})
         if expr_ands:
             or_clauses.append({"$expr": {"$and": expr_ands}})
 
@@ -1749,8 +1748,9 @@ def export_workers_csv():
     return export_csv(
         workers_collection,
         "workers_data",
-        ["선량계 코드", "위도", "경도", "현재 방사선량(nSv/h)", "누적 방사선량(nSv)"],
-        ["code", "lat", "lng", "doseRate", "cumulativeDose"],
+        # ✅ '측정시간' 추가
+        ["측정시간", "선량계 코드", "위도", "경도", "현재 방사선량(nSv/h)", "누적 방사선량(nSv)"],
+        ["checkTime", "code", "lat", "lng", "doseRate", "cumulativeDose"],
         sort=[("checkTime", DESCENDING)],
         query=q
     )
@@ -1827,7 +1827,6 @@ def upload_workers_csv():
     except UnicodeDecodeError:
         text = raw.decode('cp949')
 
-    import io, pandas as pd
     df = pd.read_csv(io.StringIO(text))
     df.columns = df.columns.str.replace('\ufeff', '').str.strip()
     df = df.drop(columns=['_id'], errors='ignore')
@@ -1835,21 +1834,46 @@ def upload_workers_csv():
     # ===== 헤더 표준화(영/한글/표기 차이 흡수) =====
     def norm(s: str) -> str:
         s = (s or '').strip().lower()
-        s = s.replace('μ','u').replace('µ','u')
+        s = s.replace('μ', 'u').replace('µ', 'u')  # micro 통일
         return ''.join(ch for ch in s if ch.isalnum())
 
     alias = {
         # 시간
-        'checktime':'checkTime', '측정시간':'checkTime', '시간':'checkTime', 'timestamp':'checkTime',
+        'checktime': 'checkTime',
+        '측정시간': 'checkTime',
+        '시간': 'checkTime',
+        '일시': 'checkTime',
+        '측정일시': 'checkTime',
+        'timestamp': 'checkTime',
+        'datetime': 'checkTime',
+        'date': 'checkTime',
+
         # 코드
-        'code':'code', 'devicecode':'code', 'genname':'code', '선량계코드':'code',
+        'code': 'code',
+        'devicecode': 'code',
+        'genname': 'code',
+        '선량계코드': 'code',
+
         # 좌표
-        'lat':'lat', 'latitude':'lat', '위도':'lat',
-        'lng':'lng', 'longitude':'lng', '경도':'lng',
+        'lat': 'lat',
+        'latitude': 'lat',
+        '위도': 'lat',
+        'lng': 'lng',
+        'longitude': 'lng',
+        '경도': 'lng',
+
         # 현재/누적
-        'doserate':'doseRate', 'radiation':'doseRate', '현재방사선량':'doseRate',
-        'cumulativedose':'cumulativeDose', 'cumulativeradiation':'cumulativeDose', '누적방사선량':'cumulativeDose'
+        'doserate': 'doseRate',
+        'radiation': 'doseRate',
+        '현재방사선량': 'doseRate',
+        '현재방사선량nsvh': 'doseRate',
+
+        'cumulativedose': 'cumulativeDose',
+        'cumulativeradiation': 'cumulativeDose',
+        '누적방사선량': 'cumulativeDose',
+        '누적방사선량nsv': 'cumulativeDose',
     }
+
     rename_map = {}
     for c in list(df.columns):
         k = norm(c)
@@ -1858,7 +1882,7 @@ def upload_workers_csv():
     df.rename(columns=rename_map, inplace=True)
 
     # 최소 필요 컬럼 확인
-    required = {'checkTime','code'}
+    required = {'checkTime', 'code'}
     if not required.issubset(df.columns):
         return jsonify({
             "error": "Missing required columns",
@@ -1868,22 +1892,22 @@ def upload_workers_csv():
 
     # ===== 타입 변환 =====
     df['checkTime'] = pd.to_datetime(df['checkTime'], errors='coerce')
-    for col in ['lat','lng','doseRate','cumulativeDose']:
+    for col in ['lat', 'lng', 'doseRate', 'cumulativeDose']:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    # 유효한 행만 남기기 (시간/코드 필수)
-    df = df.dropna(subset=['checkTime','code'])
+    # 유효 행만 남기기 (시간/코드 필수)
+    df = df.dropna(subset=['checkTime', 'code'])
     if df.empty:
         return jsonify({"error": "No valid rows after type conversion"}), 400
 
-    # 파이썬 datetime으로 변환 (tz 제거)
+    # tz 제거
     df['checkTime'] = df['checkTime'].dt.tz_localize(None)
 
     # ===== 업서트(같은 code+checkTime이면 갱신) =====
     from pymongo import UpdateOne
     ops = []
-    keep_cols = [c for c in ['checkTime','code','lat','lng','doseRate','cumulativeDose'] if c in df.columns]
+    keep_cols = [c for c in ['checkTime', 'code', 'lat', 'lng', 'doseRate', 'cumulativeDose'] if c in df.columns]
     for r in df[keep_cols].to_dict('records'):
         key = {'code': r.get('code'), 'checkTime': r.get('checkTime')}
         ops.append(UpdateOne(key, {'$set': r}, upsert=True))
@@ -1894,7 +1918,6 @@ def upload_workers_csv():
         "upserted": res.upserted_count,
         "modified": res.modified_count
     }), 200
-
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))

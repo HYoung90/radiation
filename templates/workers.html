@@ -103,6 +103,7 @@
       <table id="workerTable" class="display">
         <thead>
           <tr>
+            <th>측정 시간</th>
             <th>선량계 코드</th>
             <th>위도</th>
             <th>경도</th>
@@ -114,6 +115,15 @@
           {% if data %}
             {% for e in data %}
               <tr>
+                <td>
+                  {% if e.checkTime %}
+                    {% if e.checkTime is string %}
+                      {{ e.checkTime }}
+                    {% else %}
+                      {{ e.checkTime.strftime('%Y-%m-%d %H:%M') }}
+                    {% endif %}
+                  {% else %}-{% endif %}
+                </td>
                 <td>{{ e.genName|default(e.deviceCode)|default(e.code)|default('-') }}</td>
                 <td>{% if e.lat is not none %}{{ "%.4f"|format(e.lat|float) }}{% else %}-{% endif %}</td>
                 <td>{% if e.lng is not none %}{{ "%.4f"|format(e.lng|float) }}{% else %}-{% endif %}</td>
@@ -122,7 +132,7 @@
               </tr>
             {% endfor %}
           {% else %}
-            <tr><td colspan="5">데이터가 없습니다.</td></tr>
+            <tr><td colspan="6">데이터가 없습니다.</td></tr>
           {% endif %}
         </tbody>
       </table>
@@ -352,7 +362,7 @@
 
         // DataTables 필터 등록
         $.fn.dataTable.ext.search.push(function (_settings, data) {
-          const code = data[0];
+          const code = data[1];
           if (selectedCodes.size === 0) return true;
           return selectedCodes.has(code);
         });
