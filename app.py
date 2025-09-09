@@ -945,14 +945,21 @@ def export_analysis1_csv():
         if min_str:
             rng["$gte"] = pd.to_datetime(min_str)
         if max_str:
-            rng["$lt"] = pd.to_datetime(max_str) + pd.Timedelta(days=1)  # 종료일 포함
+            # 종료일 포함을 위해 하루를 더함
+            rng["$lt"] = pd.to_datetime(max_str) + pd.Timedelta(days=1)
         q["checkTime"] = rng
+
+    # 다운로드 CSV 헤더
+    # 참고: DB 필드명과 일치시켜야 합니다.
+    export_headers = ["checkTime", "x", "y", "Energy range (Mev)", "radiation"]
 
     return export_csv(
         analysis1_collection,
         "analysis1_data",
-        ["checkTime", "X", "Y", "Energy range (Mev)", "Radiation (nSv/h)"],
-        ["checkTime", "x", "y", "Energy range (Mev)", "radiation"],
+        # CSV 파일에 표시될 헤더
+        export_headers,
+        # DB 컬렉션의 필드명
+        export_headers,
         sort=[("checkTime", DESCENDING)],
         query=q
     )
@@ -1005,10 +1012,16 @@ def upload_analysis1_csv():
         }), 400
     df.rename(columns=mapping, inplace=True)
 
-    # 5) 타입 변환
-    df['checkTime'] = pd.to_datetime(df['checkTime'], errors='coerce')
+    # 5) 타입 변환 및 전처리
+    # 날짜 형식을 'YYYY/M/D H:M'에 맞게 명시적으로 변환
+    df['checkTime'] = pd.to_datetime(df['checkTime'], format='%Y/%m/%d %H:%M', errors='coerce')
     for col in ['x', 'y', 'Energy range (Mev)', 'radiation']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
+
+    # 'checkTime'과 'radiation'을 기준으로 중복된 행 제거
+    df.drop_duplicates(subset=['checkTime', 'radiation'], keep='first', inplace=True)
+    # 'radiation' 값이 없는(NaN) 행 제거
+    df.dropna(subset=['radiation'], inplace=True)
 
     # 6) 다시 CSV로 버퍼 작성 (UTF-8 BOM)
     buf = io.StringIO()
@@ -1017,6 +1030,7 @@ def upload_analysis1_csv():
 
     # 7) MongoDB 업로드
     return upload_csv(analysis1_collection, buf, mapping)
+
 
 # ---------------------------------------------------------------------
 # 분석2 라우터 그룹
