@@ -1567,6 +1567,20 @@ def upload_gif():
     # ✅ 절대 URL(_external=True) 말고 상대경로로 반환
     return jsonify({"url": url_for('serve_uploads', filename=name)}), 200
 
+@app.route('/uploads/list')
+def list_gifs():
+    base = app.config['UPLOAD_FOLDER']
+    try:
+        files = [f for f in os.listdir(base) if f.lower().endswith('.gif')]
+        files.sort(reverse=True)
+    except FileNotFoundError:
+        files = []
+    # 간단 템플릿 없이 바로 출력해도 됨
+    items = '\n'.join(
+        f'<li><a href="{url_for("serve_uploads", filename=f)}" target="_blank" rel="noopener">{f}</a></li>'
+        for f in files
+    )
+    return f"<h1>GIF 목록</h1><ul>{items or '<li>없음</li>'}</ul>"
 
 @app.route('/uploads/<path:filename>')
 def serve_uploads(filename):
