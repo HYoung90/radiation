@@ -1809,6 +1809,91 @@ def normalize_workers_checktime():
     logging.info(f"[normalize_workers_checktime] {msg}")
     return jsonify({"message": "OK", **msg}), 200
 
+# 방재요원 CSV 업로드 (checkTime은 datetime으로 저장)
+@app.route('/upload_workers_csv', methods=['POST'])
+@login_required
+def upload_workers_csv():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    f = request.files['file']
+    if not f or f.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    if not f.filename.lower().endswith('.csv'):
+        return jsonify({"error": "Only CSV files allowed"}), 400
+
+    raw = f.read()
+    try:
+        text = raw.decode('utf-8-sig')
+    except UnicodeDecodeError:
+        text = raw.decode('cp949')
+
+    import io, pandas as pd
+    df = pd.read_csv(io.StringIO(text))
+    df.columns = df.columns.str.replace('\ufeff', '').str.strip()
+    df = df.drop(columns=['_id'], errors='ignore')
+
+    # ===== 헤더 표준화(영/한글/표기 차이 흡수) =====
+    def norm(s: str) -> str:
+        s = (s or '').strip().lower()
+        s = s.replace('μ','u').replace('µ','u')
+        return ''.join(ch for ch in s if ch.isalnum())
+
+    alias = {
+        # 시간
+        'checktime':'checkTime', '측정시간':'checkTime', '시간':'checkTime', 'timestamp':'checkTime',
+        # 코드
+        'code':'code', 'devicecode':'code', 'genname':'code', '선량계코드':'code',
+        # 좌표
+        'lat':'lat', 'latitude':'lat', '위도':'lat',
+        'lng':'lng', 'longitude':'lng', '경도':'lng',
+        # 현재/누적
+        'doserate':'doseRate', 'radiation':'doseRate', '현재방사선량':'doseRate',
+        'cumulativedose':'cumulativeDose', 'cumulativeradiation':'cumulativeDose', '누적방사선량':'cumulativeDose'
+    }
+    rename_map = {}
+    for c in list(df.columns):
+        k = norm(c)
+        if k in alias:
+            rename_map[c] = alias[k]
+    df.rename(columns=rename_map, inplace=True)
+
+    # 최소 필요 컬럼 확인
+    required = {'checkTime','code'}
+    if not required.issubset(df.columns):
+        return jsonify({
+            "error": "Missing required columns",
+            "required": sorted(list(required)),
+            "got": df.columns.tolist()
+        }), 400
+
+    # ===== 타입 변환 =====
+    df['checkTime'] = pd.to_datetime(df['checkTime'], errors='coerce')
+    for col in ['lat','lng','doseRate','cumulativeDose']:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+
+    # 유효한 행만 남기기 (시간/코드 필수)
+    df = df.dropna(subset=['checkTime','code'])
+    if df.empty:
+        return jsonify({"error": "No valid rows after type conversion"}), 400
+
+    # 파이썬 datetime으로 변환 (tz 제거)
+    df['checkTime'] = df['checkTime'].dt.tz_localize(None)
+
+    # ===== 업서트(같은 code+checkTime이면 갱신) =====
+    from pymongo import UpdateOne
+    ops = []
+    keep_cols = [c for c in ['checkTime','code','lat','lng','doseRate','cumulativeDose'] if c in df.columns]
+    for r in df[keep_cols].to_dict('records'):
+        key = {'code': r.get('code'), 'checkTime': r.get('checkTime')}
+        ops.append(UpdateOne(key, {'$set': r}, upsert=True))
+
+    res = workers_collection.bulk_write(ops, ordered=False)
+    return jsonify({
+        "message": "업로드 완료",
+        "upserted": res.upserted_count,
+        "modified": res.modified_count
+    }), 200
 
 
 if __name__ == '__main__':
