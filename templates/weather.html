@@ -436,7 +436,7 @@
             loadAllWeatherData();
         });
 
-        // CSV 다운로드 함수 (기존 코드 유지)
+        // CSV 다운로드 함수 (BOM 추가)
         function downloadCSV() {
             var table = $('#weatherTable').DataTable();
             var data = table.rows().data().toArray();
@@ -446,7 +446,9 @@
                 csv += `${row.time},${row.temperature},${row.humidity},${row.rainfall},${row.windspeed},${row.winddirection},${row.stability}\n`;
             });
 
-            var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            // BOM (Byte Order Mark)을 추가합니다.
+            var unicode = "\ufeff";
+            var blob = new Blob([unicode + csv], { type: 'text/csv;charset=utf-8;' });
             var link = document.createElement("a");
             if (link.download !== undefined) {
                 var url = URL.createObjectURL(blob);
