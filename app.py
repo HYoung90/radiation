@@ -1564,7 +1564,9 @@ def upload_gif():
 
     name = f"{datetime.now():%Y%m%d-%H%M%S}-{secure_filename(f.filename)}"
     f.save(os.path.join(app.config['UPLOAD_FOLDER'], name))
-    return jsonify({"url": url_for('serve_uploads', filename=name, _external=True)}), 200
+    # ✅ 절대 URL(_external=True) 말고 상대경로로 반환
+    return jsonify({"url": url_for('serve_uploads', filename=name)}), 200
+
 
 @app.route('/uploads/<path:filename>')
 def serve_uploads(filename):
