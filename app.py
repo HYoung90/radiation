@@ -959,17 +959,6 @@ def export_analysis1_csv():
 
 @app.route('/upload_analysis1_csv', methods=['POST'])
 def upload_analysis1_csv():
-    """
-    CSV 업로드: 영문 헤더를 checkTime 등 DB 필드로 매핑 후 업로드
-    1) 파일 존재 및 확장자 체크
-    2) 바이너리 읽기 → utf-8-sig 또는 cp949 디코딩
-    3) pandas DataFrame 생성, 컬럼 정리
-    4) CSV 헤더 → DB 필드 매핑 (mapping 딕셔너리)
-    5) checkTime → datetime, 나머지 수치 칼럼 → numeric
-    6) UTF-8 BOM 포함하여 다시 CSV 작성
-    7) upload_csv 헬퍼로 MongoDB 업로드
-    """
-    # 1) 파일 유무 & 확장자 체크
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
     f = request.files['file']
@@ -978,19 +967,17 @@ def upload_analysis1_csv():
     if not f.filename.lower().endswith('.csv'):
         return jsonify({"error": "Only CSV files allowed"}), 400
 
-    # 2) 바이너리 읽기 → BOM 제거 → cp949 fallback
     raw = f.read()
     try:
         text = raw.decode('utf-8-sig')
     except UnicodeDecodeError:
         text = raw.decode('cp949')
 
-    # 3) DataFrame 생성 & 컬럼 정리
     df = pd.read_csv(io.StringIO(text))
     df.columns = df.columns.str.replace('\ufeff', '').str.strip()
     df = df.drop(columns=['_id'], errors='ignore')
 
-    # 4) 헤더 → DB 필드 매핑
+    # 헤더 매핑(지금 사용하시는 그대로)
     mapping = {
         "checkTime": "checkTime",
         "X": "x",
@@ -999,30 +986,31 @@ def upload_analysis1_csv():
         "Radiation (nSv/h)": "radiation"
     }
     if not set(mapping.keys()).issubset(df.columns):
-        return jsonify({
-            "error": "Unexpected CSV headers",
-            "headers": df.columns.tolist()
-        }), 400
+        return jsonify({"error": "Unexpected CSV headers", "headers": df.columns.tolist()}), 400
     df.rename(columns=mapping, inplace=True)
 
-    # 5) 타입 변환
+    # 타입 변환
     df['checkTime'] = pd.to_datetime(df['checkTime'], errors='coerce')
     for col in ['x', 'y', 'Energy range (Mev)', 'radiation']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    # 6) 다시 CSV로 버퍼 작성
-    buf = io.StringIO()
-    df.to_csv(buf, index=False, encoding='utf-8-sig')
-    buf.seek(0)
+    # NaN/무효행 정리(선택)
+    df = df.dropna(subset=['checkTime'])
 
-    # 7) MongoDB 업로드 - ✅ 현재 CSV 헤더와 DB필드명이 같으니 '동일 매핑' 사용
-    return upload_csv(analysis1_collection, buf, {
-        'checkTime': 'checkTime',
-        'x': 'x',
-        'y': 'y',
-        'Energy range (Mev)': 'Energy range (Mev)',
-        'radiation': 'radiation'
-    })
+    # ⬇️ 여기서 직접 insert 하여 응답을 JSON으로 보장
+    records = df.to_dict(orient='records')
+    if not records:
+        return jsonify({"error": "No valid rows found in CSV"}), 400
+
+    try:
+        result = analysis1_collection.insert_many(records)
+        inserted = len(result.inserted_ids)
+        app.logger.info(f"/upload_analysis1_csv inserted={inserted}")
+        return jsonify({"message": f"업로드 완료: {inserted}건"}), 200
+    except Exception as e:
+        app.logger.error(f"upload insert error: {e}")
+        return jsonify({"error": "DB insert failed"}), 500
+
 # ---------------------------------------------------------------------
 # 분석2 라우터 그룹
 # ---------------------------------------------------------------------
