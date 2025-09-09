@@ -30,6 +30,9 @@ from bson import ObjectId
 from functools import wraps
 from dotenv import load_dotenv
 from functools import lru_cache
+from flask import send_from_directory, url_for
+from werkzeug.utils import secure_filename
+
 
 app = Flask(__name__)
 
@@ -41,7 +44,13 @@ app.config['SECRET_KEY'] = 'supersecretkey'
 
 # Flask-Caching 설정 비활성화
 cache = Cache(app, config={'CACHE_TYPE': 'null'})
-app.config['UPLOAD_FOLDER'] = 'uploads'
+
+# Railway에선 환경변수 UPLOAD_DIR=/data/uploads (Volume 마운트) 설정
+upload_dir = os.getenv('UPLOAD_DIR') or os.path.join(app.root_path, 'uploads')
+app.config['UPLOAD_FOLDER'] = upload_dir
+
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB
 
 # MongoDB 연결
 load_dotenv() # .env 파일에서 환경 변수를 로드합니다. (로컬 개발용)
@@ -282,6 +291,7 @@ def _compute_status_for(gen_name: str, recent_n: int = 500):
     except Exception as e:
         logging.error(f"_compute_status_for({gen_name}) error: {e}")
         return None
+
 
 
 @login_manager.user_loader
@@ -1543,6 +1553,22 @@ def radiation_status_summary():
         if st:
             out.append(st)
     return jsonify(out)
+
+@app.route('/upload/gif', methods=['POST'])
+def upload_gif():
+    f = request.files.get('file')
+    if not f:
+        return jsonify({"error": "파일 없음"}), 400
+    if f.mimetype != 'image/gif' and not f.filename.lower().endswith('.gif'):
+        return jsonify({"error": "GIF만 업로드"}), 400
+
+    name = f"{datetime.now():%Y%m%d-%H%M%S}-{secure_filename(f.filename)}"
+    f.save(os.path.join(app.config['UPLOAD_FOLDER'], name))
+    return jsonify({"url": url_for('serve_uploads', filename=name, _external=True)}), 200
+
+@app.route('/uploads/<path:filename>')
+def serve_uploads(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 
 if __name__ == '__main__':
