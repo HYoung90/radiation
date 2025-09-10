@@ -15,7 +15,6 @@
             color: #333;
             line-height: 1.6;
         }
-
         .container {
             max-width: 1200px;
             margin: 20px auto;
@@ -24,15 +23,12 @@
             border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
         }
-
         h1 {
             color: #2c3e50;
             text-align: center;
             margin-bottom: 30px;
             font-size: 2.2em;
         }
-
-        /* 공통 버튼 스타일 */
         .btn {
             display: inline-block;
             padding: 12px 22px;
@@ -48,190 +44,69 @@
             min-width: 120px;
             text-align: center;
         }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+        .btn-group-main { display: flex; justify-content: flex-start; margin-bottom: 25px; gap: 8px; }
+        .btn-back { background-color: #34495e; }
+        .btn-back:hover { background-color: #2c3e50; }
+        .btn-refresh { background-color: #007bff; }
+        .btn-refresh:hover { background-color: #0056b3; }
 
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-        }
-
-        .btn-group-main {
-            display: flex;
-            justify-content: flex-start;
-            margin-bottom: 25px;
-            gap: 8px;
-        }
-
-        .btn-back {
-            background-color: #34495e;
-        }
-        .btn-back:hover {
-            background-color: #2c3e50;
-        }
-
-        .btn-refresh {
-            background-color: #007bff;
-        }
-        .btn-refresh:hover {
-            background-color: #0056b3;
-        }
-
-        /* 날짜 필터 영역 스타일 */
         .date-filter-section {
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin-bottom: 30px;
-            padding: 20px;
-            background-color: #f7f9fa;
-            border-radius: 8px;
-            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.04);
+            display: flex; justify-content: flex-start; align-items: center; flex-wrap: wrap;
+            gap: 15px; margin-bottom: 30px; padding: 20px; background-color: #f7f9fa;
+            border-radius: 8px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.04);
         }
-
-        .date-filter-section label {
-            font-weight: bold;
-            color: #495057;
-            white-space: nowrap;
-        }
-
+        .date-filter-section label { font-weight: bold; color: #495057; white-space: nowrap; }
         .date-filter-section input[type="text"] {
-            padding: 10px 15px;
-            font-size: 1em;
-            border-radius: 5px;
-            border: 1px solid #ced4da;
-            width: 160px;
-            box-sizing: border-box;
+            padding: 10px 15px; font-size: 1em; border-radius: 5px; border: 1px solid #ced4da;
+            width: 160px; box-sizing: border-box;
         }
         .date-filter-section input[type="text"]:focus {
-            border-color: #80bdff;
-            outline: 0;
-            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+            border-color: #80bdff; outline: 0; box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
         }
 
-        .ui-datepicker-trigger {
-            margin-left: 5px;
-            vertical-align: middle;
-            cursor: pointer;
-        }
+        .ui-datepicker-trigger { margin-left: 5px; vertical-align: middle; cursor: pointer; }
+        .ui-datepicker-trigger img { width: 24px; height: 24px; opacity: 0.7; transition: opacity 0.2s ease; }
+        .ui-datepicker-trigger:hover img { opacity: 1; }
 
-        .ui-datepicker-trigger img {
-            width: 24px;
-            height: 24px;
-            opacity: 0.7;
-            transition: opacity 0.2s ease;
-        }
-        .ui-datepicker-trigger:hover img {
-            opacity: 1;
-        }
-
-        /* 적용 및 초기화 버튼 스타일 통합 */
-        .btn-filter {
-            background-color: #34495e;
-        }
-        .btn-filter:hover {
-            background-color: #2c3e50;
-        }
-
-        /* DataTables 스타일 */
-        .dataTables_wrapper {
-            overflow-x: auto;
-        }
-
+        .dataTables_wrapper { overflow-x: auto; }
         #backupRadiationHistoryTable {
-            width: 100% !important;
-            border-collapse: collapse;
-            margin-top: 30px;
-            font-size: 1.0em;
-            background-color: #ffffff;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            width: 100% !important; border-collapse: collapse; margin-top: 30px; font-size: 1.0em;
+            background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
-
         #backupRadiationHistoryTable thead th {
-            background-color: #6c757d;
-            color: white;
-            padding: 15px;
-            text-align: center;
-            border-bottom: 2px solid #5a6268;
-            font-weight: 600;
-            white-space: nowrap;
+            background-color: #6c757d; color: white; padding: 15px; text-align: center;
+            border-bottom: 2px solid #5a6268; font-weight: 600; white-space: nowrap;
         }
-
         #backupRadiationHistoryTable tbody td {
-            padding: 12px 15px;
-            text-align: center;
-            vertical-align: middle;
-            border-bottom: 1px solid #e9ecef;
-            white-space: nowrap;
+            padding: 12px 15px; text-align: center; vertical-align: middle;
+            border-bottom: 1px solid #e9ecef; white-space: nowrap;
         }
-
-        #backupRadiationHistoryTable tbody tr:nth-child(even) {
-            background-color: #f8f9fa;
-        }
-
-        #backupRadiationHistoryTable tbody tr:hover {
-            background-color: #e2f4f8;
-            cursor: pointer;
-        }
-
+        #backupRadiationHistoryTable tbody tr:nth-child(even) { background-color: #f8f9fa; }
+        #backupRadiationHistoryTable tbody tr:hover { background-color: #e2f4f8; cursor: pointer; }
         .dataTables_wrapper .dataTables_info,
         .dataTables_wrapper .dataTables_filter,
-        .dataTables_wrapper .dataTables_length {
-            display: none;
-        }
-
+        .dataTables_wrapper .dataTables_length { display: none; }
         .dataTables_wrapper .dataTables_paginate .paginate_button {
-            padding: 8px 15px;
-            margin: 0 4px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            background-color: #f8f9fa;
-            color: #333 !important;
-            text-decoration: none;
+            padding: 8px 15px; margin: 0 4px; border: 1px solid #ddd; border-radius: 5px;
+            background-color: #f8f9fa; color: #333 !important; text-decoration: none;
             transition: background-color 0.2s ease, color 0.2s ease;
         }
-        .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-            background-color: #e9ecef;
-            color: #000 !important;
-        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button:hover { background-color: #e9ecef; color: #000 !important; }
         .dataTables_wrapper .dataTables_paginate .paginate_button.current,
         .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
-            background-color: #007bff !important;
-            color: white !important;
-            border-color: #007bff !important;
+            background-color: #007bff !important; color: white !important; border-color: #007bff !important;
         }
-        .dataTables_wrapper .dataTables_paginate {
-            margin-top: 20px;
-            text-align: center;
-        }
+        .dataTables_wrapper .dataTables_paginate { margin-top: 20px; text-align: center; }
 
-        /* 반응형 디자인 */
         @media (max-width: 768px) {
-            body {
-                padding: 10px;
-            }
-            .container {
-                padding: 15px;
-            }
-            .btn {
-                min-width: auto;
-                padding: 10px 15px;
-            }
-            .btn-group-main, .date-filter-section {
-                flex-direction: column;
-                gap: 10px;
-            }
-            .date-filter-section input[type="text"] {
-                width: 100%;
-            }
-            #backupRadiationHistoryTable {
-                font-size: 0.8em;
-            }
-            #backupRadiationHistoryTable thead th, #backupRadiationHistoryTable tbody td {
-                padding: 8px;
-            }
+            body { padding: 10px; }
+            .container { padding: 15px; }
+            .btn { min-width: auto; padding: 10px 15px; }
+            .btn-group-main, .date-filter-section { flex-direction: column; gap: 10px; }
+            .date-filter-section input[type="text"] { width: 100%; }
+            #backupRadiationHistoryTable { font-size: 0.8em; }
+            #backupRadiationHistoryTable thead th, #backupRadiationHistoryTable tbody td { padding: 8px; }
         }
     </style>
 </head>
@@ -272,18 +147,11 @@
 
     <script>
         $(document).ready(function() {
+            // 서버 라우트에서 전달된 원본 한글 genName / expl 그대로 사용
             const genName = "{{ genName }}";
             const expl = "{{ expl }}";
 
-            const genNameMapping = {
-                "고리 원자력발전소": "KR",
-                "월성 원자력발전소": "WS",
-                "한빛 원자력발전소": "YK",
-                "한울 원자력발전소": "UJ",
-                "새울 원자력발전소": "SU"
-            };
-            const mappedGenName = genNameMapping[genName] || genName;
-
+            // DataTable
             var table = $('#backupRadiationHistoryTable').DataTable({
                 order: [[0, 'desc']],
                 searching: false,
@@ -292,20 +160,12 @@
                 lengthChange: false,
                 pageLength: 10,
                 language: {
-                    "emptyTable": "데이터가 없습니다.",
-                    "zeroRecords": "검색 결과 없음",
-                    "loadingRecords": "로딩 중...",
-                    "processing": "처리 중...",
-                    "paginate": {
-                        "first": "처음",
-                        "last": "마지막",
-                        "next": "다음",
-                        "previous": "이전"
-                    },
-                    "aria": {
-                        "sortAscending": ": 오름차순 정렬",
-                        "sortDescending": ": 내림차순 정렬"
-                    }
+                    emptyTable: "데이터가 없습니다.",
+                    zeroRecords: "검색 결과 없음",
+                    loadingRecords: "로딩 중...",
+                    processing: "처리 중...",
+                    paginate: { first: "처음", last: "마지막", next: "다음", previous: "이전" },
+                    aria: { sortAscending: ": 오름차순 정렬", sortDescending: ": 내림차순 정렬" }
                 },
                 columns: [
                     { data: 'time', title: '측정 시간' },
@@ -319,10 +179,12 @@
                 ]
             });
 
+            // Datepicker (아이콘 버튼)
             $("#minDate").datepicker({
                 dateFormat: 'yy-mm-dd',
                 showOn: 'button',
-                buttonText: "<img src='https://jqueryui.com/resources/demos/images/calendar.gif' alt='달력 아이콘'>",
+                buttonImage: 'https://jqueryui.com/resources/demos/images/calendar.gif',
+                buttonImageOnly: true,
                 changeMonth: true,
                 changeYear: true,
                 onSelect: function(selectedDate) {
@@ -332,7 +194,8 @@
             $("#maxDate").datepicker({
                 dateFormat: 'yy-mm-dd',
                 showOn: 'button',
-                buttonText: "<img src='https://jqueryui.com/resources/demos/images/calendar.gif' alt='달력 아이콘'>",
+                buttonImage: 'https://jqueryui.com/resources/demos/images/calendar.gif',
+                buttonImageOnly: true,
                 changeMonth: true,
                 changeYear: true,
                 onSelect: function(selectedDate) {
@@ -340,14 +203,18 @@
                 }
             });
 
+            // ── 핵심: genName 매핑 제거, 원본 그대로 인코딩해서 전달 ──
             function loadBackupRadiationHistory(minDate = null, maxDate = null) {
-                const apiUrl = `/api/nuclear_radiation/backup?genName=${encodeURIComponent(mappedGenName)}&expl=${encodeURIComponent(expl)}${minDate ? `&minDate=${minDate}` : ''}${maxDate ? `&maxDate=${maxDate}` : ''}`;
+                const apiUrl =
+                    `/api/nuclear_radiation/backup?genName=${encodeURIComponent(genName)}&expl=${encodeURIComponent(expl)}`
+                    + (minDate ? `&minDate=${encodeURIComponent(minDate)}` : '')
+                    + (maxDate ? `&maxDate=${encodeURIComponent(maxDate)}` : '');
 
                 $.ajax({
                     url: apiUrl,
                     method: 'GET',
                     success: function(data) {
-                        table.clear().rows.add(data.map(item => ({
+                        table.clear().rows.add((Array.isArray(data) ? data : []).map(item => ({
                             time: item.time,
                             value: parseFloat(item.value)
                         }))).draw();
@@ -359,20 +226,20 @@
                 });
             }
 
+            // 최초 로드
             loadBackupRadiationHistory();
 
+            // 필터 적용/초기화/새로고침
             $('#applyFilter').on('click', function() {
                 const minDate = $('#minDate').val();
                 const maxDate = $('#maxDate').val();
                 loadBackupRadiationHistory(minDate, maxDate);
             });
-
             $('#clearFilter').on('click', function() {
                 $('#minDate').val('');
                 $('#maxDate').val('');
                 loadBackupRadiationHistory();
             });
-
             $('#refreshButton').on('click', function() {
                 $('#minDate').val('');
                 $('#maxDate').val('');
