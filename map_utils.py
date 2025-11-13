@@ -274,7 +274,7 @@ def generate_topsis_map_html(plant):
         transform-origin: center center;
         transform: rotate({angle_css}deg) translate(-50%, -50%);
         font-size: 36px;
-        color: #f1c40f;  /* 노란색 계열 */
+        color: #3498db;  /* 파란색 계열 */
         text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
       ">
         <i class="fa fa-arrow-up"></i>
@@ -304,6 +304,19 @@ def generate_topsis_map_html(plant):
         fill_opacity=0.4,
         popup=f"풍향: {wd}° / 안정도 가중치: {sw}"
     ).add_to(m)
+
+    # ---- 거리별 점선 원형 (10km, 30km, 60km, 100km) ----
+    for radius_km in [10, 30, 60, 100]:
+        folium.Circle(
+            location=[lat, lon],
+            radius=radius_km * 1000,   # folium.Circle은 m 단위
+            color='black',
+            fill=False,
+            dash_array='5',            # 점선
+            weight=2,
+            popup=f"{radius_km} km 반경"
+        ).add_to(m)
+
 
     # ---------- TOPSIS 계산 ----------
     df = _GDF.copy()
