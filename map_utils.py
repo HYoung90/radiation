@@ -427,7 +427,7 @@ def generate_topsis_map_html(plant):
         folium.Marker(
             location=[row['centroid_lat'], row['centroid_lon']],
             popup=folium.Popup(popup_html, max_width=350),
-            icon=folium.Icon(color='lightblue', icon='hospital-o', prefix='fa')
+            icon=folium.Icon(color='lightblue', icon='fa-light fa-person-shelter', prefix='fa')
         ).add_to(m)
 
     return m._repr_html_()
