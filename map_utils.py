@@ -274,7 +274,7 @@ def generate_topsis_map_html(plant):
         transform-origin: center center;
         transform: rotate({angle_css}deg) translate(-50%, -50%);
         font-size: 36px;
-        color: blue;
+        color: #f1c40f;  /* 노란색 계열 */
         text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
       ">
         <i class="fa fa-arrow-up"></i>
@@ -297,10 +297,10 @@ def generate_topsis_map_html(plant):
     coords = generate_sector(lat, lon, bearing, width, radius_km=OPT_KM)
     folium.Polygon(
         locations=coords,
-        color='red',
+        color='#f39c12',  # 테두리: 진한 주황
         weight=2,
         fill=True,
-        fill_color='red',
+        fill_color='#f1c40f',  # 내부: 노란색
         fill_opacity=0.4,
         popup=f"풍향: {wd}° / 안정도 가중치: {sw}"
     ).add_to(m)
@@ -377,10 +377,12 @@ def generate_topsis_map_html(plant):
     df['topsis'] = [_compute_topsis(i) for i in weighted_df.index]
 
     # ---------- 지도 시각화 ----------
-    cm_top = cm.LinearColormap(['#313695', '#ffffff', '#A50026'],
-                               index=[0, 0.5, 1],
-                               vmin=0, vmax=1,
-                               caption='TOPSIS Score')
+    cm_top = cm.LinearColormap(
+        ['blue', 'white', 'red'],
+        vmin=0, vmax=1,
+        caption='TOPSIS Score'
+    )
+
     folium.GeoJson(
         df,
         style_function=lambda feat: {
@@ -399,10 +401,20 @@ def generate_topsis_map_html(plant):
 
     # TOP5 마커
     for _, row in df.nlargest(5, 'topsis').iterrows():
+        pop_val = int(row['population']) if not pd.isna(row['population']) else 0
+        cap_val = int(row['capacity_sum']) if not pd.isna(row['capacity_sum']) else 0
+
+        popup_html = f"""
+        <b>{row['adm_nm']}</b><br>
+        인구수: {pop_val:,}<br>
+        수용인원: {cap_val:,}<br>
+        TOPSIS 점수: {row['topsis']:.3f}<br>
+        """
+
         folium.Marker(
-            [row['centroid_lat'], row['centroid_lon']],
-            popup=f"{row['adm_nm']} ({row['topsis']:.3f})",
-            icon=folium.Icon(color='darkred', icon='hospital')
+            location=[row['centroid_lat'], row['centroid_lon']],
+            popup=folium.Popup(popup_html, max_width=350),
+            icon=folium.Icon(color='lightblue', icon='hospital-o', prefix='fa')
         ).add_to(m)
 
     return m._repr_html_()
