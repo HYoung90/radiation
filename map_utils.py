@@ -292,31 +292,6 @@ def generate_topsis_map_html(plant):
         z_index_offset=1000
     ).add_to(m)
 
-    # Plume 섹터
-    width = get_angle_width(sw)
-    coords = generate_sector(lat, lon, bearing, width, radius_km=OPT_KM)
-    folium.Polygon(
-        locations=coords,
-        color='#f39c12',  # 테두리: 진한 주황
-        weight=2,
-        fill=True,
-        fill_color='#f1c40f',  # 내부: 노란색
-        fill_opacity=0.4,
-        popup=f"풍향: {wd}° / 안정도 가중치: {sw}"
-    ).add_to(m)
-
-    # ---- 거리별 점선 원형 (10km, 30km, 60km, 100km) ----
-    for radius_km in [10, 30, 60, 100]:
-        folium.Circle(
-            location=[lat, lon],
-            radius=radius_km * 1000,   # folium.Circle은 m 단위
-            color='black',
-            fill=False,
-            dash_array='5',            # 점선
-            weight=2,
-            popup=f"{radius_km} km 반경"
-        ).add_to(m)
-
 
     # ---------- TOPSIS 계산 ----------
     df = _GDF.copy()
@@ -411,6 +386,32 @@ def generate_topsis_map_html(plant):
         )
     ).add_to(m)
     cm_top.add_to(m)
+
+    # ---- 플룸 섹터 (TOPSIS 위에 표시) ----
+    width = get_angle_width(sw)
+    coords = generate_sector(lat, lon, bearing, width, radius_km=OPT_KM)
+    folium.Polygon(
+        locations=coords,
+        color='#e67e22',      # 더 진한 주황 테두리
+        weight=3,             # 테두리 두께 조금 증가
+        fill=True,
+        fill_color='#f1c40f', # 노란색 내부
+        fill_opacity=0.55,    # 좀 더 진하게 (0.4 -> 0.55)
+        popup=f"풍향: {wd}° / 안정도 가중치: {sw}"
+    ).add_to(m)
+
+    # ---- 거리별 점선 원형 (10km, 30km, 60km, 100km) ----
+    for radius_km in [10, 30, 60, 100]:
+        folium.Circle(
+            location=[lat, lon],
+            radius=radius_km * 1000,   # m 단위
+            color='black',
+            fill=False,
+            dash_array='5',            # 점선
+            weight=2,
+            popup=f"{radius_km} km 반경"
+        ).add_to(m)
+
 
     # TOP5 마커
     for _, row in df.nlargest(5, 'topsis').iterrows():
