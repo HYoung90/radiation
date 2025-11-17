@@ -231,6 +231,9 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         $(document).ready(function() {
+            // 최근 몇 개월까지만 표시할지 설정 (기본: 6개월)
+            var MONTH_RANGE = 6;
+
             var table = $('#radiationHistoryTable').DataTable({
                 order: [[0, 'desc']],
                 pageLength: 12,
@@ -260,6 +263,27 @@
 
             var radiationChart;
 
+            // checkTime 문자열을 Date 객체로 변환하는 헬퍼 함수
+            function parseCheckTime(checkTime) {
+                if (!checkTime) return null;
+                var s = String(checkTime).trim();
+
+                // "YYYY-MM-DD HH:mm:ss" 형태라면 공백을 'T'로 바꿔서 파싱 시도
+                if (s.indexOf(' ') !== -1 && s.indexOf('T') === -1) {
+                    s = s.replace(' ', 'T');
+                }
+
+                var d = new Date(s);
+                if (isNaN(d.getTime())) {
+                    // 한 번 더 원문으로 시도
+                    d = new Date(checkTime);
+                    if (isNaN(d.getTime())) {
+                        return null;
+                    }
+                }
+                return d;
+            }
+
             function loadRadiationData() {
                 var url = '/api/busan_radiation/history?locNm=' + encodeURIComponent('{{ locNm }}');
 
@@ -269,27 +293,58 @@
                     success: function(data) {
                         console.log('Received Data:', data);
                         table.clear().draw();
-                        if (data.length === 0) {
+
+                        if (!Array.isArray(data) || data.length === 0) {
                             alert("해당 지점에 대한 데이터가 없습니다.");
-                        } else {
-                            var labels = [];
-                            var radiationValues = [];
-                            var rainfallValues = [];
-
-                            data.forEach(function(item) {
-                                labels.push(item.checkTime);
-                                radiationValues.push(parseFloat(item.data));
-                                rainfallValues.push(item.aveRainData !== undefined && item.aveRainData !== null ? parseFloat(item.aveRainData) : 0);
-
-                                table.row.add([
-                                    item.checkTime,
-                                    `${parseFloat(item.data).toFixed(2)} nSv/h`,
-                                    item.aveRainData !== undefined && item.aveRainData !== null ? `${parseFloat(item.aveRainData).toFixed(2)} mm` : 'N/A'
-                                ]).draw(false);
-                            });
-
-                            updateChart(labels, radiationValues, rainfallValues);
+                            return;
                         }
+
+                        var now = new Date();
+
+                        // 최근 MONTH_RANGE 개월 이내 데이터만 필터링
+                        var filteredData = data.filter(function(item) {
+                            var t = parseCheckTime(item.checkTime);
+                            if (!t) return false;
+
+                            var diffMs = now - t;
+                            if (diffMs < 0) {
+                                // 미래 시점 데이터는 제외
+                                return false;
+                            }
+                            var diffDays = diffMs / (1000 * 60 * 60 * 24);
+                            var diffMonths = diffDays / 30; // 대략적인 개월 수
+
+                            return diffMonths <= MONTH_RANGE;
+                        });
+
+                        if (filteredData.length === 0) {
+                            alert("최근 " + MONTH_RANGE + "개월 이내 데이터가 없습니다.");
+                            return;
+                        }
+
+                        var labels = [];
+                        var radiationValues = [];
+                        var rainfallValues = [];
+
+                        filteredData.forEach(function(item) {
+                            labels.push(item.checkTime);
+                            radiationValues.push(parseFloat(item.data));
+                            rainfallValues.push(
+                                item.aveRainData !== undefined && item.aveRainData !== null
+                                    ? parseFloat(item.aveRainData)
+                                    : 0
+                            );
+
+                            table.row.add([
+                                item.checkTime,
+                                `${parseFloat(item.data).toFixed(2)} nSv/h`,
+                                item.aveRainData !== undefined && item.aveRainData !== null
+                                    ? `${parseFloat(item.aveRainData).toFixed(2)} mm`
+                                    : 'N/A'
+                            ]).draw(false);
+                        });
+
+                        updateChart(labels, radiationValues, rainfallValues);
                     },
                     error: function(xhr, status, error) {
                         console.error('AJAX Error:', error);
