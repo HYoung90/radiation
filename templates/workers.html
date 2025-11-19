@@ -14,7 +14,7 @@
 
   <style>
     /* PC 및 기본 스타일 */
-    body { font-family: 'Segoe UI','Arial',sans-serif; background-color:#f0f2f5; margin:0; padding:20px; color:#333; line-height:1.6; }
+    body { font-family:'Segoe UI','Arial',sans-serif; background-color:#f0f2f5; margin:0; padding:20px; color:#333; line-height:1.6; }
     .container { max-width:1200px; margin:20px auto; background:#fff; padding:30px; border-radius:10px; box-shadow:0 4px 15px rgba(0,0,0,0.08); }
     h1 { font-size:2.2em; color:#2c3e50; margin:0 0 25px; padding-bottom:15px; border-bottom:2px solid #ddd; }
 
@@ -37,10 +37,16 @@
 
     .dataTables_wrapper .dataTables_info { font-size:.9em; color:#666; margin:15px 0; }
     .dataTables_wrapper .dataTables_paginate { margin:15px 0 10px; display:flex; justify-content:center; align-items:center; gap:5px; }
-    .dataTables_wrapper .dataTables_paginate .paginate_button { background:#f0f0f0; color:#333!important; border:1px solid #ddd; border-radius:6px; padding:8px 14px; margin:0 4px; cursor:pointer;
-      transition:background-color .2s, color .2s, box-shadow .2s; box-shadow:0 1px 3px rgba(0,0,0,.08); }
-    .dataTables_wrapper .dataTables_paginate .paginate_button:hover:not(.current):not(.disabled){ background:#e9ecef; box-shadow:0 2px 5px rgba(0,0,0,.1); }
-    .dataTables_wrapper .dataTables_paginate .paginate_button.current { background:#007bff; color:#fff!important; border-color:#007bff; font-weight:bold; }
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+      background:#f0f0f0; color:#333!important; border:1px solid #ddd; border-radius:6px; padding:8px 14px; margin:0 4px; cursor:pointer;
+      transition:background-color .2s, color .2s, box-shadow .2s; box-shadow:0 1px 3px rgba(0,0,0,.08);
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button:hover:not(.current):not(.disabled){
+      background:#e9ecef; box-shadow:0 2px 5px rgba(0,0,0,.1);
+    }
+    .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+      background:#007bff; color:#fff!important; border-color:#007bff; font-weight:bold;
+    }
     .dataTables_wrapper .dataTables_paginate .paginate_button.disabled { cursor:not-allowed; opacity:.5; }
 
     @media (max-width:768px){
@@ -59,8 +65,10 @@
     }
 
     /* 코드별 범례(체크리스트) */
-    .code-legend{ background:#fff; border:1px solid #ddd; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.1);
-      padding:10px 12px; font-size:12px; color:#333; max-height:280px; overflow:auto; min-width:220px; }
+    .code-legend{
+      background:#fff; border:1px solid #ddd; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.1);
+      padding:10px 12px; font-size:12px; color:#333; max-height:280px; overflow:auto; min-width:220px;
+    }
     .code-legend h4{ margin:0 0 8px; font-size:13px; color:#2c3e50; }
     .code-legend .toolbar{ display:flex; gap:6px; margin:6px 0; }
     .code-legend .toolbar input{ flex:1; padding:4px 6px; border:1px solid #ccc; border-radius:4px; font-size:12px; }
@@ -69,7 +77,10 @@
     .code-legend .count{ color:#666; font-size:11px; margin-left:auto; }
 
     /* 날짜 필터 */
-    .filter-group{ display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin:12px 0 18px; padding:12px; background:#f8f9fa; border:1px solid #e9ecef; border-radius:8px; }
+    .filter-group{
+      display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin:12px 0 18px; padding:12px;
+      background:#f8f9fa; border:1px solid #e9ecef; border-radius:8px;
+    }
     .filter-group label{ font-weight:600; color:#34495e; }
     .filter-group input[type="text"]{ padding:8px 10px; border:1px solid #ced4da; border-radius:5px; font-size:.95em; width:160px; }
     .filter-group .btn{ padding:8px 12px; min-width:90px; }
@@ -105,6 +116,7 @@
           <tr>
             <th>측정 시간</th>
             <th>선량계 코드</th>
+            <th>업로드 시간</th> <!-- NEW -->
             <th>위도</th>
             <th>경도</th>
             <th>현재 방사선량<br>(nSv/h)</th>
@@ -115,6 +127,7 @@
           {% if data %}
             {% for e in data %}
               <tr>
+                <!-- 측정 시간 -->
                 <td>
                   {% if e.checkTime %}
                     {% if e.checkTime is string %}
@@ -124,7 +137,19 @@
                     {% endif %}
                   {% else %}-{% endif %}
                 </td>
+                <!-- 선량계 코드 -->
                 <td>{{ e.genName|default(e.deviceCode)|default(e.code)|default('-') }}</td>
+                <!-- 업로드 시간 (inputTime) NEW -->
+                <td>
+                  {% if e.inputTime %}
+                    {% if e.inputTime is string %}
+                      {{ e.inputTime }}
+                    {% else %}
+                      {{ e.inputTime.strftime('%Y-%m-%d %H:%M') }}
+                    {% endif %}
+                  {% else %}-{% endif %}
+                </td>
+                <!-- 좌표 / 선량 정보 -->
                 <td>{% if e.lat is not none %}{{ "%.4f"|format(e.lat|float) }}{% else %}-{% endif %}</td>
                 <td>{% if e.lng is not none %}{{ "%.4f"|format(e.lng|float) }}{% else %}-{% endif %}</td>
                 <td>{{ e.radiation|default(e.doseRate)|default('-') }}</td>
@@ -132,7 +157,7 @@
               </tr>
             {% endfor %}
           {% else %}
-            <tr><td colspan="6">데이터가 없습니다.</td></tr>
+            <tr><td colspan="7">데이터가 없습니다.</td></tr> <!-- 6 -> 7 -->
           {% endif %}
         </tbody>
       </table>
@@ -147,7 +172,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
 
   <script>
-    // DataTable 전역 참조 (범례에서 table.draw() 호출 필요)
+    // DataTable 전역 참조
     let table;
 
     $(function () {
@@ -280,6 +305,8 @@
           const marker = L.marker([lat, lng], { icon });
           marker.bindPopup(`
             <strong>선량계 코드:</strong> ${code}<br>
+            <strong>측정 시간:</strong> ${pt.checkTime ?? '-'}<br>
+            <strong>업로드 시간:</strong> ${pt.inputTime ?? '-'}<br>
             <strong>현재 방사선량:</strong> ${doseRate ?? '-'} nSv/h<br>
             <strong>누적 방사선량:</strong> ${cumDose ?? '-'} nSv
           `);
@@ -360,7 +387,7 @@
           if (window.table) table.draw();
         });
 
-        // DataTables 필터 등록
+        // DataTables 필터 등록 (선량계 코드 컬럼 = 1번 인덱스 유지)
         $.fn.dataTable.ext.search.push(function (_settings, data) {
           const code = data[1];
           if (selectedCodes.size === 0) return true;
@@ -378,13 +405,17 @@
         div.style.background = 'white'; div.style.padding='8px 10px'; div.style.border='1px solid #ddd';
         div.style.borderRadius='6px'; div.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)';
         const labels = [
-          { c: colors[0], t: '정상' }, { c: colors[1], t: '1단계' }, { c: colors[2], t: '2단계' }, { c: colors[3], t: '3단계' }, { c: colors[4], t: '4단계' }
+          { c: colors[0], t: '정상' },
+          { c: colors[1], t: '1단계' },
+          { c: colors[2], t: '2단계' },
+          { c: colors[3], t: '3단계' },
+          { c: colors[4], t: '4단계' }
         ];
         div.innerHTML = `<div style="font-weight:600;margin-bottom:6px">마커 색상 기준</div>
           <div style="font-size:12px;line-height:1.5">
             <div>색상은 <strong>현재/누적</strong> 중 더 높은 단계 기준</div>
-            <div style="margin-top:6px"><u>현재(nSv/h)</u>: < 150 (정상), ≥150, ≥200, ≥500, ≥1000</div>
-            <div><u>누적(nSv)</u>: < 300 (정상), ≥300, ≥500, ≥1000, ≥2000</div>
+            <div style="margin-top:6px"><u>현재(nSv/h)</u>: &lt; 150 (정상), ≥150, ≥200, ≥500, ≥1000</div>
+            <div><u>누적(nSv)</u>: &lt; 300 (정상), ≥300, ≥500, ≥1000, ≥2000</div>
           </div>`;
         const rowWrap = document.createElement('div'); rowWrap.style.display='flex'; rowWrap.style.gap='6px'; rowWrap.style.marginTop='6px';
         labels.forEach(l => {
