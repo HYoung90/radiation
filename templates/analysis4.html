@@ -34,13 +34,18 @@
     }
 
     /* 헤더/제목 스타일 */
-    h1 {
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #e0e0e0;
+      padding-bottom: 20px;
+      margin-bottom: 30px;
+    }
+    .page-header h1 {
       font-size: 2.2em;
       color: #2c3e50;
-      margin-top: 0;
-      margin-bottom: 25px;
-      padding-bottom: 15px;
-      border-bottom: 2px solid #ddd;
+      margin: 0;
     }
 
     /* 그래프 섹션 제목 스타일 */
@@ -55,9 +60,9 @@
     /* 버튼 그룹 스타일 */
     .btn-group {
       display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-      margin-bottom: 30px;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
     }
 
     /* 공통 버튼 스타일 */
@@ -92,7 +97,6 @@
     .btn-upload:hover { background-color: #e0a800; }
     .btn-spectrum-upload { background-color: #007bff; }
     .btn-spectrum-upload:hover { background-color: #0056b3; }
-
 
     /* 필터 그룹 스타일 */
     .filter-group {
@@ -247,18 +251,19 @@
             padding: 15px;
             margin-top: 15px;
         }
-        h1 {
-            font-size: 1.8em;
+        .page-header {
+            flex-direction: column;
+            align-items: flex-start;
             margin-bottom: 20px;
         }
-        .chart-container h2 {
-            font-size: 1.4em;
-            margin-bottom: 10px;
+        .page-header h1 {
+            font-size: 1.8em;
+            margin-bottom: 15px;
         }
         .btn-group {
             flex-direction: column;
+            width: 100%;
             gap: 10px;
-            margin-bottom: 20px;
         }
         .btn {
             width: 100%;
@@ -313,15 +318,17 @@
 </head>
 <body>
   <div class="container">
-    <h1>[5세부] 알엠택 Data</h1>
+    <div class="page-header">
+      <h1>[5세부] 알엠택 Data</h1>
 
-    <div class="btn-group">
-      <a href="/" class="btn btn-back">처음으로</a>
-      <button class="btn btn-refresh" onclick="location.reload()">새로고침</button>
-      <button class="btn btn-download" onclick="downloadCSV()">CSV 다운로드</button>
-      <label for="csvUpload" class="btn btn-upload">데이터 CSV 업로드</label>
-      <input type="file" id="csvUpload" accept=".csv" style="display:none"
-             onchange="uploadDataCSV(event)"/>
+      <div class="btn-group">
+        <a href="/" class="btn btn-back">처음으로</a>
+        <button class="btn btn-refresh" onclick="location.reload()">새로고침</button>
+        <button class="btn btn-download" onclick="downloadCSV()">CSV 다운로드</button>
+        <label for="csvUpload" class="btn btn-upload">데이터 CSV 업로드</label>
+        <input type="file" id="csvUpload" accept=".csv" style="display:none"
+               onchange="uploadDataCSV(event)"/>
+      </div>
     </div>
 
     <div class="filter-group">
@@ -340,6 +347,7 @@
           <thead>
             <tr>
               <th>측정시간</th>
+              <th>업로드 시간</th>   <!-- NEW -->
               <th>위도</th>
               <th>경도</th>
               <th>방사선량<br>(nSv/h)</th>
@@ -347,15 +355,17 @@
           </thead>
           <tbody>
             {% if data %}
-              {% for e in data %} <tr>
+              {% for e in data %}
+              <tr>
                 <td>{{ e.checkTime }}</td>
+                <td>{{ e.inputTime }}</td> <!-- NEW -->
                 <td>{{ "%.4f"|format(e.lat|float) }}</td>
                 <td>{{ "%.4f"|format(e.lng|float) }}</td>
                 <td>{{ e.radiation }}</td>
               </tr>
               {% endfor %}
             {% else %}
-              <tr><td colspan="4">데이터가 없습니다.</td></tr>
+              <tr><td colspan="5">데이터가 없습니다.</td></tr>
             {% endif %}
           </tbody>
         </table>
@@ -466,7 +476,7 @@
         window.location = '/analysis4';
     }
 
-    // (기존) 데이터 CSV 업로드 함수
+    // 데이터 CSV 업로드 함수
     function uploadDataCSV(e) {
       const f = e.target.files[0];
       if (!f) return;
@@ -476,7 +486,7 @@
         .catch(_=> alert('업로드 실패'));
     }
 
-    // (새로운) 스펙트럼 CSV 업로드 함수
+    // 스펙트럼 CSV 업로드 함수
     function uploadSpectrumCSV(e) {
         const file = e.target.files[0];
         if (!file) return;
@@ -598,6 +608,7 @@
         .addTo(map)
         .bindPopup(`
           <strong>측정시간:</strong> ${pt.checkTime}<br>
+          <strong>업로드시간:</strong> ${pt.inputTime || ''}<br>
           <strong>방사선량:</strong> ${pt.radiation} nSv/h
         `);
     });

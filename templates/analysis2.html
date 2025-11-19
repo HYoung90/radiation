@@ -282,8 +282,12 @@
 
         <div class="filter-group">
             <label for="minDate">시작일:</label>
-            <input type="text" id="minDate" readonly/> <label for="maxDate">종료일:</label>
-            <input type="text" id="maxDate" readonly/> <button class="btn btn-apply" onclick="filterByDate()">적용</button> <button class="btn btn-clear" onclick="clearDateFilter()">초기화</button> </div>
+            <input type="text" id="minDate" readonly/>
+            <label for="maxDate">종료일:</label>
+            <input type="text" id="maxDate" readonly/>
+            <button class="btn btn-apply" onclick="filterByDate()">적용</button>
+            <button class="btn btn-clear" onclick="clearDateFilter()">초기화</button>
+        </div>
 
         <div id="map"></div>
 
@@ -293,6 +297,7 @@
                 <th data-field="DroneCode">드론코드</th>
                 <th data-field="Start">측정 시작 시간</th>
                 <th data-field="Stop">측정 종료 시간</th>
+                <th data-field="inputTime">업로드 시각</th> <!-- NEW -->
                 <th data-field="MesurementTime">측정 시간</th>
                 <th data-field="Latitude">위도</th>
                 <th data-field="Longitude">경도</th>
@@ -310,6 +315,7 @@
                     <td>{{ entry.DroneCode }}</td>
                     <td>{{ entry.Start }}</td>
                     <td>{{ entry.Stop }}</td>
+                    <td>{{ entry.inputTime }}</td>  <!-- NEW -->
                     <td>{{ entry.MesurementTime }}</td>
                     <td>{{ "%.4f"|format(entry.Latitude|float) }}</td>
                     <td>{{ "%.4f"|format(entry.Longitude|float) }}</td>
@@ -323,7 +329,7 @@
             {% endfor %}
             {% if data|length == 0 %}
                 <tr>
-                    <td colspan="12">데이터가 없습니다.</td>
+                    <td colspan="13">데이터가 없습니다.</td> <!-- 12 -> 13 -->
                 </tr>
             {% endif %}
             </tbody>
@@ -336,6 +342,13 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
 
     <script>
+        // (선택) URL 파라미터로 넘어온 minDate/maxDate를 인풋에 복원
+        function setDatesFromURL(){
+            const sp = new URLSearchParams(location.search);
+            if (sp.get('minDate')) $('#minDate').val(sp.get('minDate'));
+            if (sp.get('maxDate')) $('#maxDate').val(sp.get('maxDate'));
+        }
+
         $(document).ready(function() {
             $('#weatherTable').DataTable({
                 paging: true,
@@ -345,7 +358,7 @@
                 ordering: true,
                 info: true,
                 autoWidth: false,
-                order: [[1,'desc']],
+                order: [[1,'desc']],  // Start 컬럼(측정 시작 시간)
                 "language": {
                     "emptyTable": "데이터가 없습니다.",
                     "zeroRecords": "검색 결과 없음",
@@ -385,6 +398,8 @@
                     $("#minDate").datepicker("option", "maxDate", selectedDate);
                 }
             });
+
+            setDatesFromURL();
         });
 
         function downloadCSV() {

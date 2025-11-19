@@ -873,13 +873,24 @@ def analysis2():
 @app.route('/analysis4')
 def analysis4():
     try:
-        # 마찬가지로 checkTime 필드 기준으로 정렬
+        min_str = request.args.get('minDate')
+        max_str = request.args.get('maxDate')
+
+        q = {}
+        if min_str or max_str:
+            rng = {}
+            if min_str:
+                rng["$gte"] = pd.to_datetime(min_str)
+            if max_str:
+                rng["$lt"] = pd.to_datetime(max_str) + pd.Timedelta(days=1)  # 종료일 포함
+            q["checkTime"] = rng
+
         data = list(
             analysis4_collection
-            .find({}, {"_id": 0})
+            .find(q, {"_id": 0})
             .sort("checkTime", DESCENDING)
         )
-        logging.info(f"Fetched data from analysis4_collection: {data}")
+        logging.info(f"Fetched data from analysis4_collection: {len(data)} rows")
         return render_template('analysis4.html', data=data)
     except Exception as e:
         logging.error(f"Error in fetching data from MongoDB: {e}")
@@ -996,7 +1007,7 @@ def upload_analysis1_csv():
     df.columns = df.columns.str.replace('\ufeff', '').str.strip()
     df = df.drop(columns=['_id'], errors='ignore')
 
-    # 헤더 매핑(지금 사용하시는 그대로)
+    # 헤더 매핑
     mapping = {
         "checkTime": "checkTime",
         "X": "x",
@@ -1013,10 +1024,14 @@ def upload_analysis1_csv():
     for col in ['x', 'y', 'Energy range (Mev)', 'radiation']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    # NaN/무효행 정리(선택)
+    # NaN/무효행 정리
     df = df.dropna(subset=['checkTime'])
 
-    # ⬇️ 여기서 직접 insert 하여 응답을 JSON으로 보장
+    # ✅ 여기서 업로드 시각(inputTime) 자동 추가
+    from datetime import datetime
+    df['inputTime'] = datetime.utcnow()
+
+    # MongoDB에 직접 insert
     records = df.to_dict(orient='records')
     if not records:
         return jsonify({"error": "No valid rows found in CSV"}), 400
@@ -1029,6 +1044,7 @@ def upload_analysis1_csv():
     except Exception as e:
         app.logger.error(f"upload insert error: {e}")
         return jsonify({"error": "DB insert failed"}), 500
+
 
 # ---------------------------------------------------------------------
 # 분석2 라우터 그룹
@@ -1081,14 +1097,12 @@ def upload_analysis2_csv():
     df.columns = df.columns.str.replace('\ufeff', '').str.strip()
     df = df.drop(columns=['_id'], errors='ignore')
 
-    # ===== 1) 헤더 표준화(영/한글, 공백/괄호/단위/미크로 기호 정리) =====
+    # ===== 1) 헤더 표준화 =====
     def norm(s: str) -> str:
         s = (s or '').strip().lower()
         s = s.replace('μ', 'u').replace('µ', 'u')   # micro 통일
-        # 영문/숫자/한글만 남기기
         return ''.join(ch for ch in s if ch.isalnum())
 
-    # 표준키 -> DB필드
     alias_map = {
         # 드론 코드
         'dronecode': 'DroneCode',
@@ -1104,7 +1118,7 @@ def upload_analysis2_csv():
         '측정종료시간':    'Stop',
         '측정종료':       'Stop',
 
-        'mesurementtime':  'MesurementTime',   # 기존 DB 철자 유지
+        'mesurementtime':  'MesurementTime',
         'measurementtime': 'MesurementTime',
         '측정시간':          'MesurementTime',
 
@@ -1117,7 +1131,7 @@ def upload_analysis2_csv():
         '고도':        'Altitude',
         '고도m':       'Altitude',
 
-        # 동/서/남/북(단위 포함 변형 흡수)
+        # 동/서/남/북
         'east':       'East',
         '동':          'East',
         'eastusvh':   'East',
@@ -1145,7 +1159,6 @@ def upload_analysis2_csv():
         '평균방사선량usvh':          'Average',
     }
 
-    # 실제 컬럼 -> DB필드로 rename 매핑 구성
     rename_map = {}
     for col in list(df.columns):
         key = norm(col)
@@ -1159,7 +1172,7 @@ def upload_analysis2_csv():
         if dt_col in df.columns:
             df[dt_col] = pd.to_datetime(df[dt_col], errors='coerce')
 
-    # MesurementTime 없으면 Start/Stop으로 계산(H:MM)
+    # MesurementTime 없으면 Start/Stop으로 계산
     if 'MesurementTime' not in df.columns and {'Start', 'Stop'}.issubset(df.columns):
         def fmt_duration(td):
             if pd.isna(td):
@@ -1180,8 +1193,11 @@ def upload_analysis2_csv():
     if {'Latitude','Longitude'}.issubset(df.columns):
         df = df[~(df['Latitude'].isna() | df['Longitude'].isna())]
 
-    # ===== 3) 업로드(동일 매핑) =====
-    # 이제 df 컬럼명이 DB필드와 동일하므로, 동일 매핑으로 업로드
+    # ✅ 여기서 업로드 시각(inputTime) 자동 추가
+    from datetime import datetime
+    df['inputTime'] = datetime.utcnow()
+
+    # ===== 3) 업로드 =====
     buf = io.StringIO()
     df.to_csv(buf, index=False, encoding='utf-8-sig')
     buf.seek(0)
@@ -1199,21 +1215,36 @@ def upload_analysis2_csv():
         'South':'South',
         'North':'North',
         'Average':'Average',
+        # ✅ inputTime도 같이 저장
+        'inputTime': 'inputTime',
     })
+
 # ---------------------------------------------------------------------
 # 분석4 라우터 그룹
 # ---------------------------------------------------------------------
 # -- CSV 내보내기 (영문 헤더) --
 @app.route('/export_analysis4_csv', methods=['GET'])
 def export_analysis4_csv():
+    # 날짜 파라미터 읽기
+    min_str = request.args.get('minDate')
+    max_str = request.args.get('maxDate')
+
+    q = {}
+    if min_str or max_str:
+        rng = {}
+        if min_str:
+            rng["$gte"] = pd.to_datetime(min_str)
+        if max_str:
+            rng["$lt"] = pd.to_datetime(max_str) + pd.Timedelta(days=1)  # 종료일 포함
+        q["checkTime"] = rng
+
     return export_csv(
         analysis4_collection,
         "analysis4_data",
-        # CSV 헤더 (영어)
         ["checkTime", "lat", "lng", "radiation"],
-        # 필드 이름 (DB 저장 필드)
         ["checkTime", "lat", "lng", "radiation"],
-        sort=[("checkTime", DESCENDING)]
+        sort=[("checkTime", DESCENDING)],
+        query=q           # ← 이 줄 추가
     )
 
 # -- CSV 업로드 (영문 헤더 매핑) --
@@ -1245,10 +1276,13 @@ def upload_analysis4_csv():
         "checkTime": "checkTime",
         "lat":       "lat",
         "lng":       "lng",
-        "radiation": "radiation"
+        "radiation": "radiation",
+        # ✅ DB에 inputTime 필드도 같이 넣기
+        "inputTime": "inputTime",
     }
 
-    if not set(mapping.keys()).intersection(df.columns):
+    # 최소 컬럼 체크
+    if not {"checkTime", "lat", "lng", "radiation"}.issubset(df.columns):
         return jsonify({
             "error":   "Unexpected CSV headers",
             "headers": df.columns.tolist()
@@ -1261,14 +1295,17 @@ def upload_analysis4_csv():
     for col in ['lat', 'lng', 'radiation']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    # 6) 버퍼에 다시 CSV 작성
+    # 6) 업로드(입력) 시각 컬럼 추가
+    from datetime import datetime
+    df['inputTime'] = datetime.utcnow()
+
+    # 7) 버퍼에 다시 CSV 작성
     buf = io.StringIO()
     df.to_csv(buf, index=False, encoding='utf-8-sig')
     buf.seek(0)
 
-    # 7) MongoDB 업로드
+    # 8) MongoDB 업로드
     return upload_csv(analysis4_collection, buf, mapping)
-
 
 # ---------------------------------------------------------------------
 # 구호소 평가
