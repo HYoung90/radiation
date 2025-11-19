@@ -115,8 +115,8 @@
         <thead>
           <tr>
             <th>측정 시간</th>
-            <th>선량계 코드</th>
-            <th>업로드 시간</th> <!-- NEW -->
+            <th>업로드 시간</th> <!-- 2번째 -->
+            <th>선량계 코드</th> <!-- 3번째 -->
             <th>위도</th>
             <th>경도</th>
             <th>현재 방사선량<br>(nSv/h)</th>
@@ -137,9 +137,7 @@
                     {% endif %}
                   {% else %}-{% endif %}
                 </td>
-                <!-- 선량계 코드 -->
-                <td>{{ e.genName|default(e.deviceCode)|default(e.code)|default('-') }}</td>
-                <!-- 업로드 시간 (inputTime) NEW -->
+                <!-- 업로드 시간 (inputTime) -->
                 <td>
                   {% if e.inputTime %}
                     {% if e.inputTime is string %}
@@ -149,6 +147,8 @@
                     {% endif %}
                   {% else %}-{% endif %}
                 </td>
+                <!-- 선량계 코드 -->
+                <td>{{ e.genName|default(e.deviceCode)|default(e.code)|default('-') }}</td>
                 <!-- 좌표 / 선량 정보 -->
                 <td>{% if e.lat is not none %}{{ "%.4f"|format(e.lat|float) }}{% else %}-{% endif %}</td>
                 <td>{% if e.lng is not none %}{{ "%.4f"|format(e.lng|float) }}{% else %}-{% endif %}</td>
@@ -157,7 +157,7 @@
               </tr>
             {% endfor %}
           {% else %}
-            <tr><td colspan="7">데이터가 없습니다.</td></tr> <!-- 6 -> 7 -->
+            <tr><td colspan="7">데이터가 없습니다.</td></tr>
           {% endif %}
         </tbody>
       </table>
@@ -387,9 +387,9 @@
           if (window.table) table.draw();
         });
 
-        // DataTables 필터 등록 (선량계 코드 컬럼 = 1번 인덱스 유지)
+        // DataTables 필터 등록 (선량계 코드 컬럼 = 2번 인덱스)
         $.fn.dataTable.ext.search.push(function (_settings, data) {
-          const code = data[1];
+          const code = data[2];  // 0: 측정시간, 1: 업로드시간, 2: 선량계 코드
           if (selectedCodes.size === 0) return true;
           return selectedCodes.has(code);
         });
