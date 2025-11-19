@@ -1847,6 +1847,9 @@ def normalize_workers_checktime():
     return jsonify({"message": "OK", **msg}), 200
 
 # 방재요원 CSV 업로드 (checkTime은 datetime으로 저장)
+from datetime import datetime
+from pymongo import UpdateOne
+
 @app.route('/upload_workers_csv', methods=['POST'])
 @login_required
 def upload_workers_csv():
@@ -1941,13 +1944,25 @@ def upload_workers_csv():
     # tz 제거
     df['checkTime'] = df['checkTime'].dt.tz_localize(None)
 
-    # ===== 업서트(같은 code+checkTime이면 갱신) =====
-    from pymongo import UpdateOne
+    # ✅ 업로드 시각(UTC) 한 번 계산
+    upload_time = datetime.utcnow()
+
+    # ===== 업서트(같은 code+checkTime이면 갱신) + inputTime 삽입 =====
     ops = []
     keep_cols = [c for c in ['checkTime', 'code', 'lat', 'lng', 'doseRate', 'cumulativeDose'] if c in df.columns]
     for r in df[keep_cols].to_dict('records'):
         key = {'code': r.get('code'), 'checkTime': r.get('checkTime')}
-        ops.append(UpdateOne(key, {'$set': r}, upsert=True))
+
+        ops.append(
+            UpdateOne(
+                key,
+                {
+                    '$set': r,                              # 기존 필드 업데이트
+                    '$setOnInsert': {'inputTime': upload_time}  # 새 문서일 때만 inputTime 채움
+                },
+                upsert=True
+            )
+        )
 
     res = workers_collection.bulk_write(ops, ordered=False)
     return jsonify({
@@ -1955,6 +1970,7 @@ def upload_workers_csv():
         "upserted": res.upserted_count,
         "modified": res.modified_count
     }), 200
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
