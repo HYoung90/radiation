@@ -1847,9 +1847,6 @@ def normalize_workers_checktime():
     return jsonify({"message": "OK", **msg}), 200
 
 # 방재요원 CSV 업로드 (checkTime은 datetime으로 저장)
-from datetime import datetime
-from pymongo import UpdateOne
-
 @app.route('/upload_workers_csv', methods=['POST'])
 @login_required
 def upload_workers_csv():
@@ -1970,7 +1967,6 @@ def upload_workers_csv():
         "upserted": res.upserted_count,
         "modified": res.modified_count
     }), 200
-
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
