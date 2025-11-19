@@ -46,7 +46,7 @@
         .btn-group {
             display: flex;
             gap: 12px;
-            flex-wrap: wrap; /* 버튼 줄바꿈 허용 */
+            flex-wrap: wrap;
         }
         .btn {
             padding: 12px 22px;
@@ -239,17 +239,17 @@
                 width: 100%;
             }
             #map {
-                height: 300px; /* 모바일에서 지도 높이 축소 */
+                height: 300px;
                 margin-bottom: 20px;
             }
             .dataTables_wrapper {
-                overflow-x: auto; /* 테이블이 화면을 벗어나면 가로 스크롤 생성 */
+                overflow-x: auto;
             }
             #weatherTable {
-                font-size: 0.8em; /* 테이블 글자 크기 축소 */
+                font-size: 0.8em;
             }
             #weatherTable thead th, #weatherTable tbody td {
-                padding: 8px 10px; /* 테이블 셀 패딩 축소 */
+                padding: 8px 10px;
             }
             .dataTables_wrapper .dataTables_paginate {
                 display: flex;
@@ -297,7 +297,7 @@
                 <th data-field="DroneCode">드론코드</th>
                 <th data-field="Start">측정 시작 시간</th>
                 <th data-field="Stop">측정 종료 시간</th>
-                <th data-field="inputTime">업로드 시각</th> <!-- NEW -->
+                <th data-field="inputTime">업로드 시각</th>
                 <th data-field="MesurementTime">측정 시간</th>
                 <th data-field="Latitude">위도</th>
                 <th data-field="Longitude">경도</th>
@@ -313,10 +313,59 @@
             {% for entry in data %}
                 <tr>
                     <td>{{ entry.DroneCode }}</td>
-                    <td>{{ entry.Start }}</td>
-                    <td>{{ entry.Stop }}</td>
-                    <td>{{ entry.inputTime }}</td>  <!-- NEW -->
-                    <td>{{ entry.MesurementTime }}</td>
+
+                    <!-- 측정 시작 시간 -->
+                    <td>
+                        {% if entry.Start %}
+                            {% if entry.Start is string %}
+                                {{ entry.Start }}
+                            {% else %}
+                                {{ entry.Start.strftime('%Y-%m-%d %H:%M:%S') }}
+                            {% endif %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+
+                    <!-- 측정 종료 시간 -->
+                    <td>
+                        {% if entry.Stop %}
+                            {% if entry.Stop is string %}
+                                {{ entry.Stop }}
+                            {% else %}
+                                {{ entry.Stop.strftime('%Y-%m-%d %H:%M:%S') }}
+                            {% endif %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+
+                    <!-- 업로드 시각 -->
+                    <td>
+                        {% if entry.inputTime %}
+                            {% if entry.inputTime is string %}
+                                {{ entry.inputTime }}
+                            {% else %}
+                                {{ entry.inputTime.strftime('%Y-%m-%d %H:%M:%S') }}
+                            {% endif %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+
+                    <!-- 측정 시간 -->
+                    <td>
+                        {% if entry.MesurementTime %}
+                            {% if entry.MesurementTime is string %}
+                                {{ entry.MesurementTime }}
+                            {% else %}
+                                {{ entry.MesurementTime.strftime('%Y-%m-%d %H:%M:%S') }}
+                            {% endif %}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+
                     <td>{{ "%.4f"|format(entry.Latitude|float) }}</td>
                     <td>{{ "%.4f"|format(entry.Longitude|float) }}</td>
                     <td>{{ entry.Altitude }}</td>
@@ -329,7 +378,7 @@
             {% endfor %}
             {% if data|length == 0 %}
                 <tr>
-                    <td colspan="13">데이터가 없습니다.</td> <!-- 12 -> 13 -->
+                    <td colspan="13">데이터가 없습니다.</td>
                 </tr>
             {% endif %}
             </tbody>
@@ -342,11 +391,21 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
 
     <script>
-        // (선택) URL 파라미터로 넘어온 minDate/maxDate를 인풋에 복원
+        // URL 파라미터로 넘어온 minDate/maxDate를 인풋에 복원
         function setDatesFromURL(){
             const sp = new URLSearchParams(location.search);
             if (sp.get('minDate')) $('#minDate').val(sp.get('minDate'));
             if (sp.get('maxDate')) $('#maxDate').val(sp.get('maxDate'));
+        }
+
+        // 시간 문자열 포맷: 'YYYY-MM-DD HH:MM:SS' 로 통일
+        function formatTimeStr(t) {
+            if (!t) return '';
+            if (typeof t !== 'string') return t;
+            if (t.length >= 19) {
+                return t.slice(0, 19).replace('T', ' ');
+            }
+            return t;
         }
 
         $(document).ready(function() {
@@ -359,17 +418,17 @@
                 info: true,
                 autoWidth: false,
                 order: [[1,'desc']],  // Start 컬럼(측정 시작 시간)
-                "language": {
-                    "emptyTable": "데이터가 없습니다.",
-                    "zeroRecords": "검색 결과 없음",
-                    "info": "총 _TOTAL_개 항목 중 _START_에서 _END_까지 표시",
-                    "infoEmpty": "0개 항목 중 0에서 0까지 표시",
-                    "infoFiltered": "(전체 _MAX_개 항목 중 필터링됨)",
-                    "paginate": {
-                        "first": "처음",
-                        "last": "마지막",
-                        "next": "다음",
-                        "previous": "이전"
+                language: {
+                    emptyTable: "데이터가 없습니다.",
+                    zeroRecords: "검색 결과 없음",
+                    info: "총 _TOTAL_개 항목 중 _START_에서 _END_까지 표시",
+                    infoEmpty: "0개 항목 중 0에서 0까지 표시",
+                    infoFiltered: "(전체 _MAX_개 항목 중 필터링됨)",
+                    paginate: {
+                        first: "처음",
+                        last: "마지막",
+                        next: "다음",
+                        previous: "이전"
                     }
                 }
             });
@@ -443,10 +502,12 @@
             const fd = new FormData();
             fd.append('file', f);
             fetch('/upload_analysis2_csv', { method:'POST', body: fd })
-                .then(r=>r.text()).then(txt=>{ alert(txt); location.reload(); })
-                .catch(_=> alert('업로드 실패'));
+                .then(r => r.text())
+                .then(txt => { alert(txt); location.reload(); })
+                .catch(_ => alert('업로드 실패'));
         }
 
+        // 지도 관련
         const measurements = {{ data|tojson }};
         const toNum  = v => (v == null ? NaN : Number(v));
         const getLat = o => toNum(o?.Latitude ?? o?.lat);
@@ -472,8 +533,10 @@
             if (Number.isFinite(lat) && Number.isFinite(lng)) {
                 L.marker([lat, lng]).addTo(map).bindPopup(`
                     <div style="line-height:1.4">
-                        <strong>측정 시작:</strong> ${pt.Start ?? ''}<br>
-                        <strong>측정 종료:</strong> ${pt.Stop ?? ''}<br>
+                        <strong>측정 시작:</strong> ${formatTimeStr(pt.Start)}<br>
+                        <strong>측정 종료:</strong> ${formatTimeStr(pt.Stop)}<br>
+                        <strong>업로드 시각:</strong> ${formatTimeStr(pt.inputTime)}<br>
+                        <strong>측정 시간:</strong> ${formatTimeStr(pt.MesurementTime)}<br>
                         <strong>고도:</strong> ${(pt.Altitude ?? pt.altitude ?? '')} m<br>
                         <strong>평균 방사선량:</strong> ${(pt.Average ?? pt.radiation ?? '')} μSv/h
                     </div>

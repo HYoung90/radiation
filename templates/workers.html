@@ -143,9 +143,11 @@
                     {% if e.inputTime is string %}
                       {{ e.inputTime }}
                     {% else %}
-                      {{ e.inputTime.strftime('%Y-%m-%d %H:%M') }}
+                      {{ e.inputTime.strftime('%Y-%m-%d %H:%M:%S') }}
                     {% endif %}
-                  {% else %}-{% endif %}
+                  {% else %}
+                    -
+                  {% endif %}
                 </td>
                 <!-- 선량계 코드 -->
                 <td>{{ e.genName|default(e.deviceCode)|default(e.code)|default('-') }}</td>

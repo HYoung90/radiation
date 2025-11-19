@@ -288,8 +288,32 @@
       {% if data %}
         {% for e in data %}
           <tr>
-            <td>{{ e.checkTime }}</td>
-            <td>{{ e.inputTime }}</td>  <!-- NEW: inputTime 출력 (없으면 빈칸) -->
+            <!-- 측정시간 -->
+            <td>
+              {% if e.checkTime %}
+                {% if e.checkTime is string %}
+                  {{ e.checkTime }}
+                {% else %}
+                  {{ e.checkTime.strftime('%Y-%m-%d %H:%M:%S') }}
+                {% endif %}
+              {% else %}
+                -
+              {% endif %}
+            </td>
+
+            <!-- 업로드 시각 -->
+            <td>
+              {% if e.inputTime %}
+                {% if e.inputTime is string %}
+                  {{ e.inputTime }}
+                {% else %}
+                  {{ e.inputTime.strftime('%Y-%m-%d %H:%M:%S') }}
+                {% endif %}
+              {% else %}
+                -
+              {% endif %}
+            </td>
+
             <td>{{ e.x }}</td>
             <td>{{ e.y }}</td>
             <td>{{ e['Energy range (Mev)'] }}</td>
@@ -297,7 +321,7 @@
           </tr>
         {% endfor %}
       {% else %}
-        <tr><td colspan="6">데이터가 없습니다.</td></tr> <!-- colspan 6으로 수정 -->
+        <tr><td colspan="6">데이터가 없습니다.</td></tr>
       {% endif %}
       </tbody>
     </table>
@@ -380,8 +404,7 @@
           aria: { sortAscending: ": 오름차순 정렬", sortDescending: ": 내림차순 정렬" }
         },
         columnDefs: [
-          // NEW: 업로드 시각 컬럼이 1번 인덱스로 들어가면서
-          // 숫자 컬럼 인덱스가 2(X), 3(Y), 5(Radiation)가 됨
+          // 숫자 컬럼: X(2), Y(3), Radiation(5)
           { targets:[2,3,5], type:'num', className:'dt-body-right' }
         ]
       });
