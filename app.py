@@ -69,6 +69,10 @@ users = db['users'] # 사용자 컬렉션
 def get_mongo_connection():
     return client
 
+# 한국시간(KST, UTC+9) 반환 헬퍼
+def now_kst():
+    # tz 정보 없이, KST 시각을 그대로 쓰고 싶을 때 사용
+    return datetime.utcnow() + timedelta(hours=9)
 
 # User 클래스 정의 바로 위나 아래에 추가
 def admin_required(f):
@@ -1016,9 +1020,8 @@ def upload_analysis1_csv():
     # NaN/무효행 정리
     df = df.dropna(subset=['checkTime'])
 
-    # ✅ 여기서 업로드 시각(inputTime) 자동 추가
-    from datetime import datetime
-    df['inputTime'] = datetime.utcnow()
+    # ✅ 여기서 업로드 시각(inputTime) 자동 추가 (KST)
+    df['inputTime'] = now_kst()
 
     # MongoDB에 직접 insert
     records = df.to_dict(orient='records')
@@ -1182,9 +1185,8 @@ def upload_analysis2_csv():
     if {'Latitude','Longitude'}.issubset(df.columns):
         df = df[~(df['Latitude'].isna() | df['Longitude'].isna())]
 
-    # ✅ 여기서 업로드 시각(inputTime) 자동 추가
-    from datetime import datetime
-    df['inputTime'] = datetime.utcnow()
+    # ✅ 여기서 업로드 시각(inputTime) 자동 추가 (KST)
+    df['inputTime'] = now_kst()
 
     # ===== 3) 업로드 =====
     buf = io.StringIO()
@@ -1272,9 +1274,9 @@ def upload_analysis4_csv():
     for col in ['lat', 'lng', 'radiation']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    # 6) 업로드(입력) 시각 컬럼 추가 – CSV에는 없지만 서버에서 생성
-    from datetime import datetime
-    df['inputTime'] = datetime.utcnow()   # 업로드 시점(UTC 기준)
+    # 6) 업로드(입력) 시각 컬럼 추가 – CSV에는 없지만 서버에서 생성 (KST)
+    df['inputTime'] = now_kst()
+
 
     # 7) 버퍼에 다시 CSV 작성
     buf = io.StringIO()
@@ -1585,27 +1587,25 @@ def upload_gif():
     if f.mimetype != 'image/gif' and not f.filename.lower().endswith('.gif'):
         return jsonify({"error": "GIF만 업로드"}), 400
 
-    name = f"{datetime.now():%Y%m%d-%H%M%S}-{secure_filename(f.filename)}"
+    kst_now = now_kst()
+    name = f"{kst_now:%Y%m%d-%H%M%S}-{secure_filename(f.filename)}"
     save_path = os.path.join(app.config['UPLOAD_FOLDER'], name)
     f.save(save_path)
 
-    # 상대경로(URL) — 프론트에서 그대로 <img src={url}> 사용 가능
     rel_url = url_for('serve_uploads', filename=name)
 
-    # DB 기록
     try:
         uploads_collection.insert_one({
             "type": "gif",
             "filename": name,
             "url": rel_url,
             "uploader": (current_user.email if hasattr(current_user, "is_authenticated") and current_user.is_authenticated else None),
-            "created_at": datetime.utcnow()
+            "created_at": kst_now
         })
     except Exception as e:
         app.logger.error(f"[uploads_collection] insert error: {e}")
 
     return jsonify({"url": rel_url}), 200
-
 
 @app.route('/api/uploads/gifs', methods=['GET'])
 def list_uploaded_gifs():
