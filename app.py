@@ -1824,6 +1824,7 @@ def normalize_workers_checktime():
     return jsonify({"message": "OK", **msg}), 200
 
 # 방재요원 CSV 업로드 (checkTime은 datetime으로 저장)
+# 방재요원 CSV 업로드 (checkTime은 datetime + inputTime(KST) 저장)
 @app.route('/upload_workers_csv', methods=['POST'])
 @login_required
 def upload_workers_csv():
@@ -1918,10 +1919,16 @@ def upload_workers_csv():
     # tz 제거
     df['checkTime'] = df['checkTime'].dt.tz_localize(None)
 
+    # ✅ 업로드 시각(KST) 컬럼 추가 (이번 배치 공통)
+    df['inputTime'] = now_kst()
+
     # ===== 업서트(같은 code+checkTime이면 갱신) =====
     from pymongo import UpdateOne
     ops = []
-    keep_cols = [c for c in ['checkTime', 'code', 'lat', 'lng', 'doseRate', 'cumulativeDose'] if c in df.columns]
+    keep_cols = [c for c in [
+        'checkTime', 'code', 'lat', 'lng', 'doseRate', 'cumulativeDose', 'inputTime'
+    ] if c in df.columns]
+
     for r in df[keep_cols].to_dict('records'):
         key = {'code': r.get('code'), 'checkTime': r.get('checkTime')}
         ops.append(UpdateOne(key, {'$set': r}, upsert=True))
@@ -1932,6 +1939,7 @@ def upload_workers_csv():
         "upserted": res.upserted_count,
         "modified": res.modified_count
     }), 200
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
