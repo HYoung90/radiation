@@ -873,24 +873,13 @@ def analysis2():
 @app.route('/analysis4')
 def analysis4():
     try:
-        min_str = request.args.get('minDate')
-        max_str = request.args.get('maxDate')
-
-        q = {}
-        if min_str or max_str:
-            rng = {}
-            if min_str:
-                rng["$gte"] = pd.to_datetime(min_str)
-            if max_str:
-                rng["$lt"] = pd.to_datetime(max_str) + pd.Timedelta(days=1)  # 종료일 포함
-            q["checkTime"] = rng
-
+        # 마찬가지로 checkTime 필드 기준으로 정렬
         data = list(
             analysis4_collection
-            .find(q, {"_id": 0})
+            .find({}, {"_id": 0})
             .sort("checkTime", DESCENDING)
         )
-        logging.info(f"Fetched data from analysis4_collection: {len(data)} rows")
+        logging.info(f"Fetched data from analysis4_collection: {data}")
         return render_template('analysis4.html', data=data)
     except Exception as e:
         logging.error(f"Error in fetching data from MongoDB: {e}")
@@ -1225,26 +1214,14 @@ def upload_analysis2_csv():
 # -- CSV 내보내기 (영문 헤더) --
 @app.route('/export_analysis4_csv', methods=['GET'])
 def export_analysis4_csv():
-    # 날짜 파라미터 읽기
-    min_str = request.args.get('minDate')
-    max_str = request.args.get('maxDate')
-
-    q = {}
-    if min_str or max_str:
-        rng = {}
-        if min_str:
-            rng["$gte"] = pd.to_datetime(min_str)
-        if max_str:
-            rng["$lt"] = pd.to_datetime(max_str) + pd.Timedelta(days=1)  # 종료일 포함
-        q["checkTime"] = rng
-
     return export_csv(
         analysis4_collection,
         "analysis4_data",
+        # CSV 헤더 (영어)
         ["checkTime", "lat", "lng", "radiation"],
+        # 필드 이름 (DB 저장 필드)
         ["checkTime", "lat", "lng", "radiation"],
-        sort=[("checkTime", DESCENDING)],
-        query=q           # ← 이 줄 추가
+        sort=[("checkTime", DESCENDING)]
     )
 
 # -- CSV 업로드 (영문 헤더 매핑) --
@@ -1277,11 +1254,11 @@ def upload_analysis4_csv():
         "lat":       "lat",
         "lng":       "lng",
         "radiation": "radiation",
-        # ✅ DB에 inputTime 필드도 같이 넣기
+        # 여기 추가: DB에 inputTime 필드도 같이 넣기
         "inputTime": "inputTime",
     }
 
-    # 최소 컬럼 체크
+    # checkTime/lat/lng/radiation 네 개는 최소 있어야 하므로 이쪽만 확인
     if not {"checkTime", "lat", "lng", "radiation"}.issubset(df.columns):
         return jsonify({
             "error":   "Unexpected CSV headers",
@@ -1295,9 +1272,9 @@ def upload_analysis4_csv():
     for col in ['lat', 'lng', 'radiation']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
 
-    # 6) 업로드(입력) 시각 컬럼 추가
+    # 6) 업로드(입력) 시각 컬럼 추가 – CSV에는 없지만 서버에서 생성
     from datetime import datetime
-    df['inputTime'] = datetime.utcnow()
+    df['inputTime'] = datetime.utcnow()   # 업로드 시점(UTC 기준)
 
     # 7) 버퍼에 다시 CSV 작성
     buf = io.StringIO()
@@ -1941,25 +1918,13 @@ def upload_workers_csv():
     # tz 제거
     df['checkTime'] = df['checkTime'].dt.tz_localize(None)
 
-    # ✅ 업로드 시각(UTC) 한 번 계산
-    upload_time = datetime.utcnow()
-
-    # ===== 업서트(같은 code+checkTime이면 갱신) + inputTime 삽입 =====
+    # ===== 업서트(같은 code+checkTime이면 갱신) =====
+    from pymongo import UpdateOne
     ops = []
     keep_cols = [c for c in ['checkTime', 'code', 'lat', 'lng', 'doseRate', 'cumulativeDose'] if c in df.columns]
     for r in df[keep_cols].to_dict('records'):
         key = {'code': r.get('code'), 'checkTime': r.get('checkTime')}
-
-        ops.append(
-            UpdateOne(
-                key,
-                {
-                    '$set': r,                              # 기존 필드 업데이트
-                    '$setOnInsert': {'inputTime': upload_time}  # 새 문서일 때만 inputTime 채움
-                },
-                upsert=True
-            )
-        )
+        ops.append(UpdateOne(key, {'$set': r}, upsert=True))
 
     res = workers_collection.bulk_write(ops, ordered=False)
     return jsonify({
