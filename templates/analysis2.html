@@ -90,7 +90,8 @@
             color: #34495e;
             white-space: nowrap;
         }
-        .filter-group input[type="text"] {
+        .filter-group input[type="text"],
+        .filter-group select {
             padding: 10px 15px;
             border: 1px solid #ced4da;
             border-radius: 5px;
@@ -98,7 +99,8 @@
             width: 160px;
             box-sizing: border-box;
         }
-        .filter-group input[type="text"]:focus {
+        .filter-group input[type="text"]:focus,
+        .filter-group select:focus {
             border-color: #80bdff;
             outline: 0;
             box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
@@ -232,10 +234,13 @@
                 gap: 10px;
                 padding: 10px;
             }
-            .filter-group label, .filter-group input {
+            .filter-group label,
+            .filter-group input,
+            .filter-group select {
                 width: 100%;
             }
-            .filter-group input[type="text"] {
+            .filter-group input[type="text"],
+            .filter-group select {
                 width: 100%;
             }
             #map {
@@ -248,7 +253,8 @@
             #weatherTable {
                 font-size: 0.8em;
             }
-            #weatherTable thead th, #weatherTable tbody td {
+            #weatherTable thead th,
+            #weatherTable tbody td {
                 padding: 8px 10px;
             }
             .dataTables_wrapper .dataTables_paginate {
@@ -287,6 +293,13 @@
             <input type="text" id="maxDate" readonly/>
             <button class="btn btn-apply" onclick="filterByDate()">적용</button>
             <button class="btn btn-clear" onclick="clearDateFilter()">초기화</button>
+
+            <!-- 드론 코드 필터 추가 -->
+            <label for="droneFilter">드론 코드:</label>
+            <select id="droneFilter">
+                <option value="">전체</option>
+                <!-- 옵션은 JS에서 measurements 기반으로 채움 -->
+            </select>
         </div>
 
         <div id="map"></div>
@@ -391,6 +404,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
 
     <script>
+        // 서버에서 내려온 데이터 (지도/테이블 공용)
+        const measurements = {{ data|tojson }};
+        let analysis2Table = null;
+        const markers = [];
+
         // URL 파라미터로 넘어온 minDate/maxDate를 인풋에 복원
         function setDatesFromURL(){
             const sp = new URLSearchParams(location.search);
@@ -409,7 +427,8 @@
         }
 
         $(document).ready(function() {
-            $('#weatherTable').DataTable({
+            // DataTables 초기화
+            analysis2Table = $('#weatherTable').DataTable({
                 paging: true,
                 pageLength: 10,
                 lengthChange: false,
@@ -432,6 +451,21 @@
                     }
                 }
             });
+
+            // 드론 코드 필터 옵션 채우기
+            const droneFilter = $('#droneFilter');
+            const droneCodes = [...new Set(
+                (Array.isArray(measurements) ? measurements : [])
+                    .map(m => m.DroneCode)
+                    .filter(c => c !== null && c !== undefined && c !== '')
+            )].sort();
+
+            droneCodes.forEach(code => {
+                droneFilter.append(`<option value="${code}">${code}</option>`);
+            });
+
+            // 드론 코드 셀렉트 변경 시 필터 적용
+            droneFilter.on('change', applyDroneFilter);
 
             $("#minDate").datepicker({
                 dateFormat: 'yy-mm-dd',
@@ -459,6 +493,9 @@
             });
 
             setDatesFromURL();
+
+            // 지도 초기화 및 마커 표시
+            initMap();
         });
 
         function downloadCSV() {
@@ -508,45 +545,92 @@
         }
 
         // 지도 관련
-        const measurements = {{ data|tojson }};
         const toNum  = v => (v == null ? NaN : Number(v));
         const getLat = o => toNum(o?.Latitude ?? o?.lat);
         const getLng = o => toNum(o?.Longitude ?? o?.lng);
 
-        const firstValid = (Array.isArray(measurements) ? measurements : []).find(
-            m => Number.isFinite(getLat(m)) && Number.isFinite(getLng(m))
-        );
-        const defaultLat = firstValid ? getLat(firstValid) : 36.0;
-        const defaultLng = firstValid ? getLng(firstValid) : 127.5;
+        let map = null;
 
-        const map = L.map('map').setView([defaultLat, defaultLng], 8);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            attribution: 'Map tiles by CartoDB, CC BY 3.0 — Map data © OpenStreetMap contributors',
-            subdomains: 'abcd',
-            maxZoom: 19
-        }).addTo(map);
+        function initMap() {
+            const firstValid = (Array.isArray(measurements) ? measurements : []).find(
+                m => Number.isFinite(getLat(m)) && Number.isFinite(getLng(m))
+            );
+            const defaultLat = firstValid ? getLat(firstValid) : 36.0;
+            const defaultLng = firstValid ? getLng(firstValid) : 127.5;
 
-        const bounds = [];
-        measurements.forEach(pt => {
-            const lat = getLat(pt);
-            const lng = getLng(pt);
-            if (Number.isFinite(lat) && Number.isFinite(lng)) {
-                L.marker([lat, lng]).addTo(map).bindPopup(`
-                    <div style="line-height:1.4">
-                        <strong>측정 시작:</strong> ${formatTimeStr(pt.Start)}<br>
-                        <strong>측정 종료:</strong> ${formatTimeStr(pt.Stop)}<br>
-                        <strong>업로드 시각:</strong> ${formatTimeStr(pt.inputTime)}<br>
-                        <strong>측정 시간:</strong> ${formatTimeStr(pt.MesurementTime)}<br>
-                        <strong>고도:</strong> ${(pt.Altitude ?? pt.altitude ?? '')} m<br>
-                        <strong>평균 방사선량:</strong> ${(pt.Average ?? pt.radiation ?? '')} μSv/h
-                    </div>
-                `);
-                bounds.push([lat, lng]);
+            map = L.map('map').setView([defaultLat, defaultLng], 8);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+                attribution: 'Map tiles by CartoDB, CC BY 3.0 — Map data © OpenStreetMap contributors',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(map);
+
+            const allBounds = [];
+            (Array.isArray(measurements) ? measurements : []).forEach(pt => {
+                const lat = getLat(pt);
+                const lng = getLng(pt);
+                if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                    const marker = L.marker([lat, lng]).addTo(map).bindPopup(`
+                        <div style="line-height:1.4">
+                            <strong>드론코드:</strong> ${pt.DroneCode ?? ''}<br>
+                            <strong>측정 시작:</strong> ${formatTimeStr(pt.Start)}<br>
+                            <strong>측정 종료:</strong> ${formatTimeStr(pt.Stop)}<br>
+                            <strong>업로드 시각:</strong> ${formatTimeStr(pt.inputTime)}<br>
+                            <strong>측정 시간:</strong> ${formatTimeStr(pt.MesurementTime)}<br>
+                            <strong>고도:</strong> ${(pt.Altitude ?? pt.altitude ?? '')} m<br>
+                            <strong>평균 방사선량:</strong> ${(pt.Average ?? pt.radiation ?? '')} μSv/h
+                        </div>
+                    `);
+
+                    // 드론 코드 정보 저장 (필터용)
+                    marker._droneCode = pt.DroneCode || null;
+
+                    markers.push(marker);
+                    allBounds.push([lat, lng]);
+                }
+            });
+
+            if (allBounds.length > 0) {
+                map.fitBounds(allBounds, { padding: [30, 30] });
             }
-        });
+        }
 
-        if (bounds.length > 0) {
-            map.fitBounds(bounds, { padding: [30, 30] });
+        // 드론 코드 필터 (지도 + 테이블 동시 적용)
+        function applyDroneFilter() {
+            const selected = $('#droneFilter').val();  // '' 이면 전체
+            const bounds = [];
+
+            // 1) 지도 마커 필터
+            markers.forEach(marker => {
+                const code = marker._droneCode || '';
+                const visible = !selected || selected === code;
+
+                if (visible) {
+                    if (!map.hasLayer(marker)) {
+                        marker.addTo(map);
+                    }
+                    bounds.push(marker.getLatLng());
+                } else {
+                    if (map.hasLayer(marker)) {
+                        map.removeLayer(marker);
+                    }
+                }
+            });
+
+            if (bounds.length > 0) {
+                map.fitBounds(bounds, { padding: [30, 30] });
+            }
+
+            // 2) 테이블 필터 (0번 컬럼: 드론코드)
+            if (analysis2Table) {
+                if (!selected) {
+                    // 전체
+                    analysis2Table.column(0).search('').draw();
+                } else {
+                    // 정확히 해당 코드만
+                    analysis2Table.column(0).search('^' + selected + '$', true, false).draw();
+                }
+            }
         }
     </script>
 </body>
