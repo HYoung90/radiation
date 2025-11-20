@@ -981,6 +981,7 @@ def export_analysis1_csv():
     )
 
 @app.route('/upload_analysis1_csv', methods=['POST'])
+@login_required
 def upload_analysis1_csv():
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
@@ -1022,6 +1023,9 @@ def upload_analysis1_csv():
 
     # ✅ 여기서 업로드 시각(inputTime) 자동 추가 (KST)
     df['inputTime'] = now_kst()
+
+    uploader = current_user.email if hasattr(current_user, "is_authenticated") and current_user.is_authenticated else None
+    df['uploader'] = uploader
 
     # MongoDB에 직접 insert
     records = df.to_dict(orient='records')
@@ -1070,6 +1074,7 @@ def export_analysis2_csv():
 
 # -- CSV 업로드 (영문 헤더 매핑) --
 @app.route('/upload_analysis2_csv', methods=['POST'])
+@login_required
 def upload_analysis2_csv():
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
@@ -1188,6 +1193,10 @@ def upload_analysis2_csv():
     # ✅ 여기서 업로드 시각(inputTime) 자동 추가 (KST)
     df['inputTime'] = now_kst()
 
+    # 업로드한 계정 이메일
+    uploader = current_user.email if hasattr(current_user, "is_authenticated") and current_user.is_authenticated else None
+    df['uploader'] = uploader
+
     # ===== 3) 업로드 =====
     buf = io.StringIO()
     df.to_csv(buf, index=False, encoding='utf-8-sig')
@@ -1206,8 +1215,8 @@ def upload_analysis2_csv():
         'South':'South',
         'North':'North',
         'Average':'Average',
-        # ✅ inputTime도 같이 저장
         'inputTime': 'inputTime',
+        'uploader': 'uploader',  # 여기 추가
     })
 
 # ---------------------------------------------------------------------
@@ -1228,6 +1237,7 @@ def export_analysis4_csv():
 
 # -- CSV 업로드 (영문 헤더 매핑) --
 @app.route('/upload_analysis4_csv', methods=['POST'])
+@login_required
 def upload_analysis4_csv():
     if 'file' not in request.files:
         return jsonify({"error": "No file part"}), 400
@@ -1256,8 +1266,8 @@ def upload_analysis4_csv():
         "lat":       "lat",
         "lng":       "lng",
         "radiation": "radiation",
-        # 여기 추가: DB에 inputTime 필드도 같이 넣기
         "inputTime": "inputTime",
+        "uploader": "uploader",  # 추가
     }
 
     # checkTime/lat/lng/radiation 네 개는 최소 있어야 하므로 이쪽만 확인
@@ -1614,21 +1624,41 @@ def list_uploaded_gifs():
     except ValueError:
         limit = 24
 
+    # 파일 없는 항목이 있을 수 있으니 여유 있게 더 가져오기
     cur = (uploads_collection
            .find({"type": "gif"})
            .sort("created_at", DESCENDING)
-           .limit(limit))
+           .limit(limit * 3))
 
     out = []
     for d in cur:
+        fname = d.get("filename")
+        if not fname:
+            continue
+
+        fpath = os.path.join(app.config['UPLOAD_FOLDER'], fname)
+        if not os.path.exists(fpath):
+            # 필요하면 DB도 같이 정리하고 싶을 때:
+            # uploads_collection.delete_one({"_id": d["_id"]})
+            continue  # 파일이 없으면 갤러리에서 제외
+
         created_at = d.get("created_at")
+
+        # url 필드가 비어 있다면 안전하게 다시 생성
+        url = d.get("url") or url_for('serve_uploads', filename=fname)
+
         out.append({
-            "url": d.get("url"),
-            "filename": d.get("filename"),
+            "url": url,
+            "filename": fname,
             "uploader": d.get("uploader"),
             "created_at": created_at.isoformat() if created_at else None
         })
+
+        if len(out) >= limit:
+            break
+
     return jsonify(out), 200
+
 
 @app.route('/uploads/<path:filename>')
 def serve_uploads(filename):
@@ -1922,11 +1952,14 @@ def upload_workers_csv():
     # ✅ 업로드 시각(KST) 컬럼 추가 (이번 배치 공통)
     df['inputTime'] = now_kst()
 
+    uploader = current_user.email if hasattr(current_user, "is_authenticated") and current_user.is_authenticated else None
+    df['uploader'] = uploader
+
     # ===== 업서트(같은 code+checkTime이면 갱신) =====
     from pymongo import UpdateOne
     ops = []
     keep_cols = [c for c in [
-        'checkTime', 'code', 'lat', 'lng', 'doseRate', 'cumulativeDose', 'inputTime'
+        'checkTime', 'code', 'lat', 'lng', 'doseRate', 'cumulativeDose', 'inputTime', 'uploader'
     ] if c in df.columns]
 
     for r in df[keep_cols].to_dict('records'):
