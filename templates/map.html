@@ -371,47 +371,54 @@
         const codeToShort={
           "KR":"고리","WS":"월성","YK":"한빛","UJ":"한울","SU":"새울"
         };
-        async function pollAccidentSummary(){
-          try{
-            const res=await fetch('/api/radiation_status/summary',{cache:'no-store'});
-            if(!res.ok) return;
-            const arr=await res.json();
-            if(!Array.isArray(arr)) return;
-            const accidents=arr.filter(x=>x && x.status==='accident');
-            for(const it of accidents){
-              const code=it.genName;
-              const display=codeToDisplay[code]||code;
-              const shortName=codeToShort[code]||code;
-              const {isConfirmed}=await Swal.fire({
-                icon:'warning',
-                title:`🚨 ${display}`,
-                html:`
-                  <p>방사선 수치가 <strong>기준(${it.threshold} µSv/h)</strong>을 초과했습니다.</p>
-                  <p><strong>현재값:</strong> ${it.current_value} µSv/h</p>
-                  ${it.average ? `<p><small>표본 평균: ${it.average} µSv/h</small></p>`:''}
-                  <p>구호소 대피 적합도 평가 결과 페이지로 이동하시겠습니까?</p>
-                `,
-                showCancelButton:true,
-                confirmButtonText:'이동',
-                cancelButtonText:'닫기',
-                confirmButtonColor:'#d33',
-                cancelButtonColor:'#aaa',
-                allowOutsideClick:false
-              });
-              if(isConfirmed){
-                const url=`/optimal_shelter_result/${encodeURIComponent(shortName)}`;
-                console.log('[Popup] navigate ->', url);
-                window.location.assign(url);
-                break;
-              }
+        // 사고 상태를 주기적으로 확인하는 함수
+        async function pollAccidentSummary() {
+            try {
+                const response = await fetch('/api/radiation_status/summary', { cache: 'no-store' });
+                if (!response.ok) return;
+
+                const dataArray = await response.json();
+                if (!Array.isArray(dataArray)) return;
+
+                // 상태가 'accident'인 항목만 필터링합니다.
+                const accidents = dataArray.filter(item => item && item.status === 'accident');
+
+                for (const accident of accidents) {
+                    const fullName = codeToDisplay[accident.genName] || accident.genName;
+                    const shortName = codeToShort[accident.genName] || accident.genName;
+
+                    // SweetAlert2를 이용한 경고 팝업창
+                    const result = await Swal.fire({
+                        icon: 'error',
+                        title: `🚨 ${fullName} 이상 수치 감지`,
+                        html: `
+                            <p style="color: #d33; font-weight: bold;">방사선 수치가 기준치를 초과했습니다.</p>
+                            <p><strong>현재치:</strong> ${accident.current_value} µSv/h (기준: ${accident.threshold})</p>
+                            <p>대피를 위한 구호소 적합도 평가 페이지로 이동하시겠습니까?</p>
+                        `,
+                        showCancelButton: true,
+                        confirmButtonText: '이동하기',
+                        cancelButtonText: '닫기',
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#6c757d',
+                        allowOutsideClick: false
+                    });
+
+                    if (result.isConfirmed) {
+                        // 확인 버튼 클릭 시 해당 발전소의 결과 페이지로 이동합니다.
+                        window.location.assign(`/optimal_shelter_result/${encodeURIComponent(shortName)}`);
+                        break;
+                    }
+                }
+            } catch (error) {
+                console.error('사고 데이터 확인 중 오류 발생:', error);
             }
-          }catch(e){
-            console.error('summary poll failed', e);
-          }
         }
-        window.addEventListener('load', ()=>{
-          pollAccidentSummary();
-          setInterval(pollAccidentSummary, 15*60*1000);
+
+        // 페이지 로드 시 즉시 실행 및 5분 간격 자동 실행
+        window.addEventListener('load', () => {
+            pollAccidentSummary();
+            setInterval(pollAccidentSummary, 5 * 60 * 1000);
         });
       </script>
 </body>
