@@ -283,20 +283,18 @@ def _compute_status_for(gen_name: str, recent_n: int = 500):
         if latest_val is None:
             return None
 
-        # 2. 평균용 표본에서 최신 데이터 1개를 제외 (슬라이싱 적용)
-        # docs[1:]를 통해 가장 최신 레코드를 제외한 나머지로 리스트 생성
+        # 2. 평균용 표본에서 최신 데이터 1개를 제외하여 '평균의 오염' 방지
         vals = [_to_float_or_none(d.get('value')) for d in docs[1:]]
         vals = [v for v in vals if v is not None]
 
         if not vals:
-            # 과거 데이터가 없다면 현재값만으로는 평균을 낼 수 없으므로
-            # 임시로 현재값을 기준으로 하거나 기본값을 설정해야 합니다.
             avg = latest_val
         else:
             avg = sum(vals) / len(vals)
 
-        # 3. 사고 판정 (오염되지 않은 평균 기반)
-        threshold = avg + 0.097
+        # 3. 사고 판정: 문턱값을 계산하되, 국가 경보 기준인 약 1(0.973)을 초과하지 않도록 제한
+        # 이렇게 하면 평균이 올라가더라도 문턱값이 1에 고정되어 사고를 정확히 잡아냅니다.
+        threshold = min(avg + 0.0973, 0.973)
         status = 'accident' if latest_val > threshold else 'normal'
 
         return {
