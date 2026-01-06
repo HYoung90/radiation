@@ -415,10 +415,10 @@
             }
         }
 
-        // 페이지 로드 시 즉시 실행 및 5분 간격 자동 실행
+        // 페이지 로드 시 즉시 실행 및 5초 간격 자동 실행
         window.addEventListener('load', () => {
             pollAccidentSummary();
-            setInterval(pollAccidentSummary, 5 * 60 * 1000);
+            setInterval(pollAccidentSummary, 5 * 1000);
         });
       </script>
 </body>
