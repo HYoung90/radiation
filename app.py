@@ -689,7 +689,7 @@ def show_radiation_history(genName):
     logging.info(f"Received request for radiation history of: {genName}")
     return render_template('nuclear_radiation_history.html', genName=genName)
 
-@app.route('/nuclear_radiation_detail/<genName>/<expl>', methods=['GET'])
+@app.route('/nuclear_radiation_history/<genName>/<expl>', methods=['GET'])
 def show_radiation_detail(genName, expl):
     logging.info(f"Received request for radiation history detail for: {genName}, {expl}")
     return render_template('nuclear_radiation_detail.html', genName=genName, expl=expl)
