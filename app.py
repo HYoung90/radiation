@@ -261,20 +261,20 @@ class User(UserMixin):
         except Exception:
             return None
 
+
 def _compute_status_for(gen_name: str, recent_n: int = 500):
     try:
-        # DB 키가 대문자라면 통일
         gen_name = gen_name.upper()
 
         cur = (nuclear_radiation_collection
                .find({'genName': gen_name}, {'value': 1, 'time': 1})
-               .sort('time', DESCENDING)  # DESCENDING 상수로 일관
+               .sort('time', DESCENDING)
                .limit(recent_n))
         docs = list(cur)
         if not docs:
             return None
 
-        # 최신의 "숫자" 값을 가진 레코드 선택 (최신값이 문자열/None이면 다음으로)
+        # 1. 최신값 추출
         latest_val = next(
             (_to_float_or_none(d.get('value')) for d in docs
              if _to_float_or_none(d.get('value')) is not None),
@@ -283,13 +283,19 @@ def _compute_status_for(gen_name: str, recent_n: int = 500):
         if latest_val is None:
             return None
 
-        # 평균용 표본
-        vals = [_to_float_or_none(d.get('value')) for d in docs]
+        # 2. 평균용 표본에서 최신 데이터 1개를 제외 (슬라이싱 적용)
+        # docs[1:]를 통해 가장 최신 레코드를 제외한 나머지로 리스트 생성
+        vals = [_to_float_or_none(d.get('value')) for d in docs[1:]]
         vals = [v for v in vals if v is not None]
-        if not vals:
-            return None  # 표본 전부 무효
 
-        avg = sum(vals) / len(vals)
+        if not vals:
+            # 과거 데이터가 없다면 현재값만으로는 평균을 낼 수 없으므로
+            # 임시로 현재값을 기준으로 하거나 기본값을 설정해야 합니다.
+            avg = latest_val
+        else:
+            avg = sum(vals) / len(vals)
+
+        # 3. 사고 판정 (오염되지 않은 평균 기반)
         threshold = avg + 0.097
         status = 'accident' if latest_val > threshold else 'normal'
 
@@ -297,14 +303,13 @@ def _compute_status_for(gen_name: str, recent_n: int = 500):
             "genName": gen_name,
             "current_value": round(latest_val, 4),
             "threshold": round(threshold, 4),
-            "average": round(avg, 4),   # 디버깅/표시용(선택)
-            "count": len(vals),         # 표본 수(선택)
+            "average": round(avg, 4),
+            "count": len(vals),
             "status": status
         }
     except Exception as e:
         logging.error(f"_compute_status_for({gen_name}) error: {e}")
         return None
-
 
 
 @login_manager.user_loader
