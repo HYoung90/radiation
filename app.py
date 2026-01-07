@@ -675,7 +675,7 @@ def get_radiation_history():
 
         # 4. 데이터 조회 (핵심: limit을 100으로 설정)
         # find()를 사용해야 여러 개를 가져옵니다.
-        cursor = nuclear_backup_collection.find(
+        cursor = nuclear_radiation_backup_collection.find(
             query,
             {'_id': 0, 'time': 1, 'value': 1}
         ).sort('time', -1).limit(100)  # 여기서 숫자를 100으로 확실히 바꿉니다.
