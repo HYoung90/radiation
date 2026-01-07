@@ -196,20 +196,6 @@
         <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
 
         <script>
-            // 과거 데이터 보기 버튼 클릭 시 실행될 함수
-            function viewBackupData() {
-                // 선택된 측정 지점의 'expl' 값을 가져옵니다.
-                var expl = $('#measurementPoints .measurement-btn.selected').data('expl');
-
-                // expl 값이 있는지 확인
-                if (expl) {
-                    // 과거 데이터 페이지로 이동
-                    window.location.href = `/nuclear_radiation_history/{{ genName }}/${encodeURIComponent(expl)}`;
-                } else {
-                    alert("측정 지점을 선택해주세요.");
-                }
-            }
-
             $(document).ready(function() {
                 var genName = "{{ genName }}";
                 var table = $('#radiationHistoryTable').DataTable({
@@ -219,6 +205,23 @@
                     lengthChange: false,
                     order: [[0, 'desc']]
                 });
+
+                // 과거 데이터 보기 버튼 클릭 이벤트 직접 연결
+            $('#viewBackupData').on('click', function() {
+                // 1. 현재 초록색(selected)으로 선택된 버튼을 찾습니다.
+                var selectedBtn = $('#measurementPoints .measurement-btn.selected');
+
+                // 2. 해당 버튼의 지점명(expl)을 가져옵니다.
+                var expl = selectedBtn.data('expl');
+
+                if (expl) {
+                    // 3. 주소를 만들어 페이지를 이동합니다.
+                    var url = `/nuclear_radiation_history/{{ genName }}/${encodeURIComponent(expl)}`;
+                    window.location.href = url;
+                } else {
+                    alert("측정 지점을 선택해주세요.");
+                }
+            });
 
                 // 측정 지점 리스트를 API에서 가져와 버튼으로 표시하는 함수
                 function loadMeasurementPoints() {

@@ -266,15 +266,17 @@ def _compute_status_for(gen_name: str, recent_n: int = 500):
     try:
         gen_name = gen_name.upper()
 
+        # 'time' 대신 '_id'를 기준으로 정렬하여
+        # 실제 DB에 가장 마지막으로 들어온(Inserted) 데이터를 가져옵니다.
         cur = (nuclear_radiation_collection
                .find({'genName': gen_name}, {'value': 1, 'time': 1})
-               .sort('time', DESCENDING)
+               .sort('_id', DESCENDING)  # 이 부분을 수정했습니다.
                .limit(recent_n))
         docs = list(cur)
         if not docs:
             return None
 
-        # 1. 최신값 추출
+        # 1. 최신값 추출 (이제 무조건 마지막으로 입력한 데이터가 잡힙니다)
         latest_val = next(
             (_to_float_or_none(d.get('value')) for d in docs
              if _to_float_or_none(d.get('value')) is not None),
@@ -283,7 +285,7 @@ def _compute_status_for(gen_name: str, recent_n: int = 500):
         if latest_val is None:
             return None
 
-        # 2. 평균용 표본에서 최신 데이터 1개를 제외하여 '평균의 오염' 방지
+        # 2. 평균 계산 (최신 데이터 1개 제외)
         vals = [_to_float_or_none(d.get('value')) for d in docs[1:]]
         vals = [v for v in vals if v is not None]
 
@@ -292,8 +294,7 @@ def _compute_status_for(gen_name: str, recent_n: int = 500):
         else:
             avg = sum(vals) / len(vals)
 
-        # 3. 사고 판정: 문턱값을 계산하되, 국가 경보 기준인 약 1(0.973)을 초과하지 않도록 제한
-        # 이렇게 하면 평균이 올라가더라도 문턱값이 1에 고정되어 사고를 정확히 잡아냅니다.
+        # 3. 사고 판정 로직 (기존과 동일)
         threshold = min(avg + 0.0973, 0.973)
         status = 'accident' if latest_val > threshold else 'normal'
 
@@ -308,7 +309,6 @@ def _compute_status_for(gen_name: str, recent_n: int = 500):
     except Exception as e:
         logging.error(f"_compute_status_for({gen_name}) error: {e}")
         return None
-
 
 @login_manager.user_loader
 def load_user(user_id):
