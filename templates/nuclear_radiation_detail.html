@@ -3,56 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ expl }}의 과거 방사선 데이터</title>
+    <title>{{ expl }} 상세 데이터</title>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.min.css">
     <style>
-        /* 사용자님의 기존 디자인 스타일 100% 유지 */
-        body { font-family: 'Segoe UI', 'Arial', sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; color: #333; line-height: 1.6; }
+        /* 기존 디자인 그대로 유지 */
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; }
         .container { max-width: 1200px; margin: 20px auto; background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); }
         h1 { color: #2c3e50; text-align: center; margin-bottom: 30px; font-size: 2.2em; }
-        .btn { display: inline-block; padding: 12px 22px; font-size: 0.95em; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; margin-right: 8px; transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); color: white; min-width: 120px; text-align: center; }
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); }
+        .btn { display: inline-block; padding: 12px 22px; border-radius: 6px; cursor: pointer; text-decoration: none; color: white; border: none; min-width: 120px; text-align: center; }
         .btn-back { background-color: #6c757d; }
-        .btn-refresh { background-color: #007bff; }
         .btn-apply { background-color: #34495e; }
         .btn-clear { background-color: #e0a800; }
-        .date-filter-section { display: flex; justify-content: flex-start; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 30px; padding: 20px; background-color: #f7f9fa; border-radius: 8px; box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.04); }
-        .date-filter-section label { font-weight: bold; color: #495057; }
-        .date-filter-section input[type="text"] { padding: 10px 15px; font-size: 1em; border-radius: 5px; border: 1px solid #ced4da; width: 160px; }
-        .ui-datepicker-trigger { margin-left: 5px; vertical-align: middle; cursor: pointer; border: none; background: none; }
-        .ui-datepicker-trigger img { width: 24px; height: 24px; opacity: 0.7; }
-        #backupRadiationHistoryTable { width: 100% !important; border-collapse: collapse; margin-top: 30px; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
-        #backupRadiationHistoryTable thead th { background-color: #6c757d; color: white; padding: 15px; text-align: center; }
-        #backupRadiationHistoryTable tbody td { padding: 12px 15px; text-align: center; border-bottom: 1px solid #e9ecef; }
-        .dataTables_wrapper .dataTables_info, .dataTables_wrapper .dataTables_filter, .dataTables_wrapper .dataTables_length { display: none; }
+        .date-filter-section { display: flex; align-items: center; gap: 15px; margin-bottom: 30px; padding: 20px; background-color: #f7f9fa; border-radius: 8px; }
+        input[type="text"] { padding: 10px; border-radius: 5px; border: 1px solid #ced4da; width: 160px; }
+        #backupRadiationHistoryTable { width: 100% !important; margin-top: 30px; }
+        #backupRadiationHistoryTable thead th { background-color: #6c757d; color: white; padding: 15px; }
         .dataTables_wrapper .dataTables_paginate { margin-top: 20px; text-align: center; }
+        .dataTables_wrapper .dataTables_info, .dataTables_wrapper .dataTables_filter, .dataTables_wrapper .dataTables_length { display: none; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div style="display: flex; justify-content: flex-start; margin-bottom: 25px;">
+        <div style="margin-bottom: 25px;">
             <a href="javascript:history.back()" class="btn btn-back">뒤로가기</a>
-            <button id="refreshButton" class="btn btn-refresh">새로고침</button>
         </div>
 
-        <h1>{{ expl }}의 과거 방사선 데이터</h1>
+        <h1>{{ expl }}의 과거 데이터 기록</h1>
 
         <div class="date-filter-section">
-            <label for="minDate">시작일: </label>
-            <input type="text" id="minDate" name="minDate" readonly>
-            <label for="maxDate">종료일: </label>
-            <input type="text" id="maxDate" name="maxDate" readonly>
+            <label>시작일: </label><input type="text" id="minDate" readonly>
+            <label>종료일: </label><input type="text" id="maxDate" readonly>
             <button id="applyFilter" class="btn btn-apply">적용</button>
             <button id="clearFilter" class="btn btn-clear">초기화</button>
         </div>
 
         <table id="backupRadiationHistoryTable" class="display">
             <thead>
-                <tr>
-                    <th>측정 시간</th>
-                    <th>방사선량 (μSv/h)</th>
-                </tr>
+                <tr><th>측정 시간</th><th>방사선량 (μSv/h)</th></tr>
             </thead>
             <tbody></tbody>
         </table>
@@ -64,87 +52,45 @@
 
     <script>
         $(document).ready(function() {
-            // Flask에서 넘겨준 이름 (한글 원전명)
-            const rawGenName = "{{ genName }}".trim();
-            const expl = "{{ expl }}".trim();
+            const rawGenName = "{{ genName }}";
+            const expl = "{{ expl }}";
 
             const table = $('#backupRadiationHistoryTable').DataTable({
-                order: [[0, 'desc']],
-                searching: false,
-                paging: true,
-                info: false,
-                lengthChange: false,
-                pageLength: 10,
-                language: {
-                    "emptyTable": "조회된 데이터가 없습니다.",
-                    "paginate": { "next": "다음", "previous": "이전" }
-                },
-                columns: [
-                    { data: 'time' },
-                    {
-                        data: 'value',
-                        render: function(data) {
-                            return data !== null ? `${parseFloat(data).toFixed(3)} μSv/h` : "N/A";
-                        }
-                    }
-                ]
+                order: [[0, 'desc']], paging: true, pageLength: 10,
+                language: { "emptyTable": "조회된 데이터가 없습니다." },
+                columns: [{ data: 'time' }, { data: 'value', render: d => `${parseFloat(d).toFixed(3)} μSv/h` }]
             });
 
-            // Datepicker 설정
-            const datepickerOptions = {
-                dateFormat: 'yy-mm-dd',
-                showOn: 'button',
+            $("#minDate, #maxDate").datepicker({
+                dateFormat: 'yy-mm-dd', showOn: 'button',
                 buttonText: "<img src='https://jqueryui.com/resources/demos/images/calendar.gif' alt='달력'>",
-                changeMonth: true,
-                changeYear: true
-            };
-            $("#minDate").datepicker(datepickerOptions);
-            $("#maxDate").datepicker(datepickerOptions);
+                changeMonth: true, changeYear: true
+            });
 
-            function loadHistoryData(minDate = null, maxDate = null) {
-                // ✅ 핵심 수정: URL 형식을 ?genName=...&expl=... 로 변경 (404 방지)
-                // mappedGenName 대신 rawGenName을 보내고 서버 app.py에서 매핑하도록 합니다.
+            function loadData(min = '', max = '') {
+                // ✅ 중요: 404를 방지하기 위해 물음표(?) 형식을 사용합니다.
                 let apiUrl = `/api/nuclear_radiation/history?genName=${encodeURIComponent(rawGenName)}&expl=${encodeURIComponent(expl)}`;
-
-                if (minDate) apiUrl += `&minDate=${encodeURIComponent(minDate)}`;
-                if (maxDate) apiUrl += `&maxDate=${encodeURIComponent(maxDate)}`;
-
-                console.log("Request URL:", apiUrl);
+                if (min) apiUrl += `&minDate=${min}`;
+                if (max) apiUrl += `&maxDate=${max}`;
 
                 $.ajax({
                     url: apiUrl,
                     method: 'GET',
                     success: function(data) {
-                        console.log("Data received:", data.length, "items");
+                        console.log("받은 데이터 개수:", data.length);
                         table.clear();
                         if (data && data.length > 0) {
                             table.rows.add(data).draw();
                         } else {
                             table.draw();
                         }
-                    },
-                    error: function(xhr) {
-                        console.error("AJAX Error:", xhr.status);
-                        alert("데이터를 가져오는 데 실패했습니다. (Error: " + xhr.status + ")");
                     }
                 });
             }
 
-            loadHistoryData();
-
-            $('#applyFilter').on('click', function() {
-                loadHistoryData($('#minDate').val(), $('#maxDate').val());
-            });
-
-            $('#clearFilter').on('click', function() {
-                $('#minDate').val('');
-                $('#maxDate').val('');
-                loadHistoryData();
-            });
-
-            $('#refreshButton').on('click', function() {
-                loadHistoryData();
-            });
+            loadData();
+            $('#applyFilter').click(() => loadData($('#minDate').val(), $('#maxDate').val()));
+            $('#clearFilter').click(() => { $('#minDate').val(''); $('#maxDate').val(''); loadData(); });
         });
     </script>
 </body>

@@ -651,7 +651,7 @@ def get_highest_radiation_by_plant():
 # 과거 방사선 데이터를 가져오는 API
 @app.route('/api/nuclear_radiation/history', methods=['GET'])
 def get_radiation_history():
-    # 1. 쿼리 파라미터 받기 (?genName=...&expl=...)
+    # 1. 쿼리 파라미터 가져오기
     genName = request.args.get('genName')
     expl = request.args.get('expl')
     minDate = request.args.get('minDate')
@@ -661,41 +661,35 @@ def get_radiation_history():
         return jsonify([])
 
     # 2. 한글명을 영문 코드로 매핑 (DB 조회용)
-    # genName_mapping이 정의되어 있다고 가정합니다.
     mapped_genName = next((code for code, name in genName_mapping.items() if name == genName), genName)
 
     try:
-        # 3. 기본 쿼리 조건 설정
+        # 3. DB 쿼리 조건 설정
         query = {'genName': mapped_genName, 'expl': expl}
 
-        # 4. 날짜 필터가 있을 경우 쿼리에 추가 ($gte: 크거나 같음, $lte: 작거나 같음)
+        # 날짜 필터 처리
         if minDate or maxDate:
             query['time'] = {}
-            if minDate:
-                query['time']['$gte'] = f"{minDate} 00:00:00"
-            if maxDate:
-                query['time']['$lte'] = f"{maxDate} 23:59:59"
+            if minDate: query['time']['$gte'] = f"{minDate} 00:00:00"
+            if maxDate: query['time']['$lte'] = f"{maxDate} 23:59:59"
 
-        # 5. 데이터 조회 (내림차순 정렬)
-        # 날짜 검색 시에는 모든 데이터를(limit 0), 평소에는 최신 100건만 가져옴
-        limit_val = 0 if (minDate or maxDate) else 100
-
+        # 4. 데이터 조회 (핵심: limit을 100으로 설정)
+        # find()를 사용해야 여러 개를 가져옵니다.
         cursor = nuclear_radiation_collection.find(
             query,
             {'_id': 0, 'time': 1, 'value': 1}
-        ).sort('time', -1).limit(limit_val)
+        ).sort('time', -1).limit(100)  # 여기서 숫자를 100으로 확실히 바꿉니다.
 
         history_data = list(cursor)
 
-        # 서버 콘솔에서 확인용
-        print(f"조회 성공: {mapped_genName} - {expl} ({len(history_data)}건)")
+        # 서버 터미널에서 데이터 개수 확인용 (실행 시 검은 창에 뜸)
+        print(f"--- DB 조회 결과: {len(history_data)}건 가져옴 ---")
 
         return jsonify(history_data)
 
     except Exception as e:
-        logging.error(f"Error: {str(e)}")
-        return jsonify({"error": "DB 조회 중 오류 발생"}), 500
-
+        print(f"DB Error: {e}")
+        return jsonify([]), 500
 @app.route('/nuclear_radiation_history/<genName>', methods=['GET'])
 def show_radiation_history(genName):
     logging.info(f"Received request for radiation history of: {genName}")
