@@ -651,32 +651,24 @@ def get_highest_radiation_by_plant():
 # 과거 방사선 데이터를 가져오는 API
 @app.route('/api/nuclear_radiation/history', methods=['GET'])
 def get_radiation_history():
+    # 1. 쿼리 파라미터 받기 (?genName=...&expl=...)
     genName = request.args.get('genName')
     expl = request.args.get('expl')
-    # 추가: 날짜 필터 파라미터 받기
     minDate = request.args.get('minDate')
     maxDate = request.args.get('maxDate')
 
-    logging.debug(f"Fetching history for genName: {genName}, expl: {expl}, range: {minDate}~{maxDate}")
-
     if not genName or not expl:
-        logging.warning("Missing genName or expl in the request")
         return jsonify([])
 
-    # genName 매핑 로직 유지
-    mapped_genName = None
-    for code, name in genName_mapping.items():
-        if name == genName:
-            mapped_genName = code
-            break
-    if not mapped_genName:
-        mapped_genName = genName
+    # 2. 한글명을 영문 코드로 매핑 (DB 조회용)
+    # genName_mapping이 정의되어 있다고 가정합니다.
+    mapped_genName = next((code for code, name in genName_mapping.items() if name == genName), genName)
 
     try:
-        # 1. 기본 쿼리 조건
+        # 3. 기본 쿼리 조건 설정
         query = {'genName': mapped_genName, 'expl': expl}
 
-        # 2. 날짜 필터가 있을 경우 쿼리에 추가
+        # 4. 날짜 필터가 있을 경우 쿼리에 추가 ($gte: 크거나 같음, $lte: 작거나 같음)
         if minDate or maxDate:
             query['time'] = {}
             if minDate:
@@ -684,26 +676,25 @@ def get_radiation_history():
             if maxDate:
                 query['time']['$lte'] = f"{maxDate} 23:59:59"
 
-        # 3. 데이터 조회
-        # 상세 페이지라면 limit을 없애거나 크게 늘려야 합니다.
-        # 여기서는 날짜 조회가 있으면 전체를, 없으면 최신 100건 정도로 조절했습니다.
+        # 5. 데이터 조회 (내림차순 정렬)
+        # 날짜 검색 시에는 모든 데이터를(limit 0), 평소에는 최신 100건만 가져옴
         limit_val = 0 if (minDate or maxDate) else 100
 
-        history_data = list(
-            nuclear_radiation_collection.find(
-                query,
-                {'_id': 0, 'time': 1, 'value': 1}
-            )
-            .sort('time', -1)
-            .limit(limit_val)
-        )
+        cursor = nuclear_radiation_collection.find(
+            query,
+            {'_id': 0, 'time': 1, 'value': 1}
+        ).sort('time', -1).limit(limit_val)
 
-        logging.info(f"Fetched history data: {len(history_data)} items")
+        history_data = list(cursor)
+
+        # 서버 콘솔에서 확인용
+        print(f"조회 성공: {mapped_genName} - {expl} ({len(history_data)}건)")
+
         return jsonify(history_data)
 
     except Exception as e:
-        logging.error(f"Error fetching history data: {e}")
-        return jsonify({"error": "Failed to fetch radiation history data"}), 500
+        logging.error(f"Error: {str(e)}")
+        return jsonify({"error": "DB 조회 중 오류 발생"}), 500
 
 @app.route('/nuclear_radiation_history/<genName>', methods=['GET'])
 def show_radiation_history(genName):

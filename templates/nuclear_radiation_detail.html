@@ -7,131 +7,26 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.min.css">
     <style>
-        /* 기존 디자인 스타일 유지 */
-        body {
-            font-family: 'Segoe UI', 'Arial', sans-serif;
-            background-color: #f0f2f5;
-            margin: 0;
-            padding: 20px;
-            color: #333;
-            line-height: 1.6;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 20px auto;
-            background-color: #ffffff;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-        }
-
-        h1 {
-            color: #2c3e50;
-            text-align: center;
-            margin-bottom: 30px;
-            font-size: 2.2em;
-        }
-
-        .btn {
-            display: inline-block;
-            padding: 12px 22px;
-            font-size: 0.95em;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            text-decoration: none;
-            margin-right: 8px;
-            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            color: white;
-            min-width: 120px;
-            text-align: center;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-        }
-
+        /* 사용자님의 기존 디자인 스타일 100% 유지 */
+        body { font-family: 'Segoe UI', 'Arial', sans-serif; background-color: #f0f2f5; margin: 0; padding: 20px; color: #333; line-height: 1.6; }
+        .container { max-width: 1200px; margin: 20px auto; background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); }
+        h1 { color: #2c3e50; text-align: center; margin-bottom: 30px; font-size: 2.2em; }
+        .btn { display: inline-block; padding: 12px 22px; font-size: 0.95em; border: none; border-radius: 6px; cursor: pointer; text-decoration: none; margin-right: 8px; transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); color: white; min-width: 120px; text-align: center; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); }
         .btn-back { background-color: #6c757d; }
         .btn-refresh { background-color: #007bff; }
         .btn-apply { background-color: #34495e; }
         .btn-clear { background-color: #e0a800; }
-
-        .date-filter-section {
-            display: flex;
-            justify-content: flex-start;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 15px;
-            margin-bottom: 30px;
-            padding: 20px;
-            background-color: #f7f9fa;
-            border-radius: 8px;
-            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.04);
-        }
-
-        .date-filter-section label {
-            font-weight: bold;
-            color: #495057;
-        }
-
-        .date-filter-section input[type="text"] {
-            padding: 10px 15px;
-            font-size: 1em;
-            border-radius: 5px;
-            border: 1px solid #ced4da;
-            width: 160px;
-        }
-
-        .ui-datepicker-trigger {
-            margin-left: 5px;
-            vertical-align: middle;
-            cursor: pointer;
-            border: none;
-            background: none;
-        }
-
-        .ui-datepicker-trigger img {
-            width: 24px;
-            height: 24px;
-            opacity: 0.7;
-        }
-
-        #backupRadiationHistoryTable {
-            width: 100% !important;
-            border-collapse: collapse;
-            margin-top: 30px;
-            background-color: #ffffff;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-        }
-
-        #backupRadiationHistoryTable thead th {
-            background-color: #6c757d;
-            color: white;
-            padding: 15px;
-            text-align: center;
-        }
-
-        #backupRadiationHistoryTable tbody td {
-            padding: 12px 15px;
-            text-align: center;
-            border-bottom: 1px solid #e9ecef;
-        }
-
-        .dataTables_wrapper .dataTables_info,
-        .dataTables_wrapper .dataTables_filter,
-        .dataTables_wrapper .dataTables_length {
-            display: none;
-        }
-
-        .dataTables_wrapper .dataTables_paginate {
-            margin-top: 20px;
-            text-align: center;
-        }
+        .date-filter-section { display: flex; justify-content: flex-start; align-items: center; flex-wrap: wrap; gap: 15px; margin-bottom: 30px; padding: 20px; background-color: #f7f9fa; border-radius: 8px; box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.04); }
+        .date-filter-section label { font-weight: bold; color: #495057; }
+        .date-filter-section input[type="text"] { padding: 10px 15px; font-size: 1em; border-radius: 5px; border: 1px solid #ced4da; width: 160px; }
+        .ui-datepicker-trigger { margin-left: 5px; vertical-align: middle; cursor: pointer; border: none; background: none; }
+        .ui-datepicker-trigger img { width: 24px; height: 24px; opacity: 0.7; }
+        #backupRadiationHistoryTable { width: 100% !important; border-collapse: collapse; margin-top: 30px; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); }
+        #backupRadiationHistoryTable thead th { background-color: #6c757d; color: white; padding: 15px; text-align: center; }
+        #backupRadiationHistoryTable tbody td { padding: 12px 15px; text-align: center; border-bottom: 1px solid #e9ecef; }
+        .dataTables_wrapper .dataTables_info, .dataTables_wrapper .dataTables_filter, .dataTables_wrapper .dataTables_length { display: none; }
+        .dataTables_wrapper .dataTables_paginate { margin-top: 20px; text-align: center; }
     </style>
 </head>
 <body>
@@ -169,20 +64,9 @@
 
     <script>
         $(document).ready(function() {
-            // 1. 값 가져오기 및 매핑 테이블 준비 (보내주신 콘솔 결과 반영)
+            // Flask에서 넘겨준 이름 (한글 원전명)
             const rawGenName = "{{ genName }}".trim();
             const expl = "{{ expl }}".trim();
-
-            const genNameMapping = {
-                "고리 원자력발전소": "KR",
-                "월성 원자력발전소": "WS",
-                "한빛 원자력발전소": "YK",
-                "한울 원자력발전소": "UJ",
-                "새울 원자력발전소": "SU"
-            };
-
-            // 서버가 인식하는 짧은 코드(예: WS)로 변환
-            const mappedGenName = genNameMapping[rawGenName] || rawGenName;
 
             const table = $('#backupRadiationHistoryTable').DataTable({
                 order: [[0, 'desc']],
@@ -218,48 +102,46 @@
             $("#maxDate").datepicker(datepickerOptions);
 
             function loadHistoryData(minDate = null, maxDate = null) {
-                // 검증된 history API 주소 사용
-                let apiUrl = `/api/nuclear_radiation/history?genName=${encodeURIComponent(mappedGenName)}&expl=${encodeURIComponent(expl)}`;
+                // ✅ 핵심 수정: URL 형식을 ?genName=...&expl=... 로 변경 (404 방지)
+                // mappedGenName 대신 rawGenName을 보내고 서버 app.py에서 매핑하도록 합니다.
+                let apiUrl = `/api/nuclear_radiation/history?genName=${encodeURIComponent(rawGenName)}&expl=${encodeURIComponent(expl)}`;
 
                 if (minDate) apiUrl += `&minDate=${encodeURIComponent(minDate)}`;
                 if (maxDate) apiUrl += `&maxDate=${encodeURIComponent(maxDate)}`;
+
+                console.log("Request URL:", apiUrl);
 
                 $.ajax({
                     url: apiUrl,
                     method: 'GET',
                     success: function(data) {
+                        console.log("Data received:", data.length, "items");
                         table.clear();
                         if (data && data.length > 0) {
                             table.rows.add(data).draw();
                         } else {
-                            // 실제 요청 값을 알람창에 보여줌
-                            alert(`[데이터 없음]\n발전소 코드: ${mappedGenName}\n측정지점: ${expl}\n조회된 데이터가 없습니다.`);
                             table.draw();
                         }
                     },
-                    error: function(error) {
-                        console.error("통신 에러:", error);
-                        alert("데이터를 가져오는 중 오류가 발생했습니다.");
+                    error: function(xhr) {
+                        console.error("AJAX Error:", xhr.status);
+                        alert("데이터를 가져오는 데 실패했습니다. (Error: " + xhr.status + ")");
                     }
                 });
             }
 
-            // 초기 로드
             loadHistoryData();
 
-            // 필터 적용
             $('#applyFilter').on('click', function() {
                 loadHistoryData($('#minDate').val(), $('#maxDate').val());
             });
 
-            // 초기화
             $('#clearFilter').on('click', function() {
                 $('#minDate').val('');
                 $('#maxDate').val('');
                 loadHistoryData();
             });
 
-            // 새로고침
             $('#refreshButton').on('click', function() {
                 loadHistoryData();
             });
