@@ -310,6 +310,33 @@ def _compute_status_for(gen_name: str, recent_n: int = 500):
         logging.error(f"_compute_status_for({gen_name}) error: {e}")
         return None
 
+
+# app.py에 추가할 내용
+
+@app.route('/api/radiation_status/summary')
+def get_radiation_status_summary():
+    # 감시할 발전소 코드 리스트
+    gen_codes = ["KR", "WS", "YK", "UJ", "SU"]
+    summary = []
+
+    for code in gen_codes:
+        # 이전에 정의한 _compute_status_for 함수를 호출합니다.
+        status_data = _compute_status_for(code)
+
+        if status_data:
+            summary.append(status_data)
+        else:
+            # 데이터가 없는 경우 기본값 처리
+            summary.append({
+                "genName": code,
+                "status": "normal",
+                "current_value": 0,
+                "threshold": 0.973
+            })
+
+    # 프론트엔드 fetch에 응답
+    return jsonify(summary)
+
 @login_manager.user_loader
 def load_user(user_id):
     return User.get_by_id(user_id)
