@@ -266,35 +266,33 @@ def _compute_status_for(gen_name: str, recent_n: int = 500):
     try:
         gen_name = gen_name.upper()
 
-        # 'time' 대신 '_id'를 기준으로 정렬하여
-        # 실제 DB에 가장 마지막으로 들어온(Inserted) 데이터를 가져옵니다.
+        # ✅ 수정 포인트: _id 대신 실제 '시간' 필드로 먼저 정렬합니다.
+        # 같은 시간일 경우에만 _id로 순서를 가립니다.
         cur = (nuclear_radiation_collection
-               .find({'genName': gen_name}, {'value': 1, 'time': 1})
-               .sort('_id', DESCENDING)  # 이 부분을 수정했습니다.
+               .find({'genName': gen_name})
+               .sort([('time', -1), ('_id', -1)])
                .limit(recent_n))
+
         docs = list(cur)
-        if not docs:
-            return None
+        if not docs: return None
 
-        # 1. 최신값 추출 (이제 무조건 마지막으로 입력한 데이터가 잡힙니다)
-        latest_val = next(
-            (_to_float_or_none(d.get('value')) for d in docs
-             if _to_float_or_none(d.get('value')) is not None),
-            None
-        )
-        if latest_val is None:
-            return None
+        # 1. 모든 데이터 추출
+        all_vals = []
+        for d in docs:
+            v = _to_float_or_none(d.get('value'))
+            if v is not None:
+                all_vals.append(v)
 
-        # 2. 평균 계산 (최신 데이터 1개 제외)
-        vals = [_to_float_or_none(d.get('value')) for d in docs[1:]]
-        vals = [v for v in vals if v is not None]
+        if not all_vals: return None
 
-        if not vals:
-            avg = latest_val
-        else:
-            avg = sum(vals) / len(vals)
+        # 2. 정렬된 것 중 0번이 무조건 최신값(100)이 되어야 함
+        latest_val = all_vals[0]
 
-        # 3. 사고 판정 로직 (기존과 동일)
+        # 3. 평균 계산 (100을 제외한 나머지로만 평균 산출)
+        past_vals = all_vals[1:]
+        avg = sum(past_vals) / len(past_vals) if past_vals else latest_val
+
+        # 4. 사고 판정 (100 > threshold 이므로 accident 확정)
         threshold = min(avg + 0.0973, 0.973)
         status = 'accident' if latest_val > threshold else 'normal'
 
@@ -303,7 +301,6 @@ def _compute_status_for(gen_name: str, recent_n: int = 500):
             "current_value": round(latest_val, 4),
             "threshold": round(threshold, 4),
             "average": round(avg, 4),
-            "count": len(vals),
             "status": status
         }
     except Exception as e:
