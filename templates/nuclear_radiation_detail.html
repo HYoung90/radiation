@@ -15,6 +15,7 @@
             color: #333;
             line-height: 1.6;
         }
+
         .container {
             max-width: 1200px;
             margin: 20px auto;
@@ -23,12 +24,14 @@
             border-radius: 10px;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
         }
+
         h1 {
             color: #2c3e50;
             text-align: center;
             margin-bottom: 30px;
             font-size: 2.2em;
         }
+
         .btn {
             display: inline-block;
             padding: 12px 22px;
@@ -38,107 +41,106 @@
             cursor: pointer;
             text-decoration: none;
             margin-right: 8px;
-            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+            transition: background-color 0.3s ease, transform 0.2s ease;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
             color: white;
             min-width: 120px;
             text-align: center;
         }
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
-        .btn-group-main { display: flex; justify-content: flex-start; margin-bottom: 25px; gap: 8px; }
-        .btn-back { background-color: #34495e; }
-        .btn-back:hover { background-color: #2c3e50; }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-back { background-color: #6c757d; }
         .btn-refresh { background-color: #007bff; }
-        .btn-refresh:hover { background-color: #0056b3; }
+        .btn-apply { background-color: #34495e; }
+        .btn-clear { background-color: #e0a800; }
 
         .date-filter-section {
-            display: flex; justify-content: flex-start; align-items: center; flex-wrap: wrap;
-            gap: 15px; margin-bottom: 30px; padding: 20px; background-color: #f7f9fa;
-            border-radius: 8px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.04);
+            display: flex;
+            justify-content: flex-start;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f7f9fa;
+            border-radius: 8px;
         }
-        .date-filter-section label { font-weight: bold; color: #495057; white-space: nowrap; }
+
         .date-filter-section input[type="text"] {
-            padding: 10px 15px; font-size: 1em; border-radius: 5px; border: 1px solid #ced4da;
-            width: 160px; box-sizing: border-box;
-        }
-        .date-filter-section input[type="text"]:focus {
-            border-color: #80bdff; outline: 0; box-shadow: 0 0 0 0.2rem rgba(0,123,255,0.25);
+            padding: 10px 15px;
+            font-size: 1em;
+            border-radius: 5px;
+            border: 1px solid #ced4da;
+            width: 160px;
         }
 
-        .ui-datepicker-trigger { margin-left: 5px; vertical-align: middle; cursor: pointer; }
-        .ui-datepicker-trigger img { width: 24px; height: 24px; opacity: 0.7; transition: opacity 0.2s ease; }
-        .ui-datepicker-trigger:hover img { opacity: 1; }
+        .ui-datepicker-trigger {
+            margin-left: 5px;
+            vertical-align: middle;
+            cursor: pointer;
+            border: none;
+            background: none;
+        }
 
-        .dataTables_wrapper { overflow-x: auto; }
+        .ui-datepicker-trigger img { width: 24px; height: 24px; }
+
         #backupRadiationHistoryTable {
-            width: 100% !important; border-collapse: collapse; margin-top: 30px; font-size: 1.0em;
-            background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            width: 100% !important;
+            margin-top: 30px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
         }
+
         #backupRadiationHistoryTable thead th {
-            background-color: #6c757d; color: white; padding: 15px; text-align: center;
-            border-bottom: 2px solid #5a6268; font-weight: 600; white-space: nowrap;
+            background-color: #6c757d;
+            color: white;
+            padding: 15px;
         }
+
         #backupRadiationHistoryTable tbody td {
-            padding: 12px 15px; text-align: center; vertical-align: middle;
-            border-bottom: 1px solid #e9ecef; white-space: nowrap;
+            padding: 12px 15px;
+            text-align: center;
+            border-bottom: 1px solid #e9ecef;
         }
-        #backupRadiationHistoryTable tbody tr:nth-child(even) { background-color: #f8f9fa; }
-        #backupRadiationHistoryTable tbody tr:hover { background-color: #e2f4f8; cursor: pointer; }
+
         .dataTables_wrapper .dataTables_info,
         .dataTables_wrapper .dataTables_filter,
         .dataTables_wrapper .dataTables_length { display: none; }
-        .dataTables_wrapper .dataTables_paginate .paginate_button {
-            padding: 8px 15px; margin: 0 4px; border: 1px solid #ddd; border-radius: 5px;
-            background-color: #f8f9fa; color: #333 !important; text-decoration: none;
-            transition: background-color 0.2s ease, color 0.2s ease;
-        }
-        .dataTables_wrapper .dataTables_paginate .paginate_button:hover { background-color: #e9ecef; color: #000 !important; }
-        .dataTables_wrapper .dataTables_paginate .paginate_button.current,
-        .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
-            background-color: #007bff !important; color: white !important; border-color: #007bff !important;
-        }
         .dataTables_wrapper .dataTables_paginate { margin-top: 20px; text-align: center; }
-
-        @media (max-width: 768px) {
-            body { padding: 10px; }
-            .container { padding: 15px; }
-            .btn { min-width: auto; padding: 10px 15px; }
-            .btn-group-main, .date-filter-section { flex-direction: column; gap: 10px; }
-            .date-filter-section input[type="text"] { width: 100%; }
-            #backupRadiationHistoryTable { font-size: 0.8em; }
-            #backupRadiationHistoryTable thead th, #backupRadiationHistoryTable tbody td { padding: 8px; }
-        }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="btn-group-main">
+        <div style="display: flex; justify-content: flex-start; margin-bottom: 25px;">
             <a href="javascript:history.back()" class="btn btn-back">뒤로가기</a>
             <button id="refreshButton" class="btn btn-refresh">새로고침</button>
         </div>
 
-        <h1 class="mb-4">{{ expl }}의 과거 방사선 데이터</h1>
+        <h1>{{ expl }}의 과거 방사선 데이터</h1>
 
         <div class="date-filter-section">
             <label for="minDate">시작일: </label>
             <input type="text" id="minDate" name="minDate" readonly>
             <label for="maxDate">종료일: </label>
             <input type="text" id="maxDate" name="maxDate" readonly>
-            <button id="applyFilter" class="btn btn-filter">적용</button>
-            <button id="clearFilter" class="btn btn-filter">초기화</button>
+            <button id="applyFilter" class="btn btn-apply">적용</button>
+            <button id="clearFilter" class="btn btn-clear">초기화</button>
         </div>
 
-        <div class="dataTables_wrapper">
-            <table id="backupRadiationHistoryTable" class="display">
-                <thead>
-                    <tr>
-                        <th>측정 시간</th>
-                        <th>방사선량 (μSv/h)</th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
+        <table id="backupRadiationHistoryTable" class="display">
+            <thead>
+                <tr>
+                    <th>측정 시간</th>
+                    <th>방사선량 (μSv/h)</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
@@ -147,12 +149,11 @@
 
     <script>
         $(document).ready(function() {
-            // 서버 라우트에서 전달된 원본 한글 genName / expl 그대로 사용
-            const genName = "{{ genName }}";
-            const expl = "{{ expl }}";
+            // 1. 공백 제거하여 서버 매칭률 향상
+            const genName = "{{ genName }}".trim();
+            const expl = "{{ expl }}".trim();
 
-            // DataTable
-            var table = $('#backupRadiationHistoryTable').DataTable({
+            const table = $('#backupRadiationHistoryTable').DataTable({
                 order: [[0, 'desc']],
                 searching: false,
                 paging: true,
@@ -160,89 +161,78 @@
                 lengthChange: false,
                 pageLength: 10,
                 language: {
-                    emptyTable: "데이터가 없습니다.",
-                    zeroRecords: "검색 결과 없음",
-                    loadingRecords: "로딩 중...",
-                    processing: "처리 중...",
-                    paginate: { first: "처음", last: "마지막", next: "다음", previous: "이전" },
-                    aria: { sortAscending: ": 오름차순 정렬", sortDescending: ": 내림차순 정렬" }
+                    "emptyTable": "조회된 데이터가 없습니다.",
+                    "paginate": { "next": "다음", "previous": "이전" }
                 },
                 columns: [
-                    { data: 'time', title: '측정 시간' },
+                    { data: 'time' },
                     {
                         data: 'value',
-                        title: '방사선량 (μSv/h)',
                         render: function(data) {
-                            return data !== null && !isNaN(data) ? `${parseFloat(data).toFixed(3)} μSv/h` : "N/A";
+                            return data !== null ? `${parseFloat(data).toFixed(3)} μSv/h` : "N/A";
                         }
                     }
                 ]
             });
 
-            // Datepicker (아이콘 버튼)
-            $("#minDate").datepicker({
+            // Datepicker 설정
+            const datepickerOptions = {
                 dateFormat: 'yy-mm-dd',
                 showOn: 'button',
-                buttonImage: 'https://jqueryui.com/resources/demos/images/calendar.gif',
-                buttonImageOnly: true,
+                buttonText: "<img src='https://jqueryui.com/resources/demos/images/calendar.gif' alt='달력'>",
                 changeMonth: true,
-                changeYear: true,
-                onSelect: function(selectedDate) {
-                    $("#maxDate").datepicker("option", "minDate", selectedDate);
-                }
-            });
-            $("#maxDate").datepicker({
-                dateFormat: 'yy-mm-dd',
-                showOn: 'button',
-                buttonImage: 'https://jqueryui.com/resources/demos/images/calendar.gif',
-                buttonImageOnly: true,
-                changeMonth: true,
-                changeYear: true,
-                onSelect: function(selectedDate) {
-                    $("#minDate").datepicker("option", "maxDate", selectedDate);
-                }
-            });
+                changeYear: true
+            };
+            $("#minDate").datepicker(datepickerOptions);
+            $("#maxDate").datepicker(datepickerOptions);
 
-            // ── 핵심: genName 매핑 제거, 원본 그대로 인코딩해서 전달 ──
+            // 데이터 로드 함수
             function loadBackupRadiationHistory(minDate = null, maxDate = null) {
-                const apiUrl =
-                    `/api/nuclear_radiation/backup?genName=${encodeURIComponent(genName)}&expl=${encodeURIComponent(expl)}`
-                    + (minDate ? `&minDate=${encodeURIComponent(minDate)}` : '')
-                    + (maxDate ? `&maxDate=${encodeURIComponent(maxDate)}` : '');
+                // API 호출 로그 확인 (F12 콘솔용)
+                console.log(`요청 시작: 발전소=${genName}, 지점=${expl}`);
+
+                let apiUrl = `/api/nuclear_radiation/backup?genName=${encodeURIComponent(genName)}&expl=${encodeURIComponent(expl)}`;
+
+                if (minDate) apiUrl += `&minDate=${encodeURIComponent(minDate)}`;
+                if (maxDate) apiUrl += `&maxDate=${encodeURIComponent(maxDate)}`;
 
                 $.ajax({
                     url: apiUrl,
                     method: 'GET',
                     success: function(data) {
-                        table.clear().rows.add((Array.isArray(data) ? data : []).map(item => ({
-                            time: item.time,
-                            value: parseFloat(item.value)
-                        }))).draw();
+                        console.log("받은 데이터:", data);
+                        table.clear();
+
+                        if (data && data.length > 0) {
+                            table.rows.add(data).draw();
+                        } else {
+                            // 데이터가 없을 때 알람창을 띄워 어떤 값으로 찾았는지 알려줌
+                            alert(`[데이터 없음]\n발전소명: ${genName}\n측정지점: ${expl}\n해당 지점의 과거 데이터가 DB에 없습니다.`);
+                            table.draw();
+                        }
                     },
                     error: function(xhr, status, error) {
-                        console.error("Error fetching backup radiation history:", error);
-                        table.clear().draw();
+                        console.error("API 통신 오류:", error);
+                        alert("서버 연결에 실패했습니다. API 경로 혹은 서버 상태를 확인하세요.");
                     }
                 });
             }
 
-            // 최초 로드
+            // 초기 로드
             loadBackupRadiationHistory();
 
-            // 필터 적용/초기화/새로고침
+            // 이벤트 바인딩
             $('#applyFilter').on('click', function() {
-                const minDate = $('#minDate').val();
-                const maxDate = $('#maxDate').val();
-                loadBackupRadiationHistory(minDate, maxDate);
+                loadBackupRadiationHistory($('#minDate').val(), $('#maxDate').val());
             });
+
             $('#clearFilter').on('click', function() {
                 $('#minDate').val('');
                 $('#maxDate').val('');
                 loadBackupRadiationHistory();
             });
+
             $('#refreshButton').on('click', function() {
-                $('#minDate').val('');
-                $('#maxDate').val('');
                 loadBackupRadiationHistory();
             });
         });
