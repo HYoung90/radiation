@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/1.10.21/css/jquery.dataTables.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.min.css">
     <style>
+        /* 기존 디자인 스타일 유지 */
         body {
             font-family: 'Segoe UI', 'Arial', sans-serif;
             background-color: #f0f2f5;
@@ -41,7 +42,7 @@
             cursor: pointer;
             text-decoration: none;
             margin-right: 8px;
-            transition: background-color 0.3s ease, transform 0.2s ease;
+            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
             color: white;
             min-width: 120px;
@@ -68,6 +69,12 @@
             padding: 20px;
             background-color: #f7f9fa;
             border-radius: 8px;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.04);
+        }
+
+        .date-filter-section label {
+            font-weight: bold;
+            color: #495057;
         }
 
         .date-filter-section input[type="text"] {
@@ -86,20 +93,27 @@
             background: none;
         }
 
-        .ui-datepicker-trigger img { width: 24px; height: 24px; }
+        .ui-datepicker-trigger img {
+            width: 24px;
+            height: 24px;
+            opacity: 0.7;
+        }
 
         #backupRadiationHistoryTable {
             width: 100% !important;
+            border-collapse: collapse;
             margin-top: 30px;
             background-color: #ffffff;
             border-radius: 8px;
             overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
 
         #backupRadiationHistoryTable thead th {
             background-color: #6c757d;
             color: white;
             padding: 15px;
+            text-align: center;
         }
 
         #backupRadiationHistoryTable tbody td {
@@ -110,8 +124,14 @@
 
         .dataTables_wrapper .dataTables_info,
         .dataTables_wrapper .dataTables_filter,
-        .dataTables_wrapper .dataTables_length { display: none; }
-        .dataTables_wrapper .dataTables_paginate { margin-top: 20px; text-align: center; }
+        .dataTables_wrapper .dataTables_length {
+            display: none;
+        }
+
+        .dataTables_wrapper .dataTables_paginate {
+            margin-top: 20px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -149,9 +169,20 @@
 
     <script>
         $(document).ready(function() {
-            // 1. 공백 제거하여 서버 매칭률 향상
-            const genName = "{{ genName }}".trim();
+            // 1. 값 가져오기 및 매핑 테이블 준비 (보내주신 콘솔 결과 반영)
+            const rawGenName = "{{ genName }}".trim();
             const expl = "{{ expl }}".trim();
+
+            const genNameMapping = {
+                "고리 원자력발전소": "KR",
+                "월성 원자력발전소": "WS",
+                "한빛 원자력발전소": "YK",
+                "한울 원자력발전소": "UJ",
+                "새울 원자력발전소": "SU"
+            };
+
+            // 서버가 인식하는 짧은 코드(예: WS)로 변환
+            const mappedGenName = genNameMapping[rawGenName] || rawGenName;
 
             const table = $('#backupRadiationHistoryTable').DataTable({
                 order: [[0, 'desc']],
@@ -186,12 +217,9 @@
             $("#minDate").datepicker(datepickerOptions);
             $("#maxDate").datepicker(datepickerOptions);
 
-            // 데이터 로드 함수
-            function loadBackupRadiationHistory(minDate = null, maxDate = null) {
-                // API 호출 로그 확인 (F12 콘솔용)
-                console.log(`요청 시작: 발전소=${genName}, 지점=${expl}`);
-
-                let apiUrl = `/api/nuclear_radiation/backup?genName=${encodeURIComponent(genName)}&expl=${encodeURIComponent(expl)}`;
+            function loadHistoryData(minDate = null, maxDate = null) {
+                // 검증된 history API 주소 사용
+                let apiUrl = `/api/nuclear_radiation/history?genName=${encodeURIComponent(mappedGenName)}&expl=${encodeURIComponent(expl)}`;
 
                 if (minDate) apiUrl += `&minDate=${encodeURIComponent(minDate)}`;
                 if (maxDate) apiUrl += `&maxDate=${encodeURIComponent(maxDate)}`;
@@ -200,40 +228,40 @@
                     url: apiUrl,
                     method: 'GET',
                     success: function(data) {
-                        console.log("받은 데이터:", data);
                         table.clear();
-
                         if (data && data.length > 0) {
                             table.rows.add(data).draw();
                         } else {
-                            // 데이터가 없을 때 알람창을 띄워 어떤 값으로 찾았는지 알려줌
-                            alert(`[데이터 없음]\n발전소명: ${genName}\n측정지점: ${expl}\n해당 지점의 과거 데이터가 DB에 없습니다.`);
+                            // 실제 요청 값을 알람창에 보여줌
+                            alert(`[데이터 없음]\n발전소 코드: ${mappedGenName}\n측정지점: ${expl}\n조회된 데이터가 없습니다.`);
                             table.draw();
                         }
                     },
-                    error: function(xhr, status, error) {
-                        console.error("API 통신 오류:", error);
-                        alert("서버 연결에 실패했습니다. API 경로 혹은 서버 상태를 확인하세요.");
+                    error: function(error) {
+                        console.error("통신 에러:", error);
+                        alert("데이터를 가져오는 중 오류가 발생했습니다.");
                     }
                 });
             }
 
             // 초기 로드
-            loadBackupRadiationHistory();
+            loadHistoryData();
 
-            // 이벤트 바인딩
+            // 필터 적용
             $('#applyFilter').on('click', function() {
-                loadBackupRadiationHistory($('#minDate').val(), $('#maxDate').val());
+                loadHistoryData($('#minDate').val(), $('#maxDate').val());
             });
 
+            // 초기화
             $('#clearFilter').on('click', function() {
                 $('#minDate').val('');
                 $('#maxDate').val('');
-                loadBackupRadiationHistory();
+                loadHistoryData();
             });
 
+            // 새로고침
             $('#refreshButton').on('click', function() {
-                loadBackupRadiationHistory();
+                loadHistoryData();
             });
         });
     </script>
