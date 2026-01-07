@@ -652,15 +652,18 @@ def get_highest_radiation_by_plant():
 @app.route('/api/nuclear_radiation/history', methods=['GET'])
 def get_radiation_history():
     genName = request.args.get('genName')
-    expl    = request.args.get('expl')
+    expl = request.args.get('expl')
+    # 추가: 날짜 필터 파라미터 받기
+    minDate = request.args.get('minDate')
+    maxDate = request.args.get('maxDate')
 
-    logging.debug(f"Fetching history for genName: {genName}, expl: {expl}")
+    logging.debug(f"Fetching history for genName: {genName}, expl: {expl}, range: {minDate}~{maxDate}")
 
     if not genName or not expl:
         logging.warning("Missing genName or expl in the request")
         return jsonify([])
 
-    # 클라이언트에 넘겨준 genName이 한글 이름일 경우 코드로 매핑
+    # genName 매핑 로직 유지
     mapped_genName = None
     for code, name in genName_mapping.items():
         if name == genName:
@@ -670,21 +673,36 @@ def get_radiation_history():
         mapped_genName = genName
 
     try:
-        # 최신순(내림차순) 정렬 후 상위 4개만 조회
+        # 1. 기본 쿼리 조건
+        query = {'genName': mapped_genName, 'expl': expl}
+
+        # 2. 날짜 필터가 있을 경우 쿼리에 추가
+        if minDate or maxDate:
+            query['time'] = {}
+            if minDate:
+                query['time']['$gte'] = f"{minDate} 00:00:00"
+            if maxDate:
+                query['time']['$lte'] = f"{maxDate} 23:59:59"
+
+        # 3. 데이터 조회
+        # 상세 페이지라면 limit을 없애거나 크게 늘려야 합니다.
+        # 여기서는 날짜 조회가 있으면 전체를, 없으면 최신 100건 정도로 조절했습니다.
+        limit_val = 0 if (minDate or maxDate) else 100
+
         history_data = list(
             nuclear_radiation_collection.find(
-                {'genName': mapped_genName, 'expl': expl},
+                query,
                 {'_id': 0, 'time': 1, 'value': 1}
             )
-            .sort('time', -1)   # time 내림차순
-            .limit(4)           # 최신 4건만
+            .sort('time', -1)
+            .limit(limit_val)
         )
 
-        logging.info(f"Fetched history data (latest 4): {history_data}")
+        logging.info(f"Fetched history data: {len(history_data)} items")
         return jsonify(history_data)
 
     except Exception as e:
-        logging.error(f"Error fetching history data for {genName}, {expl}: {e}")
+        logging.error(f"Error fetching history data: {e}")
         return jsonify({"error": "Failed to fetch radiation history data"}), 500
 
 @app.route('/nuclear_radiation_history/<genName>', methods=['GET'])
