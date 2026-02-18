@@ -13,7 +13,6 @@
             padding: 20px;
             color: #333;
         }
-
         .container {
             max-width: 1200px;
             margin: 20px auto;
@@ -22,21 +21,17 @@
             border-radius: 12px;
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
         }
-
         h1, h3 {
             color: #2c3e50;
             text-align: center;
             margin-bottom: 20px;
             font-size: 2.2em;
         }
-
         h3 {
             font-size: 1.5em;
             margin-top: 30px;
             text-align: left;
         }
-
-        /* 뒤로가기 버튼 스타일 */
         .btn-back {
             display: inline-block;
             padding: 12px 25px;
@@ -51,14 +46,10 @@
             transition: background-color 0.3s ease, transform 0.2s ease;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
-
         .btn-back:hover {
             background-color: #5a6268;
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
         }
-
-        /* 이미지 스타일 */
         .image-container {
             text-align: center;
             margin: 30px 0;
@@ -69,8 +60,6 @@
             border-radius: 10px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
-
-        /* 측정 지점 버튼 그룹 스타일 */
         #measurementPoints {
             display: flex;
             flex-wrap: wrap;
@@ -78,7 +67,6 @@
             margin-bottom: 30px;
             justify-content: flex-start;
         }
-
         .measurement-btn {
             padding: 12px 20px;
             font-size: 0.95em;
@@ -87,96 +75,56 @@
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.2s ease;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s ease;
         }
-
-        .measurement-btn:hover {
-            background-color: #0056b3;
-            transform: translateY(-2px);
-        }
-
         .measurement-btn.selected {
             background-color: #28a745;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
-
-        /* DataTables 스타일 */
         #radiationHistoryTable {
             width: 100% !important;
             border-collapse: collapse;
             margin-top: 20px;
-            font-size: 1.0em;
         }
-
         #radiationHistoryTable thead th {
             background-color: #e9ecef;
-            color: #495057;
-            padding: 12px 15px;
-            text-align: center;
+            padding: 12px;
             border-bottom: 2px solid #dee2e6;
-            font-weight: bold;
         }
-
         #radiationHistoryTable tbody td {
-            padding: 10px 15px;
+            padding: 10px;
             text-align: center;
-            vertical-align: middle;
             border-bottom: 1px solid #e9ecef;
         }
-
-        #radiationHistoryTable tbody tr:nth-child(even) {
-            background-color: #f8f9fa;
-        }
-
-        #radiationHistoryTable tbody tr:hover {
-            background-color: #e2f4f8;
-            cursor: pointer;
-        }
-
-        /* DataTables 정보 텍스트, 페이지네이션, 검색 필드, 길이 선택 숨기기 */
+        /* DataTables 불필요 요소 숨기기 */
         .dataTables_wrapper .dataTables_info,
         .dataTables_wrapper .dataTables_paginate,
         .dataTables_wrapper .dataTables_filter,
         .dataTables_wrapper .dataTables_length {
             display: none;
         }
-
-        /* 과거 데이터 보기 버튼 */
         #viewBackupData {
             display: block;
             margin: 30px auto;
             padding: 15px 30px;
             font-size: 1.1em;
-            background-color: #e0a800; /* 주황색 (경고색) */
+            background-color: #e0a800;
             color: white;
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
-
-        #viewBackupData:hover {
-            background-color: #d39e00; /* 호버 시 진한 주황색 */
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-        }
+        #viewBackupData:hover { background-color: #d39e00; }
     </style>
 </head>
 <body>
     <div class="container">
         <a href="javascript:history.back()" class="btn-back">뒤로가기</a>
-
         <h1>{{ genName }}의 방사선 데이터</h1>
-
         <div class="image-container">
             <img src="{{ url_for('static', filename='images/' + genName + '.png') }}" alt="{{ genName }} 발전소 이미지">
         </div>
-
         <h3>측정 지점 리스트</h3>
         <div id="measurementPoints"></div>
-
         <h3>선택된 측정 지점의 데이터</h3>
         <table id="radiationHistoryTable" class="display">
             <thead>
@@ -187,35 +135,28 @@
             </thead>
             <tbody></tbody>
         </table>
+        <button id="viewBackupData">과거 데이터 보기</button>
+    </div>
 
-        <button id="viewBackupData">
-            과거 데이터 보기
-        </button>
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
 
-        <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-        <script src="https://cdn.datatables.net/1.10.21/js/jquery.dataTables.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            var genName = "{{ genName }}";
+            var table = $('#radiationHistoryTable').DataTable({
+                paging: false,
+                info: false,
+                searching: false,
+                lengthChange: false,
+                order: [[0, 'desc']]
+            });
 
-        <script>
-            $(document).ready(function() {
-                var genName = "{{ genName }}";
-                var table = $('#radiationHistoryTable').DataTable({
-                    paging: false,
-                    info: false,
-                    searching: false,
-                    lengthChange: false,
-                    order: [[0, 'desc']]
-                });
-
-                // 과거 데이터 보기 버튼 클릭 이벤트 직접 연결
+            // 과거 데이터 보기 버튼
             $('#viewBackupData').on('click', function() {
-                // 1. 현재 초록색(selected)으로 선택된 버튼을 찾습니다.
                 var selectedBtn = $('#measurementPoints .measurement-btn.selected');
-
-                // 2. 해당 버튼의 지점명(expl)을 가져옵니다.
                 var expl = selectedBtn.data('expl');
-
                 if (expl) {
-                    // 3. 주소를 만들어 페이지를 이동합니다.
                     var url = `/nuclear_radiation_history/{{ genName }}/${encodeURIComponent(expl)}`;
                     window.location.href = url;
                 } else {
@@ -223,79 +164,63 @@
                 }
             });
 
-                // 측정 지점 리스트를 API에서 가져와 버튼으로 표시하는 함수
-                function loadMeasurementPoints() {
-                    $.ajax({
-                        url: `/api/nuclear_radiation/points?genName=${encodeURIComponent(genName)}`,
-                        method: 'GET',
-                        success: function(data) {
-                            $('#measurementPoints').empty();
+            // 지점 리스트 로드
+            function loadMeasurementPoints() {
+                $.ajax({
+                    url: `/api/nuclear_radiation/points?genName=${encodeURIComponent(genName)}`,
+                    method: 'GET',
+                    success: function(data) {
+                        $('#measurementPoints').empty();
+                        if (data.length === 0) return;
 
-                            if (data.length === 0) {
-                                console.log("측정 지점 데이터를 불러오지 못했습니다.");
-                                return;
-                            }
+                        data.sort(function(a, b) {
+                            var numA = parseInt((a.match(/MS-(\d+)/) || [0, 0])[1], 10);
+                            var numB = parseInt((b.match(/MS-(\d+)/) || [0, 0])[1], 10);
+                            return numA - numB;
+                        });
 
-                            // MS 번호에 따라 정렬 (예: MS-1, MS-2, MS-10)
-                            data.sort(function(a, b) {
-                                var numA = parseInt((a.match(/MS-(\d+)/) || [0, 0])[1], 10);
-                                var numB = parseInt((b.match(/MS-(\d+)/) || [0, 0])[1], 10);
-                                return numA - numB;
-                            });
+                        data.forEach(function(point) {
+                            $('#measurementPoints').append(`<button class="measurement-btn" data-expl="${point}">${point}</button>`);
+                        });
 
-                            // 정렬된 데이터로 버튼 생성 및 이벤트 리스너 추가
-                            data.forEach(function(point) {
-                                const button = `<button class="measurement-btn" data-expl="${point}">${point}</button>`;
-                                $('#measurementPoints').append(button);
-                            });
-
-                            // 첫 번째 버튼을 자동으로 선택하고 데이터 로드
-                            if (data.length > 0) {
-                                const firstButton = $('.measurement-btn').first();
-                                firstButton.addClass('selected');
-                                loadRadiationHistory(firstButton.data('expl'));
-                            }
-
-                            // 버튼 클릭 이벤트 리스너 추가
-                            $('.measurement-btn').on('click', function() {
-                                $('.measurement-btn').removeClass('selected');
-                                $(this).addClass('selected');
-                                var expl = $(this).data('expl');
-                                loadRadiationHistory(expl);
-                            });
-                        },
-                        error: function(error) {
-                            console.error("Error fetching measurement points:", error);
+                        if (data.length > 0) {
+                            var firstButton = $('.measurement-btn').first();
+                            firstButton.addClass('selected');
+                            loadRadiationHistory(firstButton.data('expl'));
                         }
-                    });
-                }
 
-                // 특정 측정 지점의 데이터를 가져와 테이블에 표시하는 함수
-                function loadRadiationHistory(expl) {
-                    $.ajax({
-                        url: `/api/nuclear_radiation/history?genName=${encodeURIComponent(genName)}&expl=${encodeURIComponent(expl)}`,
-                        method: 'GET',
-                        success: function(data) {
-                            table.clear().draw();
-                            if (data.length === 0) {
-                                return;
-                            }
-                            data.forEach(function(item) {
+                        $('.measurement-btn').on('click', function() {
+                            $('.measurement-btn').removeClass('selected');
+                            $(this).addClass('selected');
+                            loadRadiationHistory($(this).data('expl'));
+                        });
+                    }
+                });
+            }
+
+            // 데이터 로드 (최신 5개)
+            function loadRadiationHistory(expl) {
+                $.ajax({
+                    url: `/api/nuclear_radiation/history?genName=${encodeURIComponent(genName)}&expl=${encodeURIComponent(expl)}`,
+                    method: 'GET',
+                    success: function(data) {
+                        table.clear();
+                        if (Array.isArray(data) && data.length > 0) {
+                            // 최신 5개 추출
+                            data.slice(0, 5).forEach(function(item) {
                                 table.row.add([
                                     item.time,
                                     `${parseFloat(item.value).toFixed(3)} μSv/h`
-                                ]).draw(false);
+                                ]);
                             });
-                        },
-                        error: function(error) {
-                            console.error("Error fetching radiation history:", error);
                         }
-                    });
-                }
+                        table.draw();
+                    }
+                });
+            }
 
-                // 페이지 로드 시 측정 지점 데이터 로드
-                loadMeasurementPoints();
-            });
-        </script>
+            loadMeasurementPoints();
+        }); // document.ready 닫기
+    </script>
 </body>
 </html>
