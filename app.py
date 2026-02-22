@@ -1829,6 +1829,22 @@ def export_workers_csv():
         query=q
     )
 
+@app.route('/source_tracking')
+def source_tracking():
+    # MCMC 분석 전용 페이지를 렌더링
+    # 이 페이지는 기존 index.html과 비슷하지만 '분석 실행' 버튼과 '결과 차트' 영역이 추가됩니다.
+    return render_template('source_tracking.html')
+
+@app.route('/api/run_mcmc', methods=['POST'])
+def run_mcmc_api():
+    # 1. 클라이언트로부터 발전소 ID 수신
+    plant_id = request.json.get('plant_id')
+    
+    # 2. 발전소별 기상/선량 데이터 가져오기 (소팅)
+    # 3. 위경도 -> UTM 변환 후 MCMC 엔진 실행
+    # 4. 결과(위경도, Q값) 반환
+    return jsonify({"lat": 35.3213, "lon": 129.2941, "strength": "4.7e9"})
+
 @app.route('/admin/workers/normalize_checktime', methods=['POST'])
 @login_required
 @admin_required
