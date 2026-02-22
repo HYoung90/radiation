@@ -6,32 +6,35 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f3f4f6; margin-left: 250px; }
-        .sidebar { width: 250px; background-color: #343a40; position: fixed; height: 100%; top: 0; left: 0; color: white; padding-top: 20px; text-align: center; }
+        body { background-color: #f3f4f6; margin-left: 250px; transition: 0.3s; }
+        .sidebar { width: 250px; background-color: #343a40; position: fixed; height: 100%; top: 0; left: 0; color: white; padding-top: 20px; text-align: center; z-index: 1000; }
         .sidebar a { color: white; padding: 15px; text-decoration: none; display: block; transition: 0.3s; }
         .sidebar a:hover { background-color: #575757; }
-        #map { height: 500px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-        .control-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        .loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); z-index: 2000; justify-content: center; align-items: center; flex-direction: column; }
+        #map { height: 600px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+        .control-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; justify-content: center; align-items: center; flex-direction: column; color: white; }
+        .result-val { color: #e74c3c; font-weight: bold; }
     </style>
 </head>
 <body>
+
     <div id="loading" class="loading-overlay">
-        <div class="spinner-border text-danger" role="status"></div>
-        <p class="mt-3"><strong>MCMC 분석 엔진 가동 중... (약 5~10초 소요)</strong></p>
+        <div class="spinner-border text-light" role="status" style="width: 3rem; height: 3rem;"></div>
+        <p class="mt-3 fs-5"><strong>MCMC 엔진 분석 중... (데이터 매칭 및 시뮬레이션)</strong></p>
     </div>
 
     <div class="sidebar">
         <img src="{{ url_for('static', filename='images/logo.jpg') }}" width="200" style="cursor:pointer;" onclick="location.href='/'">
+        <hr class="mx-3">
         <a href="/radiation_summary">주간 방사선량 데이터</a>
-        <a href="/nuclear_radiation">원자력 발전소 주변 방사선량 데이터</a>
+        <a href="/nuclear_radiation">원전 주변 방사선 데이터</a>
         <a href="/source_tracking" style="background-color: #e74c3c;">배출원 역추적 (MCMC)</a>
-        <a href="/accident_select">원자력 발전소 사고 판단</a>
+        <a href="/accident_select">사고 판단 시스템</a>
         <a href="/">메인 지도로 돌아가기</a>
     </div>
 
     <div class="container-fluid p-4">
-        <h2 class="mb-4">🛰️ 배출원 위치 및 강도 역추적 (Bayesian MCMC)</h2>
+        <h2 class="mb-4">🛰️ 배출원 위치 및 강도 역추적 <small class="text-muted">(Bayesian MCMC)</small></h2>
 
         <div class="row">
             <div class="col-md-4">
@@ -46,26 +49,32 @@
                         <option value="SU">새울 원자력발전소</option>
                     </select>
 
-                    <h5>2. 실시간 기상 정보 (자동 로드)</h5>
+                    <h5>2. 실시간 기상 환경</h5>
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label class="form-label small">풍향 (°)</label>
-                            <input type="number" id="wd" class="form-control" placeholder="계산중...">
+                            <input type="number" id="wd" class="form-control" placeholder="풍향">
                         </div>
                         <div class="col-6">
                             <label class="form-label small">풍속 (m/s)</label>
-                            <input type="number" id="ws" class="form-control" placeholder="계산중...">
+                            <input type="number" id="ws" class="form-control" placeholder="풍속">
                         </div>
                     </div>
 
-                    <button class="btn btn-danger w-100 py-2" onclick="startMCMC()">🚀 분석 실행 (MCMC Run)</button>
+                    <button class="btn btn-danger w-100 py-2 fs-5" onclick="startMCMC()">🚀 분석 실행 (MCMC Run)</button>
                 </div>
 
                 <div id="resultBox" class="control-card d-none">
-                    <h5 class="text-primary">3. 추정 결과</h5>
-                    <p class="mb-1 small">추정 위도: <strong id="resLat">-</strong></p>
-                    <p class="mb-1 small">추정 경도: <strong id="resLon">-</strong></p>
-                    <p class="mb-1 small">배출 강도(Q): <strong id="resQ">-</strong> Bq/s</p>
+                    <h5 class="text-primary mb-3">3. 역추적 분석 결과</h5>
+                    <div class="p-3 bg-light rounded">
+                        <p class="mb-2">📍 추정 위도: <span id="resLat" class="result-val">-</span></p>
+                        <p class="mb-2">📍 추정 경도: <span id="resLon" class="result-val">-</span></p>
+                        <p class="mb-0">☢️ 추정 발생원 선량: <span id="resQ" class="result-val">-</span> <span class="badge bg-secondary">μSv/h</span></p>
+                    </div>
+                    <div class="mt-3 small text-muted">
+                        * 파란 마커: 발전소 위치<br>
+                        * 빨간 마커: 추정 누출 지점
+                    </div>
                 </div>
             </div>
 
@@ -77,7 +86,7 @@
 
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
-        // 발전소별 기본 좌표 (지도 이동용)
+        // 발전소 위치 좌표 데이터
         const PLANT_COORDS = {
             "KR": [35.3213, 129.2941],
             "WS": [35.7131, 129.4775],
@@ -89,19 +98,25 @@
         // 지도 초기화
         var map = L.map('map').setView([36.5, 127.5], 7);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
-        var resultMarker = null;
 
-        // 1. 발전소 선택 시 최신 기상 및 센서 데이터 로드
+        // 레이어 그룹 (새로 고침 시 기존 마커 삭제용)
+        var plantLayer = L.layerGroup().addTo(map);
+        var resultLayer = L.layerGroup().addTo(map);
+
+        // 기상 데이터 가져오기
         function fetchMeteo() {
             const plant = document.getElementById('plantSelect').value;
             if(!plant) return;
 
-            // 지도를 선택한 발전소 위치로 이동
-            if (PLANT_COORDS[plant]) {
-                map.setView(PLANT_COORDS[plant], 12);
-            }
+            // 지도 이동 및 발전소 고정 마커 표시
+            const pos = PLANT_COORDS[plant];
+            map.setView(pos, 13);
+            
+            plantLayer.clearLayers();
+            L.circleMarker(pos, {
+                radius: 10, fillColor: "#007bff", color: "#fff", weight: 3, fillOpacity: 1
+            }).addTo(plantLayer).bindPopup(`<b>📍 발전소 본체 위치</b>`).openPopup();
 
-            // 기상 데이터 불러오기
             fetch(`/api/data/${plant}/latest`)
                 .then(res => res.json())
                 .then(data => {
@@ -109,17 +124,16 @@
                         document.getElementById('wd').value = data.winddirection || 0;
                         document.getElementById('ws').value = data.windspeed || 1.0;
                     }
-                })
-                .catch(err => console.error("기상 데이터 로드 실패:", err));
+                });
         }
 
-        // 2. MCMC 실행 요청
+        // MCMC 분석 시작
         function startMCMC() {
             const plant = document.getElementById('plantSelect').value;
-            if(!plant) { alert("발전소를 선택하세요."); return; }
+            if(!plant) { alert("발전소를 선택해주세요."); return; }
 
-            // 로딩 화면 띄우기
             document.getElementById('loading').style.display = 'flex';
+            resultLayer.clearLayers(); // 이전 결과 삭제
 
             fetch('/api/run_mcmc', {
                 method: 'POST',
@@ -132,44 +146,43 @@
             })
             .then(res => res.json())
             .then(data => {
-                // 로딩 화면 끄기
                 document.getElementById('loading').style.display = 'none';
 
-                // 백엔드에서 에러를 보냈을 경우 처리
                 if (data.error) {
-                    alert("분석 오류: " + data.error);
+                    alert("분석 실패: " + data.error);
                     return;
                 }
 
-                // 결과 상자 보이게 하기
+                // UI 업데이트
                 document.getElementById('resultBox').classList.remove('d-none');
-
-                // 결과 UI 업데이트
                 document.getElementById('resLat').innerText = data.lat.toFixed(5);
                 document.getElementById('resLon').innerText = data.lon.toFixed(5);
                 document.getElementById('resQ').innerText = data.strength;
 
-                // 기존 마커가 있으면 지우기
-                if(resultMarker) map.removeLayer(resultMarker);
-                
-                // 새로운 위치에 마커 찍기
-                resultMarker = L.marker([data.lat, data.lon]).addTo(map)
+                const plantPos = PLANT_COORDS[plant];
+                const estPos = [data.lat, data.lon];
+
+                // 1. 추정 지점 마커 (빨간색)
+                L.marker(estPos).addTo(resultLayer)
                     .bindPopup(`
                         <div style="text-align:center;">
-                            <b style="color:red;">⚠️ 추정된 누출 시작점</b><br><br>
-                            <b>위도:</b> ${data.lat.toFixed(4)}<br>
-                            <b>경도:</b> ${data.lon.toFixed(4)}<br>
-                            <b style="color:blue;">배출량:</b> ${data.strength} Bq/s
+                            <b style="color:red;">⚠️ 추정 누출 시작점</b><br>
+                            강도: ${data.strength} μSv/h
                         </div>
                     `).openPopup();
 
-                // 지도를 부드럽게 결과 위치로 줌-인
-                map.flyTo([data.lat, data.lon], 14, { duration: 1.5 });
+                // 2. 발전소 <-> 추정지점 선 긋기 (점선)
+                L.polyline([plantPos, estPos], {
+                    color: '#e74c3c', weight: 3, opacity: 0.7, dashArray: '10, 10'
+                }).addTo(resultLayer);
+
+                // 3. 두 지점이 모두 보이도록 지도 맞춤
+                var bounds = L.latLngBounds([plantPos, estPos]);
+                map.fitBounds(bounds, { padding: [50, 50] });
             })
             .catch(err => {
                 document.getElementById('loading').style.display = 'none';
-                alert("서버와 통신하는 중 문제가 발생했습니다.");
-                console.error(err);
+                alert("서버 통신 오류가 발생했습니다.");
             });
         }
     </script>
