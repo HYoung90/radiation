@@ -1833,6 +1833,7 @@ def export_workers_csv():
 # ---------------------------------------------------------------------
 # 역추적 (MCMC) 라우터 및 물리 엔진
 # ---------------------------------------------------------------------
+import re  # 스마트 매칭 정규식을 위한 패키지 추가
 
 # 위경도 <-> UTM 52N 변환기 (한국 지역 표준)
 transformer_to_utm = Transformer.from_crs("epsg:4326", "epsg:32652", always_xy=True)
@@ -1927,9 +1928,8 @@ class BayesianSourceFinder:
 
 def get_mcmc_observations(plant_id):
     """
-    MongoDB의 최신 선량 데이터와 data/좌표.csv의 위경도를 결합하여 MCMC 입력 데이터 생성
+    MongoDB의 최신 선량 데이터와 data/좌표.csv의 위경도를 결합하여 MCMC 입력 데이터 생성 (스마트 매칭 포함)
     """
-    # 1. MongoDB에서 해당 발전소의 센서별 최신 선량 데이터 1건씩 가져오기
     pipeline = [
         {"$match": {"genName": plant_id}},
         {"$sort": {"time": -1}},
@@ -1940,45 +1940,36 @@ def get_mcmc_observations(plant_id):
     ]
     recent_docs = list(nuclear_radiation_collection.aggregate(pipeline))
     
-    # [디버그 1] DB에서 값을 잘 가져왔는지 확인
-    print(f"\n--- [디버그] {plant_id} 발전소 DB 조회 결과 ---")
-    print(f"가져온 센서 데이터 개수: {len(recent_docs)}개")
-    if recent_docs:
-        print(f"첫 번째 데이터 샘플: {recent_docs[0]}")
-    else:
-        print(f"주의: DB에서 {plant_id} 발전소의 데이터를 전혀 찾지 못했습니다!")
-    
-    # 2. 좌표 CSV 로드 (인코딩 에러 방지 처리)
     csv_path = os.path.join('data', '좌표.csv')
     try:
         try:
             coord_df = pd.read_csv(csv_path, encoding='utf-8-sig')
         except UnicodeDecodeError:
             coord_df = pd.read_csv(csv_path, encoding='cp949')
-            
-        # 컬럼명 공백 제거 (예: '위도 ' -> '위도')
         coord_df.columns = coord_df.columns.str.strip()
-        
-        # [디버그 2] CSV 파일 컬럼 확인
-        print(f"--- [디버그] 좌표 CSV 컬럼명: {list(coord_df.columns)} ---")
-        
     except Exception as e:
         logging.error(f"좌표 CSV 로드 실패: {e}")
-        print(f"--- [디버그] 좌표 CSV 로드 실패: {e} ---")
         return []
 
     observations = []
-    failed_matches = []
     
     for d in recent_docs:
-        expl_name = d.get('_id') # 측정소 이름
+        expl_name = str(d.get('_id', ''))
         val = _to_float_or_none(d.get('val'))
         
-        if not expl_name or val is None:
+        if val is None or not expl_name:
             continue
             
-        # CSV에서 해당 측정소 이름이 포함된 행 찾기
-        match = coord_df[coord_df['측정소'].str.contains(expl_name, na=False, regex=False)]
+        # 스마트 매칭 1단계: "ERMS-" 글자 지우고 매칭
+        clean_name = expl_name.replace("ERMS-", "").strip()
+        match = coord_df[coord_df['측정소'].str.contains(clean_name, na=False, regex=False)]
+        
+        # 스마트 매칭 2단계: 그래도 없으면 "(MS-번호)" 패턴만 정규식으로 뽑아서 매칭
+        if match.empty:
+            ms_pattern = re.search(r'\(MS-\d+\)', expl_name)
+            if ms_pattern:
+                keyword = ms_pattern.group()
+                match = coord_df[coord_df['측정소'].str.contains(keyword, na=False, regex=False)]
         
         if not match.empty:
             lat = float(match.iloc[0]['위도'])
@@ -1987,14 +1978,6 @@ def get_mcmc_observations(plant_id):
             # 위경도 -> UTM 변환 (미터 단위)
             ux, uy = transformer_to_utm.transform(lon, lat)
             observations.append({'x': ux, 'y': uy, 'val': val})
-        else:
-            failed_matches.append(expl_name)
-            
-    # [디버그 3] 최종 매칭 결과 확인
-    print(f"--- [디버그] 매칭 성공한 데이터 개수: {len(observations)}개 ---")
-    if failed_matches:
-        print(f"--- [디버그] 매칭 실패한 측정소 이름 (상위 5개): {failed_matches[:5]} ---")
-    print("--------------------------------------------------\n")
             
     return observations
 
@@ -2037,7 +2020,7 @@ def run_mcmc_api():
         meteo = {'wind_speed': ws, 'wind_dir': wd, 'release_height': 100}
         
         # 4. MCMC 엔진 실행
-        # 웹 환경을 고려하여 n_iter를 5000으로 설정 (결과 속도 최적화)
+        # 웹 환경을 고려하여 n_iter를 5000으로 설정 (약 1~2초 내에 완료되도록 속도 최적화)
         finder = BayesianSourceFinder(obs, meteo, bounds)
         chain = finder.run(n_iter=5000) 
         
