@@ -2019,6 +2019,101 @@ def upload_workers_csv():
         "modified": res.modified_count
     }), 200
 
+# =============================================================================
+# [MCMC 엔진] 물리 모델 및 역추적 클래스 (직접 추가 부분)
+# =============================================================================
+from pyproj import Transformer
+
+# 위경도 <-> UTM 52N 변환기 (한국 지역 표준)
+transformer_to_utm = Transformer.from_crs("epsg:4326", "epsg:32652", always_xy=True)
+transformer_to_wgs84 = Transformer.from_crs("epsg:32652", "epsg:4326", always_xy=True)
+
+def get_plume_coordinates(x_map, y_map, sx, sy, wind_dir_meteo):
+    """지도 좌표를 플룸 중심축 좌표로 변환"""
+    flow_angle_rad = np.radians(270 - wind_dir_meteo)
+    dx = x_map - sx
+    dy = y_map - sy
+    downwind = dx * np.cos(flow_angle_rad) + dy * np.sin(flow_angle_rad)
+    crosswind = -dx * np.sin(flow_angle_rad) + dy * np.cos(flow_angle_rad)
+    return downwind, crosswind
+
+def gaussian_plume(x, y, H, Q, U):
+    """가우시안 플룸 확산 모델"""
+    if x <= 0: return 0.0
+    sigma_y = 0.11 * (x ** 0.85)
+    sigma_z = 0.08 * (x ** 0.81)
+    term_Q = Q / (2 * np.pi * U * sigma_y * sigma_z)
+    term_Y = np.exp(-(y ** 2) / (2 * sigma_y ** 2))
+    term_Z = 2 * np.exp(-(H ** 2) / (2 * sigma_z ** 2))
+    return term_Q * term_Y * term_Z
+
+class BayesianSourceFinder:
+    def __init__(self, observations, meteo, bounds):
+        self.obs = observations
+        self.meteo = meteo
+        self.bounds = bounds
+        self.chain = []
+
+    def get_initial_guess(self):
+        """농도 데이터를 기반으로 초기 시작점 추정"""
+        sorted_obs = sorted(self.obs, key=lambda x: x['val'], reverse=True)[:3]
+        sum_w = sum(o['val'] for o in sorted_obs) + 1e-9
+        center_x = sum(o['x'] * o['val'] for o in sorted_obs) / sum_w
+        center_y = sum(o['y'] * o['val'] for o in sorted_obs) / sum_w
+        
+        back_angle_rad = np.radians(270 - self.meteo['wind_dir'] + 180)
+        guess_dist = 2000 # 2km 역추적
+        start_x = center_x + guess_dist * np.cos(back_angle_rad)
+        start_y = center_y + guess_dist * np.sin(back_angle_rad)
+        start_q = np.mean(self.bounds['Q'])
+        return np.array([start_x, start_y, start_q])
+
+    def log_likelihood(self, state):
+        sx, sy, q = state
+        # 경계 조건 확인
+        if not (self.bounds['x'][0] <= sx <= self.bounds['x'][1] and
+                self.bounds['y'][0] <= sy <= self.bounds['y'][1] and
+                self.bounds['Q'][0] <= q <= self.bounds['Q'][1]):
+            return -np.inf
+
+        wd, u, h = self.meteo['wind_dir'], self.meteo['wind_speed'], self.meteo['release_height']
+        sse = 0
+        for o in self.obs:
+            dw, cw = get_plume_coordinates(o['x'], o['y'], sx, sy, wd)
+            pred = gaussian_plume(dw, cw, h, q, u)
+            sigma = o['val'] * 0.2 + 10.0 # 20% 오차 모델
+            sse += -0.5 * ((o['val'] - pred) / sigma) ** 2
+        return sse
+
+    def run(self, n_iter=15000):
+        current_state = self.get_initial_guess()
+        current_logp = self.log_likelihood(current_state)
+        self.chain = []
+
+        for _ in range(n_iter):
+            # 제안 분포 (보폭 설정)
+            proposal = current_state + np.array([
+                np.random.normal(0, 100), 
+                np.random.normal(0, 40), 
+                current_state[2] * np.random.normal(0, 0.03)
+            ])
+            proposed_logp = self.log_likelihood(proposal)
+            # 메트로폴리스-헤이스팅스 채택 조건
+            if np.log(np.random.rand()) < (proposed_logp - current_logp):
+                current_state = proposal
+                current_logp = proposed_logp
+            self.chain.append(current_state.copy())
+        return np.array(self.chain)
+
+# 발전소별 대표 위경도 좌표
+PLANT_BASE_LOC = {
+    "KR": {"lat": 35.3213, "lon": 129.2941},
+    "WS": {"lat": 35.7131, "lon": 129.4775},
+    "YK": {"lat": 35.4165, "lon": 126.4178},
+    "UJ": {"lat": 37.0941, "lon": 129.3819},
+    "SU": {"lat": 35.3376, "lon": 129.3115},
+}
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
