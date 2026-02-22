@@ -1835,15 +1835,108 @@ def source_tracking():
     # 이 페이지는 기존 index.html과 비슷하지만 '분석 실행' 버튼과 '결과 차트' 영역이 추가됩니다.
     return render_template('source_tracking.html')
 
-@app.route('/api/run_mcmc', methods=['POST'])
-def run_mcmc_api():
-    # 1. 클라이언트로부터 발전소 ID 수신
-    plant_id = request.json.get('plant_id')
+def get_mcmc_observations(plant_id):
+    """
+    MongoDB의 최신 선량 데이터와 좌표.csv의 위경도를 결합하여 MCMC 입력 데이터 생성
+    """
+    # 1. MongoDB에서 해당 발전소의 센서별 최신 선량 데이터 1건씩 가져오기
+    pipeline = [
+        {"$match": {"genName": plant_id}},
+        {"$sort": {"time": -1}},
+        {"$group": {
+            "_id": "$expl",
+            "val": {"$first": "$value"}
+        }}
+    ]
+    recent_docs = list(nuclear_radiation_collection.aggregate(pipeline))
     
-    # 2. 발전소별 기상/선량 데이터 가져오기 (소팅)
-    # 3. 위경도 -> UTM 변환 후 MCMC 엔진 실행
-    # 4. 결과(위경도, Q값) 반환
-    return jsonify({"lat": 35.3213, "lon": 129.2941, "strength": "4.7e9"})
+    # 2. 좌표 CSV 로드 (인코딩 에러 방지 처리)
+    try:
+        try:
+            coord_df = pd.read_csv('좌표.csv', encoding='utf-8-sig')
+        except UnicodeDecodeError:
+            coord_df = pd.read_csv('좌표.csv', encoding='cp949')
+            
+        # 컬럼명 공백 제거 (예: '위도 ' -> '위도')
+        coord_df.columns = coord_df.columns.str.strip()
+    except Exception as e:
+        logging.error(f"좌표 CSV 로드 실패: {e}")
+        return []
+
+    observations = []
+    for d in recent_docs:
+        expl_name = d.get('_id') # 측정소 이름
+        val = _to_float_or_none(d.get('val'))
+        
+        if not expl_name or val is None:
+            continue
+            
+        # CSV에서 해당 측정소 이름이 포함된 행 찾기
+        match = coord_df[coord_df['측정소'].str.contains(expl_name, na=False, regex=False)]
+        if not match.empty:
+            lat = match.iloc[0]['위도']
+            lon = match.iloc[0]['경도']
+            
+            # 위경도 -> UTM 변환 (미터 단위)
+            ux, uy = transformer_to_utm.transform(lon, lat)
+            observations.append({'x': ux, 'y': uy, 'val': val})
+            
+    return observations
+
+
+@app.route('/api/run_mcmc', methods=['POST'])
+# @login_required # 필요시 주석 해제하여 로그인한 사용자만 쓰게 할 수 있습니다.
+def run_mcmc_api():
+    try:
+        data = request.json
+        plant_id = data.get('plant_id')
+        wd = float(data.get('wd', 0))
+        ws = float(data.get('ws', 1.0))
+        
+        if not plant_id:
+            return jsonify({"error": "발전소 ID가 필요합니다."}), 400
+
+        # 1. 관측 데이터 준비 (센서 UTM 좌표 + 방사선량)
+        obs = get_mcmc_observations(plant_id)
+        if not obs:
+            return jsonify({"error": f"{plant_id} 발전소의 유효한 센서(좌표 매칭) 데이터가 없습니다. 좌표.csv 파일과 DB 데이터를 확인하세요."}), 400
+
+        # 2. 발전소 기준 좌표 설정 (UTM 변환)
+        p_loc = PLANT_BASE_LOC.get(plant_id)
+        if not p_loc:
+            return jsonify({"error": "알 수 없는 발전소입니다."}), 400
+        
+        sx, sy = transformer_to_utm.transform(p_loc['lon'], p_loc['lat'])
+        
+        # 3. MCMC 환경 설정 (발전소 중심 기준 반경 5km 탐색)
+        bounds = {
+            'x': (sx - 5000, sx + 5000),
+            'y': (sy - 5000, sy + 5000),
+            'Q': (1e7, 1e12) # 배출량 탐색 범위
+        }
+        meteo = {'wind_speed': ws, 'wind_dir': wd, 'release_height': 100}
+        
+        # 4. MCMC 엔진 실행
+        # 웹 환경을 고려하여 n_iter를 5000으로 설정 (결과 속도 최적화)
+        finder = BayesianSourceFinder(obs, meteo, bounds)
+        chain = finder.run(n_iter=5000) 
+        
+        # 5. 결과 산출 및 위경도 역변환 (초기 30%는 Burn-in으로 버림)
+        burn_in = int(len(chain) * 0.3)
+        est = np.mean(chain[burn_in:], axis=0)
+        
+        # UTM -> 위경도로 다시 변환하여 지도에 찍기 위함
+        est_lon, est_lat = transformer_to_wgs84.transform(est[0], est[1])
+        
+        return jsonify({
+            "lat": est_lat,
+            "lon": est_lon,
+            "strength": f"{est[2]:.2e}"
+        })
+
+    except Exception as e:
+        logging.error(f"MCMC Run Error: {e}")
+        return jsonify({"error": f"MCMC 분석 중 서버 오류가 발생했습니다: {str(e)}"}), 500
 
 @app.route('/admin/workers/normalize_checktime', methods=['POST'])
 @login_required
