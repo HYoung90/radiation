@@ -1840,7 +1840,7 @@ from pyproj import Transformer
 transformer_to_utm = Transformer.from_crs("epsg:4326", "epsg:32652", always_xy=True)
 transformer_to_wgs84 = Transformer.from_crs("epsg:32652", "epsg:4326", always_xy=True)
 
-# 발전소별 대표 좌표
+# 발전소별 대표 좌표 (분석 시작점 및 지도 이동용)
 PLANT_BASE_LOC = {
     "KR": {"lat": 35.3213, "lon": 129.2941},
     "WS": {"lat": 35.7131, "lon": 129.4775},
@@ -1850,6 +1850,7 @@ PLANT_BASE_LOC = {
 }
 
 def get_plume_coordinates(x_map, y_map, sx, sy, wind_dir_meteo):
+    """ 지도 좌표를 플룸 중심축 좌표(downwind, crosswind)로 변환 """
     flow_angle_rad = np.radians(270 - wind_dir_meteo)
     dx = x_map - sx
     dy = y_map - sy
@@ -1860,7 +1861,7 @@ def get_plume_coordinates(x_map, y_map, sx, sy, wind_dir_meteo):
 def gaussian_plume(x, y, H, Q, U):
     """ 가우시안 플룸 모델 (Q를 발생원 선량 강도로 해석) """
     if x <= 0: return 0.0
-    # Pasquill-Gifford 확산 계수 (Class D: 중립 조건)
+    # Pasquill-Gifford 확산 계수 (Class D: 중립 조건 가정)
     sigma_y = 0.11 * (x ** 0.85)
     sigma_z = 0.08 * (x ** 0.81)
     
@@ -1869,6 +1870,53 @@ def gaussian_plume(x, y, H, Q, U):
     term_Z = 2 * np.exp(-(H ** 2) / (2 * sigma_z ** 2))
     return term_Q * term_Y * term_Z
 
+# [추가됨] MongoDB 데이터 수집 및 좌표 매칭 함수
+def get_mcmc_observations(plant_id):
+    """ MongoDB에서 최신 선량 데이터를 가져와 좌표.csv와 매칭 """
+    try:
+        # 1. 지점별 최신 방사선 측정값 수집
+        pipeline = [
+            {"$match": {"genName": plant_id}},
+            {"$sort": {"time": -1}},
+            {"$group": {"_id": "$expl", "val": {"$first": "$value"}}}
+        ]
+        recent_docs = list(db['nuclear_radiation'].aggregate(pipeline))
+
+        # 2. 좌표 데이터 로드 (data/좌표.csv)
+        coord_path = os.path.join(app.root_path, 'data', '좌표.csv')
+        try:
+            coord_df = pd.read_csv(coord_path, encoding='utf-8-sig')
+        except:
+            coord_df = pd.read_csv(coord_path, encoding='cp949')
+        
+        coord_df.columns = coord_df.columns.str.strip()
+
+        observations = []
+        for d in recent_docs:
+            expl_name = str(d.get('_id', ''))
+            val = _to_float_or_none(d.get('val')) # 전역 헬퍼 함수 사용
+            if val is None or not expl_name: continue
+
+            # 측정소 명칭 스마트 매칭 (ERMS- 접두어 제거 등)
+            clean_name = expl_name.replace("ERMS-", "").strip()
+            match = coord_df[coord_df['측정소'].str.contains(clean_name, na=False, regex=False)]
+            
+            if match.empty:
+                ms_pattern = re.search(r'\(MS-\d+\)', expl_name)
+                if ms_pattern:
+                    keyword = ms_pattern.group()
+                    match = coord_df[coord_df['측정소'].str.contains(keyword, na=False, regex=False)]
+
+            if not match.empty:
+                lat, lon = float(match.iloc[0]['위도']), float(match.iloc[0]['경도'])
+                ux, uy = transformer_to_utm.transform(lon, lat)
+                observations.append({'x': ux, 'y': uy, 'val': val})
+        
+        return observations
+    except Exception as e:
+        app.logger.error(f"get_mcmc_observations error: {e}")
+        return []
+
 class BayesianSourceFinder:
     def __init__(self, observations, meteo, bounds):
         self.obs = observations
@@ -1876,6 +1924,7 @@ class BayesianSourceFinder:
         self.bounds = bounds
 
     def get_initial_guess(self):
+        """ 센서 데이터 무게중심 기반 초기 위치 추정 """
         sorted_obs = sorted(self.obs, key=lambda x: x['val'], reverse=True)[:3]
         sum_w = sum(o['val'] for o in sorted_obs) + 1e-9
         center_x = sum(o['x'] * o['val'] for o in sorted_obs) / sum_w
@@ -1900,19 +1949,18 @@ class BayesianSourceFinder:
             dw, cw = get_plume_coordinates(o['x'], o['y'], sx, sy, wd)
             pred = gaussian_plume(dw, cw, h, q, u)
             
-            # ★ 핵심 수정: 0.1 단위 선량 데이터에 반응하도록 정밀도 조절
-            # 기존 10.0이었던 노이즈를 0.01(센서 정밀도 수준)로 낮춤
+            # 0.1 단위 선량 데이터 정밀도 조절 (노이즈 0.01)
             sigma = o['val'] * 0.1 + 0.01 
             sse += -0.5 * ((o['val'] - pred) / sigma) ** 2
         return sse
 
-    def run(self, n_iter=10000):
+    def run(self, n_iter=8000):
         current_state = self.get_initial_guess()
         current_logp = self.log_likelihood(current_state)
         chain = []
 
         for _ in range(n_iter):
-            # Q의 단위가 작으므로 제안 분포의 보폭도 미세하게 조정
+            # Q 단위에 맞는 미세 제안 분포
             proposal = current_state + np.array([
                 np.random.normal(0, 80), 
                 np.random.normal(0, 30), 
@@ -1933,16 +1981,15 @@ def run_mcmc_api():
         wd = float(data.get('wd', 0))
         ws = float(data.get('ws', 1.0))
         
-        # 관측 데이터 (0.106 μSv/h 등 변환 없이 그대로 사용)
+        # [수정됨] 누락되었던 함수 호출 부분
         obs = get_mcmc_observations(plant_id)
         if not obs:
-            return jsonify({"error": "유효한 센서 데이터가 없습니다."}), 400
+            return jsonify({"error": "유효한 센서 데이터가 없습니다. 좌표 매칭을 확인하세요."}), 400
 
         p_loc = PLANT_BASE_LOC.get(plant_id)
         sx, sy = transformer_to_utm.transform(p_loc['lon'], p_loc['lat'])
         
-        # ★ 핵심 수정: Q의 단위를 μSv/h 선량 단위로 제한 (0.1 ~ 1,000,000)
-        # 이제 +11승 같은 비현실적인 숫자가 나오지 않습니다.
+        # Q 탐색 범위를 선량 단위(μSv/h)로 현실화
         bounds = {
             'x': (sx - 5000, sx + 5000),
             'y': (sy - 5000, sy + 5000),
@@ -1960,13 +2007,13 @@ def run_mcmc_api():
         return jsonify({
             "lat": est_lat,
             "lon": est_lon,
-            "strength": round(float(est[2]), 4), # 소수점 4자리까지 선량으로 표기
+            "strength": round(float(est[2]), 4),
             "unit": "μSv/h"
         })
 
     except Exception as e:
+        app.logger.error(f"MCMC API Error: {e}")
         return jsonify({"error": str(e)}), 500
-
 
 @app.route('/admin/workers/normalize_checktime', methods=['POST'])
 @login_required
