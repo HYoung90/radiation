@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>배출원 역추적 시스템 (MCMC)</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f3f4f6; margin-left: 250px; }
+        .sidebar { width: 250px; background-color: #343a40; position: fixed; height: 100%; top: 0; left: 0; color: white; padding-top: 20px; text-align: center; }
+        .sidebar a { color: white; padding: 15px; text-decoration: none; display: block; transition: 0.3s; }
+        .sidebar a:hover { background-color: #575757; }
+        #map { height: 500px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .control-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        .loading-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.8); z-index: 2000; justify-content: center; align-items: center; flex-direction: column; }
+    </style>
+</head>
+<body>
+    <div id="loading" class="loading-overlay">
+        <div class="spinner-border text-danger" role="status"></div>
+        <p class="mt-3"><strong>MCMC 분석 엔진 가동 중... (약 20~30초 소요)</strong></p>
+    </div>
+
+    <div class="sidebar">
+        <img src="{{ url_for('static', filename='images/logo.jpg') }}" width="200" style="cursor:pointer;" onclick="location.href='/'">
+        <a href="/radiation_summary">주간 방사선량 데이터</a>
+        <a href="/nuclear_radiation">원자력 발전소 주변 방사선량 데이터</a>
+        <a href="/source_tracking" style="background-color: #e74c3c;">배출원 역추적 (MCMC)</a>
+        <a href="/accident_select">원자력 발전소 사고 판단</a>
+        <a href="/">메인 지도로 돌아가기</a>
+    </div>
+
+    <div class="container-fluid p-4">
+        <h2 class="mb-4">🛰️ 배출원 위치 및 강도 역추적 (Bayesian MCMC)</h2>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="control-card">
+                    <h5>1. 분석 대상 선택</h5>
+                    <select class="form-select mb-3" id="plantSelect" onchange="fetchMeteo()">
+                        <option value="">-- 발전소 선택 --</option>
+                        <option value="KR">고리 원자력발전소</option>
+                        <option value="WS">월성 원자력발전소</option>
+                        <option value="YK">한빛 원자력발전소</option>
+                        <option value="UJ">한울 원자력발전소</option>
+                        <option value="SU">새울 원자력발전소</option>
+                    </select>
+
+                    <h5>2. 실시간 기상 정보 (자동 로드)</h5>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small">풍향 (°)</label>
+                            <input type="number" id="wd" class="form-control" placeholder="계산중...">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">풍속 (m/s)</label>
+                            <input type="number" id="ws" class="form-control" placeholder="계산중...">
+                        </div>
+                    </div>
+
+                    <button class="btn btn-danger w-100 py-2" onclick="startMCMC()">🚀 분석 실행 (MCMC Run)</button>
+                </div>
+
+                <div id="resultBox" class="control-card d-none">
+                    <h5 class="text-primary">3. 추정 결과</h5>
+                    <p class="mb-1 small">추정 위도: <strong id="resLat">-</strong></p>
+                    <p class="mb-1 small">추정 경도: <strong id="resLon">-</strong></p>
+                    <p class="mb-1 small">배출 강도(Q): <strong id="resQ">-</strong> ng/s</p>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div id="map"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script>
+        var map = L.map('map').setView([36.5, 127.5], 7);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
+        var sensorLayer = L.layerGroup().addTo(map);
+        var resultMarker = null;
+
+        // 1. 발전소 선택 시 최신 기상 및 센서 데이터 로드
+        function fetchMeteo() {
+            const plant = document.getElementById('plantSelect').value;
+            if(!plant) return;
+
+            // app.py의 기존 API 활용 (/api/data/<genName>/latest)
+            fetch(`/api/data/${plant}/latest`)
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('wd').value = data.winddirection || 0;
+                    document.getElementById('ws').value = data.windspeed || 0;
+
+                    // 지도 이동
+                    if(data.lat && data.lng) map.setView([data.lat, data.lng], 12);
+                });
+        }
+
+        // 2. MCMC 실행 요청
+        function startMCMC() {
+            const plant = document.getElementById('plantSelect').value;
+            if(!plant) { alert("발전소를 선택하세요."); return; }
+
+            document.getElementById('loading').style.display = 'flex';
+
+            fetch('/api/run_mcmc', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    plant_id: plant,
+                    wd: document.getElementById('wd').value,
+                    ws: document.getElementById('ws').value
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('resultBox').classList.remove('d-none');
+
+                // 결과 UI 업데이트
+                document.getElementById('resLat').innerText = data.lat.toFixed(5);
+                document.getElementById('resLon').innerText = data.lon.toFixed(5);
+                document.getElementById('resQ').innerText = data.strength;
+
+                // 지도에 추정 배출원 표시 (별 모양 아이콘이나 빨간 마커)
+                if(resultMarker) map.removeLayer(resultMarker);
+                resultMarker = L.marker([data.lat, data.lon], {
+                    icon: L.divIcon({className: 'btn btn-danger btn-sm', html: '★ 소스'})
+                }).addTo(map).bindPopup("추정 배출 지점").openPopup();
+
+                map.panTo([data.lat, data.lon]);
+            })
+            .catch(err => {
+                document.getElementById('loading').style.display = 'none';
+                alert("분석 중 오류가 발생했습니다.");
+            });
+        }
+    </script>
+</body>
+</html>
