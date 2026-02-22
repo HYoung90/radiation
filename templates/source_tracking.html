@@ -18,7 +18,7 @@
 <body>
     <div id="loading" class="loading-overlay">
         <div class="spinner-border text-danger" role="status"></div>
-        <p class="mt-3"><strong>MCMC 분석 엔진 가동 중... (약 20~30초 소요)</strong></p>
+        <p class="mt-3"><strong>MCMC 분석 엔진 가동 중... (약 5~10초 소요)</strong></p>
     </div>
 
     <div class="sidebar">
@@ -65,7 +65,7 @@
                     <h5 class="text-primary">3. 추정 결과</h5>
                     <p class="mb-1 small">추정 위도: <strong id="resLat">-</strong></p>
                     <p class="mb-1 small">추정 경도: <strong id="resLon">-</strong></p>
-                    <p class="mb-1 small">배출 강도(Q): <strong id="resQ">-</strong> ng/s</p>
+                    <p class="mb-1 small">배출 강도(Q): <strong id="resQ">-</strong> Bq/s</p>
                 </div>
             </div>
 
@@ -77,9 +77,18 @@
 
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script>
+        // 발전소별 기본 좌표 (지도 이동용)
+        const PLANT_COORDS = {
+            "KR": [35.3213, 129.2941],
+            "WS": [35.7131, 129.4775],
+            "YK": [35.4165, 126.4178],
+            "UJ": [37.0941, 129.3819],
+            "SU": [35.3376, 129.3115]
+        };
+
+        // 지도 초기화
         var map = L.map('map').setView([36.5, 127.5], 7);
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
-        var sensorLayer = L.layerGroup().addTo(map);
         var resultMarker = null;
 
         // 1. 발전소 선택 시 최신 기상 및 센서 데이터 로드
@@ -87,16 +96,21 @@
             const plant = document.getElementById('plantSelect').value;
             if(!plant) return;
 
-            // app.py의 기존 API 활용 (/api/data/<genName>/latest)
+            // 지도를 선택한 발전소 위치로 이동
+            if (PLANT_COORDS[plant]) {
+                map.setView(PLANT_COORDS[plant], 12);
+            }
+
+            // 기상 데이터 불러오기
             fetch(`/api/data/${plant}/latest`)
                 .then(res => res.json())
                 .then(data => {
-                    document.getElementById('wd').value = data.winddirection || 0;
-                    document.getElementById('ws').value = data.windspeed || 0;
-
-                    // 지도 이동
-                    if(data.lat && data.lng) map.setView([data.lat, data.lng], 12);
-                });
+                    if(!data.error) {
+                        document.getElementById('wd').value = data.winddirection || 0;
+                        document.getElementById('ws').value = data.windspeed || 1.0;
+                    }
+                })
+                .catch(err => console.error("기상 데이터 로드 실패:", err));
         }
 
         // 2. MCMC 실행 요청
@@ -104,6 +118,7 @@
             const plant = document.getElementById('plantSelect').value;
             if(!plant) { alert("발전소를 선택하세요."); return; }
 
+            // 로딩 화면 띄우기
             document.getElementById('loading').style.display = 'flex';
 
             fetch('/api/run_mcmc', {
@@ -117,7 +132,16 @@
             })
             .then(res => res.json())
             .then(data => {
+                // 로딩 화면 끄기
                 document.getElementById('loading').style.display = 'none';
+
+                // 백엔드에서 에러를 보냈을 경우 처리
+                if (data.error) {
+                    alert("분석 오류: " + data.error);
+                    return;
+                }
+
+                // 결과 상자 보이게 하기
                 document.getElementById('resultBox').classList.remove('d-none');
 
                 // 결과 UI 업데이트
@@ -125,17 +149,27 @@
                 document.getElementById('resLon').innerText = data.lon.toFixed(5);
                 document.getElementById('resQ').innerText = data.strength;
 
-                // 지도에 추정 배출원 표시 (별 모양 아이콘이나 빨간 마커)
+                // 기존 마커가 있으면 지우기
                 if(resultMarker) map.removeLayer(resultMarker);
-                resultMarker = L.marker([data.lat, data.lon], {
-                    icon: L.divIcon({className: 'btn btn-danger btn-sm', html: '★ 소스'})
-                }).addTo(map).bindPopup("추정 배출 지점").openPopup();
+                
+                // 새로운 위치에 마커 찍기
+                resultMarker = L.marker([data.lat, data.lon]).addTo(map)
+                    .bindPopup(`
+                        <div style="text-align:center;">
+                            <b style="color:red;">⚠️ 추정된 누출 시작점</b><br><br>
+                            <b>위도:</b> ${data.lat.toFixed(4)}<br>
+                            <b>경도:</b> ${data.lon.toFixed(4)}<br>
+                            <b style="color:blue;">배출량:</b> ${data.strength} Bq/s
+                        </div>
+                    `).openPopup();
 
-                map.panTo([data.lat, data.lon]);
+                // 지도를 부드럽게 결과 위치로 줌-인
+                map.flyTo([data.lat, data.lon], 14, { duration: 1.5 });
             })
             .catch(err => {
                 document.getElementById('loading').style.display = 'none';
-                alert("분석 중 오류가 발생했습니다.");
+                alert("서버와 통신하는 중 문제가 발생했습니다.");
+                console.error(err);
             });
         }
     </script>
