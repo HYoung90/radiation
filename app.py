@@ -1926,121 +1926,130 @@ class BayesianSourceFinder:
         return np.array(self.chain)
 
 
+# ---------------------------------------------------------------------
+# 역추적 (MCMC) 관측 데이터 준비 (보완 버전)
+# ---------------------------------------------------------------------
+
 def get_mcmc_observations(plant_id):
-    """
-    MongoDB의 최신 선량 데이터와 data/좌표.csv의 위경도를 결합하여 MCMC 입력 데이터 생성 (스마트 매칭 포함)
-    """
-    pipeline = [
-        {"$match": {"genName": plant_id}},
-        {"$sort": {"time": -1}},
-        {"$group": {
-            "_id": "$expl",
-            "val": {"$first": "$value"}
-        }}
-    ]
-    recent_docs = list(nuclear_radiation_collection.aggregate(pipeline))
-    
-    csv_path = os.path.join('data', '좌표.csv')
     try:
+        # 1. 기상 및 배경 방사선 정보 로드
+        weather = collection.find_one({"genName": plant_id}, sort=[("time", DESCENDING)])
+        is_raining = _safe_float(weather.get('rainfall', 0)) > 0 if weather else False
+        
+        bg_doc = regional_avg_collection.find_one({"genName": plant_id}, sort=[("date", DESCENDING)])
+        bg_val = (_safe_float(bg_doc.get('rain_avg')) if is_raining else _safe_float(bg_doc.get('no_rain_avg'))) if bg_doc else 0.1086
+            
+        logging.info(f"[MCMC] Plant: {plant_id}, Rain: {is_raining}, BG Subtraction: {bg_val}")
+
+        # 2. 최신 측정값 수집
+        pipeline = [
+            {"$match": {"genName": plant_id}},
+            {"$sort": {"time": -1}},
+            {"$group": {"_id": "$expl", "val": {"$first": "$value"}}}
+        ]
+        recent_docs = list(nuclear_radiation_collection.aggregate(pipeline))
+        
+        # 3. 좌표 데이터 매칭
+        csv_path = os.path.join('data', '좌표.csv')
+        if not os.path.exists(csv_path):
+            logging.error(f"좌표 CSV 파일을 찾을 수 없습니다: {csv_path}")
+            return []
+
         try:
             coord_df = pd.read_csv(csv_path, encoding='utf-8-sig')
-        except UnicodeDecodeError:
+        except:
             coord_df = pd.read_csv(csv_path, encoding='cp949')
         coord_df.columns = coord_df.columns.str.strip()
+
+        observations = []
+        for d in recent_docs:
+            expl_name = str(d.get('_id', ''))
+            val = _to_float_or_none(d.get('val'))
+            if val is None or not expl_name: continue
+                
+            # ERMS 명칭 및 MS 패턴 매칭
+            clean_name = expl_name.replace("ERMS-", "").strip()
+            match = coord_df[coord_df['측정소'].str.contains(clean_name, na=False, regex=False)]
+            
+            if match.empty:
+                ms_pattern = re.search(r'\(MS-\d+\)', expl_name)
+                if ms_pattern:
+                    match = coord_df[coord_df['측정소'].str.contains(ms_pattern.group(), na=False, regex=False)]
+            
+            if not match.empty:
+                # ★ 핵심: 배경 방사선 차감 후 순수 누출분만 추출
+                net_val = max(val - bg_val, 1e-6) 
+                ux, uy = transformer_to_utm.transform(float(match.iloc[0]['경도']), float(match.iloc[0]['위도']))
+                observations.append({'x': ux, 'y': uy, 'val': net_val})
+                
+        return observations
     except Exception as e:
-        logging.error(f"좌표 CSV 로드 실패: {e}")
+        logging.error(f"get_mcmc_observations error: {e}")
         return []
-
-    observations = []
-    
-    for d in recent_docs:
-        expl_name = str(d.get('_id', ''))
-        val = _to_float_or_none(d.get('val'))
         
-        if val is None or not expl_name:
-            continue
-            
-        # 스마트 매칭 1단계: "ERMS-" 글자 지우고 매칭
-        clean_name = expl_name.replace("ERMS-", "").strip()
-        match = coord_df[coord_df['측정소'].str.contains(clean_name, na=False, regex=False)]
-        
-        # 스마트 매칭 2단계: 그래도 없으면 "(MS-번호)" 패턴만 정규식으로 뽑아서 매칭
-        if match.empty:
-            ms_pattern = re.search(r'\(MS-\d+\)', expl_name)
-            if ms_pattern:
-                keyword = ms_pattern.group()
-                match = coord_df[coord_df['측정소'].str.contains(keyword, na=False, regex=False)]
-        
-        if not match.empty:
-            lat = float(match.iloc[0]['위도'])
-            lon = float(match.iloc[0]['경도'])
-            
-            # 위경도 -> UTM 변환 (미터 단위)
-            ux, uy = transformer_to_utm.transform(lon, lat)
-            observations.append({'x': ux, 'y': uy, 'val': val})
-            
-    return observations
+# BayesianSourceFinder 클래스 내의 log_likelihood 함수를 아래와 같이 업데이트해주세요.
+# (차감된 미세 선량에 맞게 오차 모델 sigma를 조정했습니다.)
+def log_likelihood(self, state):
+    sx, sy, q = state
+    if not (self.bounds['x'][0] <= sx <= self.bounds['x'][1] and
+            self.bounds['y'][0] <= sy <= self.bounds['y'][1] and
+            self.bounds['Q'][0] <= q <= self.bounds['Q'][1]):
+        return -1e20
 
-@app.route('/source_tracking')
-def source_tracking():
-    # MCMC 분석 전용 페이지를 렌더링
-    return render_template('source_tracking.html')
-
+    wd, u, h = self.meteo['wind_dir'], self.meteo['wind_speed'], self.meteo['release_height']
+    sse = 0
+    for o in self.obs:
+        dw, cw = get_plume_coordinates(o['x'], o['y'], sx, sy, wd)
+        pred = gaussian_plume(dw, cw, h, q, u)
+        
+        # 차감 후 데이터는 단위가 작으므로 시그마를 정밀하게 설정 (최소 0.01)
+        sigma = max(o['val'] * 0.15, 0.01) 
+        sse += -0.5 * ((o['val'] - pred) / sigma) ** 2
+    return sse
 
 @app.route('/api/run_mcmc', methods=['POST'])
-# @login_required # 필요시 주석 해제하여 로그인한 사용자만 쓰게 할 수 있습니다.
 def run_mcmc_api():
     try:
         data = request.json
-        plant_id = data.get('plant_id')
+        plant_id = (data.get('plant_id') or "").upper()
         wd = float(data.get('wd', 0))
         ws = float(data.get('ws', 1.0))
         
-        if not plant_id:
-            return jsonify({"error": "발전소 ID가 필요합니다."}), 400
-
-        # 1. 관측 데이터 준비 (센서 UTM 좌표 + 방사선량)
+        # 1. 배경 차감된 관측 데이터 준비
         obs = get_mcmc_observations(plant_id)
         if not obs:
-            return jsonify({"error": f"{plant_id} 발전소의 유효한 센서(좌표 매칭) 데이터가 없습니다. data/좌표.csv 파일과 DB 데이터를 확인하세요."}), 400
+            return jsonify({"error": "유효한 센서 데이터가 없습니다."}), 400
 
-        # 2. 발전소 기준 좌표 설정 (UTM 변환)
+        # 2. 발전소 기준 위치 (UTM)
         p_loc = PLANT_BASE_LOC.get(plant_id)
-        if not p_loc:
-            return jsonify({"error": "알 수 없는 발전소입니다."}), 400
-        
         sx, sy = transformer_to_utm.transform(p_loc['lon'], p_loc['lat'])
         
-        # 3. MCMC 환경 설정 (발전소 중심 기준 반경 5km 탐색)
+        # 3. MCMC 파라미터 설정 (단위: μSv/h 기반)
         bounds = {
-            'x': (sx - 5000, sx + 5000),
-            'y': (sy - 5000, sy + 5000),
-            'Q': (1e7, 1e12) # 배출량 탐색 범위
+            'x': (sx - 4000, sx + 4000),
+            'y': (sy - 4000, sy + 4000),
+            'Q': (0.1, 1e7) # μSv/h
         }
-        meteo = {'wind_speed': ws, 'wind_dir': wd, 'release_height': 100}
+        meteo = {'wind_speed': ws, 'wind_dir': wd, 'release_height': 80}
         
-        # 4. MCMC 엔진 실행
-        # 웹 환경을 고려하여 n_iter를 5000으로 설정 (약 1~2초 내에 완료되도록 속도 최적화)
+        # 4. 분석 엔진 실행
         finder = BayesianSourceFinder(obs, meteo, bounds)
-        chain = finder.run(n_iter=5000) 
+        chain = finder.run(n_iter=8000) 
         
-        # 5. 결과 산출 및 위경도 역변환 (초기 30%는 Burn-in으로 버림)
         burn_in = int(len(chain) * 0.3)
         est = np.mean(chain[burn_in:], axis=0)
-        
-        # UTM -> 위경도로 다시 변환하여 지도에 찍기 위함
         est_lon, est_lat = transformer_to_wgs84.transform(est[0], est[1])
         
         return jsonify({
             "lat": est_lat,
             "lon": est_lon,
-            "strength": f"{est[2]:.2e}"
+            "strength": round(float(est[2]), 4),
+            "unit": "μSv/h"
         })
 
     except Exception as e:
-        logging.error(f"MCMC Run Error: {e}")
-        return jsonify({"error": f"MCMC 분석 중 서버 오류가 발생했습니다: {str(e)}"}), 500
-
+        logging.error(f"MCMC API Error: {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/admin/workers/normalize_checktime', methods=['POST'])
 @login_required
