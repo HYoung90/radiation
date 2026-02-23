@@ -1836,6 +1836,54 @@ def export_workers_csv():
 # [정밀도 강화] MCMC 역추적 물리 엔진 (로컬 분석 알고리즘 이식)
 # =============================================================================
 
+# --- 1. 좌표 변환 및 발전소 위치 설정 (추가) ---
+# WGS84(위경도) -> UTM52N(미터 단위 좌표) 변환 객체
+transformer_to_utm = Transformer.from_crs("epsg:4326", "epsg:32652", always_xy=True)
+transformer_to_wgs84 = Transformer.from_crs("epsg:32652", "epsg:4326", always_xy=True)
+
+# 발전소별 기준 위치 (본부 좌표)
+PLANT_BASE_LOC = {
+    "KR": {"lat": 35.3195, "lon": 129.2872}, # 고리
+    "WS": {"lat": 35.7134, "lon": 129.4757}, # 월성
+    "YK": {"lat": 35.4124, "lon": 126.4182}, # 한빛
+    "UJ": {"lat": 37.0828, "lon": 129.3854}, # 한울
+    "SU": {"lat": 35.3281, "lon": 129.2990}  # 새울
+}
+
+# --- 2. DB에서 관측 데이터 수집 함수 (에러 해결 핵심) ---
+def get_mcmc_observations(plant_id):
+    """DB에서 해당 발전소의 최신 센서 관측값을 가져와 MCMC용 리스트로 반환"""
+    try:
+        # 해당 발전소의 최신 측정 지점별 데이터 추출 (expl 기준 그룹화)
+        pipeline = [
+            {"$match": {"genName": plant_id}},
+            {"$sort": {"time": -1}},
+            {"$group": {
+                "_id": "$expl",
+                "val": {"$first": "$value"},
+                "lat": {"$first": "$lat"},
+                "lng": {"$first": "$lng"}
+            }}
+        ]
+        results = list(nuclear_radiation_collection.aggregate(pipeline))
+        
+        obs_list = []
+        for r in results:
+            if r.get('lat') and r.get('lng') and r.get('val') is not None:
+                # 위경도를 UTM 미터 좌표로 변환 (물리 엔진 계산용)
+                ux, uy = transformer_to_utm.transform(r['lng'], r['lat'])
+                obs_list.append({
+                    'x': ux,
+                    'y': uy,
+                    'val': float(r['val'])
+                })
+        
+        logging.info(f"MCMC용 관측 데이터 {len(obs_list)}건 수집 완료 (발전소: {plant_id})")
+        return obs_list
+    except Exception as e:
+        logging.error(f"get_mcmc_observations 에러: {e}")
+        return []
+
 def get_plume_coordinates(x, y, sx, sy, wd):
     """측정점(x, y)을 오염원(sx, sy) 기준 풍하방향/교차방향 좌표로 변환"""
     dx, dy = x - sx, y - sy
