@@ -1926,194 +1926,121 @@ class BayesianSourceFinder:
         return np.array(self.chain)
 
 
-# ---------------------------------------------------------------------
-# 역추적 (MCMC) 라우터 및 물리 엔진 파트 (전체)
-# ---------------------------------------------------------------------
-import re
-from pyproj import Transformer
-
-# 위경도 <-> UTM 52N 변환기 (한국 지역 표준)
-transformer_to_utm = Transformer.from_crs("epsg:4326", "epsg:32652", always_xy=True)
-transformer_to_wgs84 = Transformer.from_crs("epsg:32652", "epsg:4326", always_xy=True)
-
-# 발전소별 대표 위경도 좌표
-PLANT_BASE_LOC = {
-    "KR": {"lat": 35.3213, "lon": 129.2941},
-    "WS": {"lat": 35.7131, "lon": 129.4775},
-    "YK": {"lat": 35.4165, "lon": 126.4178},
-    "UJ": {"lat": 37.0941, "lon": 129.3819},
-    "SU": {"lat": 35.3376, "lon": 129.3115},
-}
-
-def get_plume_coordinates(x_map, y_map, sx, sy, wind_dir_meteo):
-    """지도 좌표를 플룸 중심축 좌표로 변환"""
-    flow_angle_rad = np.radians(270 - wind_dir_meteo)
-    dx = x_map - sx
-    dy = y_map - sy
-    downwind = dx * np.cos(flow_angle_rad) + dy * np.sin(flow_angle_rad)
-    crosswind = -dx * np.sin(flow_angle_rad) + dy * np.cos(flow_angle_rad)
-    return downwind, crosswind
-
-def gaussian_plume(x, y, H, Q, U):
-    """가우시안 플룸 확산 모델"""
-    if x <= 0: return 0.0
-    sigma_y = 0.11 * (x ** 0.85)
-    sigma_z = 0.08 * (x ** 0.81)
-    term_Q = Q / (2 * np.pi * U * sigma_y * sigma_z)
-    term_Y = np.exp(-(y ** 2) / (2 * sigma_y ** 2))
-    term_Z = 2 * np.exp(-(H ** 2) / (2 * sigma_z ** 2))
-    return term_Q * term_Y * term_Z
-
-# [중요] 호출부보다 위에 정의되어야 함
 def get_mcmc_observations(plant_id):
-    """배경 방사선을 차감한 정제된 관측 데이터 준비"""
+    """
+    MongoDB의 최신 선량 데이터와 data/좌표.csv의 위경도를 결합하여 MCMC 입력 데이터 생성 (스마트 매칭 포함)
+    """
+    pipeline = [
+        {"$match": {"genName": plant_id}},
+        {"$sort": {"time": -1}},
+        {"$group": {
+            "_id": "$expl",
+            "val": {"$first": "$value"}
+        }}
+    ]
+    recent_docs = list(nuclear_radiation_collection.aggregate(pipeline))
+    
+    csv_path = os.path.join('data', '좌표.csv')
     try:
-        # 1. 기상 및 배경 방사선 정보 로드
-        weather = collection.find_one({"genName": plant_id}, sort=[("time", DESCENDING)])
-        is_raining = _safe_float(weather.get('rainfall', 0)) > 0 if weather else False
-        
-        bg_doc = regional_avg_collection.find_one({"genName": plant_id}, sort=[("date", DESCENDING)])
-        bg_val = (_safe_float(bg_doc.get('rain_avg')) if is_raining else _safe_float(bg_doc.get('no_rain_avg'))) if bg_doc else 0.1086
-            
-        logging.info(f"[MCMC] Plant: {plant_id}, Rain: {is_raining}, BG Subtraction: {bg_val}")
-
-        # 2. 최신 측정값 수집
-        pipeline = [
-            {"$match": {"genName": plant_id}},
-            {"$sort": {"time": -1}},
-            {"$group": {"_id": "$expl", "val": {"$first": "$value"}}}
-        ]
-        recent_docs = list(nuclear_radiation_collection.aggregate(pipeline))
-        
-        # 3. 좌표 데이터 매칭 (data/좌표.csv)
-        csv_path = os.path.join(app.root_path, 'data', '좌표.csv')
-        if not os.path.exists(csv_path):
-            logging.error(f"좌표 CSV 파일을 찾을 수 없습니다: {csv_path}")
-            return []
-
         try:
             coord_df = pd.read_csv(csv_path, encoding='utf-8-sig')
-        except:
+        except UnicodeDecodeError:
             coord_df = pd.read_csv(csv_path, encoding='cp949')
         coord_df.columns = coord_df.columns.str.strip()
-
-        observations = []
-        for d in recent_docs:
-            expl_name = str(d.get('_id', ''))
-            val = _to_float_or_none(d.get('val'))
-            if val is None or not expl_name: continue
-                
-            clean_name = expl_name.replace("ERMS-", "").strip()
-            match = coord_df[coord_df['측정소'].str.contains(clean_name, na=False, regex=False)]
-            
-            if match.empty:
-                ms_pattern = re.search(r'\(MS-\d+\)', expl_name)
-                if ms_pattern:
-                    match = coord_df[coord_df['측정소'].str.contains(ms_pattern.group(), na=False, regex=False)]
-            
-            if not match.empty:
-                # 배경 방사선 차감
-                net_val = max(val - bg_val, 1e-6) 
-                ux, uy = transformer_to_utm.transform(float(match.iloc[0]['경도']), float(match.iloc[0]['위도']))
-                observations.append({'x': ux, 'y': uy, 'val': net_val})
-                
-        return observations
     except Exception as e:
-        logging.error(f"get_mcmc_observations error: {e}")
+        logging.error(f"좌표 CSV 로드 실패: {e}")
         return []
 
-class BayesianSourceFinder:
-    def __init__(self, observations, meteo, bounds):
-        self.obs = observations
-        self.meteo = meteo
-        self.bounds = bounds
-        self.chain = []
-
-    def get_initial_guess(self):
-        sorted_obs = sorted(self.obs, key=lambda x: x['val'], reverse=True)[:3]
-        sum_w = sum(o['val'] for o in sorted_obs) + 1e-9
-        center_x = sum(o['x'] * o['val'] for o in sorted_obs) / sum_w
-        center_y = sum(o['y'] * o['val'] for o in sorted_obs) / sum_w
+    observations = []
+    
+    for d in recent_docs:
+        expl_name = str(d.get('_id', ''))
+        val = _to_float_or_none(d.get('val'))
         
-        back_angle_rad = np.radians(270 - self.meteo['wind_dir'] + 180)
-        guess_dist = 2000 
-        start_x = center_x + guess_dist * np.cos(back_angle_rad)
-        start_y = center_y + guess_dist * np.sin(back_angle_rad)
-        start_q = np.mean(self.bounds['Q'])
-        return np.array([start_x, start_y, start_q])
+        if val is None or not expl_name:
+            continue
+            
+        # 스마트 매칭 1단계: "ERMS-" 글자 지우고 매칭
+        clean_name = expl_name.replace("ERMS-", "").strip()
+        match = coord_df[coord_df['측정소'].str.contains(clean_name, na=False, regex=False)]
+        
+        # 스마트 매칭 2단계: 그래도 없으면 "(MS-번호)" 패턴만 정규식으로 뽑아서 매칭
+        if match.empty:
+            ms_pattern = re.search(r'\(MS-\d+\)', expl_name)
+            if ms_pattern:
+                keyword = ms_pattern.group()
+                match = coord_df[coord_df['측정소'].str.contains(keyword, na=False, regex=False)]
+        
+        if not match.empty:
+            lat = float(match.iloc[0]['위도'])
+            lon = float(match.iloc[0]['경도'])
+            
+            # 위경도 -> UTM 변환 (미터 단위)
+            ux, uy = transformer_to_utm.transform(lon, lat)
+            observations.append({'x': ux, 'y': uy, 'val': val})
+            
+    return observations
 
-    def log_likelihood(self, state):
-        sx, sy, q = state
-        if not (self.bounds['x'][0] <= sx <= self.bounds['x'][1] and
-                self.bounds['y'][0] <= sy <= self.bounds['y'][1] and
-                self.bounds['Q'][0] <= q <= self.bounds['Q'][1]):
-            return -1e20
+@app.route('/source_tracking')
+def source_tracking():
+    # MCMC 분석 전용 페이지를 렌더링
+    return render_template('source_tracking.html')
 
-        wd, u, h = self.meteo['wind_dir'], self.meteo['wind_speed'], self.meteo['release_height']
-        sse = 0
-        for o in self.obs:
-            dw, cw = get_plume_coordinates(o['x'], o['y'], sx, sy, wd)
-            pred = gaussian_plume(dw, cw, h, q, u)
-            sigma = max(o['val'] * 0.15, 0.01) 
-            sse += -0.5 * ((o['val'] - pred) / sigma) ** 2
-        return sse
-
-    def run(self, n_iter=8000):
-        current_state = self.get_initial_guess()
-        current_logp = self.log_likelihood(current_state)
-        self.chain = []
-        for _ in range(n_iter):
-            proposal = current_state + np.array([
-                np.random.normal(0, 100), 
-                np.random.normal(0, 40), 
-                current_state[2] * np.random.normal(0, 0.03)
-            ])
-            proposed_logp = self.log_likelihood(proposal)
-            if np.log(np.random.rand()) < (proposed_logp - current_logp):
-                current_state = proposal
-                current_logp = proposed_logp
-            self.chain.append(current_state.copy())
-        return np.array(self.chain)
 
 @app.route('/api/run_mcmc', methods=['POST'])
+# @login_required # 필요시 주석 해제하여 로그인한 사용자만 쓰게 할 수 있습니다.
 def run_mcmc_api():
     try:
         data = request.json
-        plant_id = (data.get('plant_id') or "").upper()
+        plant_id = data.get('plant_id')
         wd = float(data.get('wd', 0))
         ws = float(data.get('ws', 1.0))
         
-        # 관측 데이터 수집 (위에서 정의한 함수 호출)
+        if not plant_id:
+            return jsonify({"error": "발전소 ID가 필요합니다."}), 400
+
+        # 1. 관측 데이터 준비 (센서 UTM 좌표 + 방사선량)
         obs = get_mcmc_observations(plant_id)
         if not obs:
-            return jsonify({"error": "유효한 센서 데이터가 없습니다. (좌표 매칭 실패 가능성)"}), 400
+            return jsonify({"error": f"{plant_id} 발전소의 유효한 센서(좌표 매칭) 데이터가 없습니다. data/좌표.csv 파일과 DB 데이터를 확인하세요."}), 400
 
+        # 2. 발전소 기준 좌표 설정 (UTM 변환)
         p_loc = PLANT_BASE_LOC.get(plant_id)
+        if not p_loc:
+            return jsonify({"error": "알 수 없는 발전소입니다."}), 400
+        
         sx, sy = transformer_to_utm.transform(p_loc['lon'], p_loc['lat'])
         
+        # 3. MCMC 환경 설정 (발전소 중심 기준 반경 5km 탐색)
         bounds = {
-            'x': (sx - 4000, sx + 4000),
-            'y': (sy - 4000, sy + 4000),
-            'Q': (0.1, 1e7)
+            'x': (sx - 5000, sx + 5000),
+            'y': (sy - 5000, sy + 5000),
+            'Q': (1e7, 1e12) # 배출량 탐색 범위
         }
-        meteo = {'wind_speed': ws, 'wind_dir': wd, 'release_height': 80}
+        meteo = {'wind_speed': ws, 'wind_dir': wd, 'release_height': 100}
         
+        # 4. MCMC 엔진 실행
+        # 웹 환경을 고려하여 n_iter를 5000으로 설정 (약 1~2초 내에 완료되도록 속도 최적화)
         finder = BayesianSourceFinder(obs, meteo, bounds)
-        chain = finder.run(n_iter=8000) 
+        chain = finder.run(n_iter=5000) 
         
+        # 5. 결과 산출 및 위경도 역변환 (초기 30%는 Burn-in으로 버림)
         burn_in = int(len(chain) * 0.3)
         est = np.mean(chain[burn_in:], axis=0)
+        
+        # UTM -> 위경도로 다시 변환하여 지도에 찍기 위함
         est_lon, est_lat = transformer_to_wgs84.transform(est[0], est[1])
         
         return jsonify({
             "lat": est_lat,
             "lon": est_lon,
-            "strength": round(float(est[2]), 4),
-            "unit": "μSv/h"
+            "strength": f"{est[2]:.2e}"
         })
+
     except Exception as e:
-        logging.error(f"MCMC API Error: {e}")
-        return jsonify({"error": str(e)}), 500
+        logging.error(f"MCMC Run Error: {e}")
+        return jsonify({"error": f"MCMC 분석 중 서버 오류가 발생했습니다: {str(e)}"}), 500
+
 
 @app.route('/admin/workers/normalize_checktime', methods=['POST'])
 @login_required
