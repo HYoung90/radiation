@@ -309,7 +309,9 @@ def _compute_status_for(gen_name: str, recent_n: int = 500):
         return None
 
 
-# app.py에 추가할 내용
+@app.route('/source_tracking')
+def source_tracking():
+    return render_template('source_tracking.html')
 
 @app.route('/api/radiation_status/summary')
 def get_radiation_status_summary():
@@ -1980,11 +1982,6 @@ def get_mcmc_observations(plant_id):
             observations.append({'x': ux, 'y': uy, 'val': val})
             
     return observations
-
-@app.route('/source_tracking')
-def source_tracking():
-    # MCMC 분석 전용 페이지를 렌더링
-    return render_template('source_tracking.html')
 
 
 @app.route('/api/run_mcmc', methods=['POST'])
