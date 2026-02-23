@@ -1927,10 +1927,46 @@ class BayesianSourceFinder:
 
 
 # ---------------------------------------------------------------------
-# 역추적 (MCMC) 관측 데이터 준비 (보완 버전)
+# 역추적 (MCMC) 라우터 및 물리 엔진 파트 (전체)
 # ---------------------------------------------------------------------
+import re
+from pyproj import Transformer
 
+# 위경도 <-> UTM 52N 변환기 (한국 지역 표준)
+transformer_to_utm = Transformer.from_crs("epsg:4326", "epsg:32652", always_xy=True)
+transformer_to_wgs84 = Transformer.from_crs("epsg:32652", "epsg:4326", always_xy=True)
+
+# 발전소별 대표 위경도 좌표
+PLANT_BASE_LOC = {
+    "KR": {"lat": 35.3213, "lon": 129.2941},
+    "WS": {"lat": 35.7131, "lon": 129.4775},
+    "YK": {"lat": 35.4165, "lon": 126.4178},
+    "UJ": {"lat": 37.0941, "lon": 129.3819},
+    "SU": {"lat": 35.3376, "lon": 129.3115},
+}
+
+def get_plume_coordinates(x_map, y_map, sx, sy, wind_dir_meteo):
+    """지도 좌표를 플룸 중심축 좌표로 변환"""
+    flow_angle_rad = np.radians(270 - wind_dir_meteo)
+    dx = x_map - sx
+    dy = y_map - sy
+    downwind = dx * np.cos(flow_angle_rad) + dy * np.sin(flow_angle_rad)
+    crosswind = -dx * np.sin(flow_angle_rad) + dy * np.cos(flow_angle_rad)
+    return downwind, crosswind
+
+def gaussian_plume(x, y, H, Q, U):
+    """가우시안 플룸 확산 모델"""
+    if x <= 0: return 0.0
+    sigma_y = 0.11 * (x ** 0.85)
+    sigma_z = 0.08 * (x ** 0.81)
+    term_Q = Q / (2 * np.pi * U * sigma_y * sigma_z)
+    term_Y = np.exp(-(y ** 2) / (2 * sigma_y ** 2))
+    term_Z = 2 * np.exp(-(H ** 2) / (2 * sigma_z ** 2))
+    return term_Q * term_Y * term_Z
+
+# [중요] 호출부보다 위에 정의되어야 함
 def get_mcmc_observations(plant_id):
+    """배경 방사선을 차감한 정제된 관측 데이터 준비"""
     try:
         # 1. 기상 및 배경 방사선 정보 로드
         weather = collection.find_one({"genName": plant_id}, sort=[("time", DESCENDING)])
@@ -1949,8 +1985,8 @@ def get_mcmc_observations(plant_id):
         ]
         recent_docs = list(nuclear_radiation_collection.aggregate(pipeline))
         
-        # 3. 좌표 데이터 매칭
-        csv_path = os.path.join('data', '좌표.csv')
+        # 3. 좌표 데이터 매칭 (data/좌표.csv)
+        csv_path = os.path.join(app.root_path, 'data', '좌표.csv')
         if not os.path.exists(csv_path):
             logging.error(f"좌표 CSV 파일을 찾을 수 없습니다: {csv_path}")
             return []
@@ -1967,7 +2003,6 @@ def get_mcmc_observations(plant_id):
             val = _to_float_or_none(d.get('val'))
             if val is None or not expl_name: continue
                 
-            # ERMS 명칭 및 MS 패턴 매칭
             clean_name = expl_name.replace("ERMS-", "").strip()
             match = coord_df[coord_df['측정소'].str.contains(clean_name, na=False, regex=False)]
             
@@ -1977,7 +2012,7 @@ def get_mcmc_observations(plant_id):
                     match = coord_df[coord_df['측정소'].str.contains(ms_pattern.group(), na=False, regex=False)]
             
             if not match.empty:
-                # ★ 핵심: 배경 방사선 차감 후 순수 누출분만 추출
+                # 배경 방사선 차감
                 net_val = max(val - bg_val, 1e-6) 
                 ux, uy = transformer_to_utm.transform(float(match.iloc[0]['경도']), float(match.iloc[0]['위도']))
                 observations.append({'x': ux, 'y': uy, 'val': net_val})
@@ -1986,26 +2021,59 @@ def get_mcmc_observations(plant_id):
     except Exception as e:
         logging.error(f"get_mcmc_observations error: {e}")
         return []
-        
-# BayesianSourceFinder 클래스 내의 log_likelihood 함수를 아래와 같이 업데이트해주세요.
-# (차감된 미세 선량에 맞게 오차 모델 sigma를 조정했습니다.)
-def log_likelihood(self, state):
-    sx, sy, q = state
-    if not (self.bounds['x'][0] <= sx <= self.bounds['x'][1] and
-            self.bounds['y'][0] <= sy <= self.bounds['y'][1] and
-            self.bounds['Q'][0] <= q <= self.bounds['Q'][1]):
-        return -1e20
 
-    wd, u, h = self.meteo['wind_dir'], self.meteo['wind_speed'], self.meteo['release_height']
-    sse = 0
-    for o in self.obs:
-        dw, cw = get_plume_coordinates(o['x'], o['y'], sx, sy, wd)
-        pred = gaussian_plume(dw, cw, h, q, u)
+class BayesianSourceFinder:
+    def __init__(self, observations, meteo, bounds):
+        self.obs = observations
+        self.meteo = meteo
+        self.bounds = bounds
+        self.chain = []
+
+    def get_initial_guess(self):
+        sorted_obs = sorted(self.obs, key=lambda x: x['val'], reverse=True)[:3]
+        sum_w = sum(o['val'] for o in sorted_obs) + 1e-9
+        center_x = sum(o['x'] * o['val'] for o in sorted_obs) / sum_w
+        center_y = sum(o['y'] * o['val'] for o in sorted_obs) / sum_w
         
-        # 차감 후 데이터는 단위가 작으므로 시그마를 정밀하게 설정 (최소 0.01)
-        sigma = max(o['val'] * 0.15, 0.01) 
-        sse += -0.5 * ((o['val'] - pred) / sigma) ** 2
-    return sse
+        back_angle_rad = np.radians(270 - self.meteo['wind_dir'] + 180)
+        guess_dist = 2000 
+        start_x = center_x + guess_dist * np.cos(back_angle_rad)
+        start_y = center_y + guess_dist * np.sin(back_angle_rad)
+        start_q = np.mean(self.bounds['Q'])
+        return np.array([start_x, start_y, start_q])
+
+    def log_likelihood(self, state):
+        sx, sy, q = state
+        if not (self.bounds['x'][0] <= sx <= self.bounds['x'][1] and
+                self.bounds['y'][0] <= sy <= self.bounds['y'][1] and
+                self.bounds['Q'][0] <= q <= self.bounds['Q'][1]):
+            return -1e20
+
+        wd, u, h = self.meteo['wind_dir'], self.meteo['wind_speed'], self.meteo['release_height']
+        sse = 0
+        for o in self.obs:
+            dw, cw = get_plume_coordinates(o['x'], o['y'], sx, sy, wd)
+            pred = gaussian_plume(dw, cw, h, q, u)
+            sigma = max(o['val'] * 0.15, 0.01) 
+            sse += -0.5 * ((o['val'] - pred) / sigma) ** 2
+        return sse
+
+    def run(self, n_iter=8000):
+        current_state = self.get_initial_guess()
+        current_logp = self.log_likelihood(current_state)
+        self.chain = []
+        for _ in range(n_iter):
+            proposal = current_state + np.array([
+                np.random.normal(0, 100), 
+                np.random.normal(0, 40), 
+                current_state[2] * np.random.normal(0, 0.03)
+            ])
+            proposed_logp = self.log_likelihood(proposal)
+            if np.log(np.random.rand()) < (proposed_logp - current_logp):
+                current_state = proposal
+                current_logp = proposed_logp
+            self.chain.append(current_state.copy())
+        return np.array(self.chain)
 
 @app.route('/api/run_mcmc', methods=['POST'])
 def run_mcmc_api():
@@ -2015,24 +2083,21 @@ def run_mcmc_api():
         wd = float(data.get('wd', 0))
         ws = float(data.get('ws', 1.0))
         
-        # 1. 배경 차감된 관측 데이터 준비
+        # 관측 데이터 수집 (위에서 정의한 함수 호출)
         obs = get_mcmc_observations(plant_id)
         if not obs:
-            return jsonify({"error": "유효한 센서 데이터가 없습니다."}), 400
+            return jsonify({"error": "유효한 센서 데이터가 없습니다. (좌표 매칭 실패 가능성)"}), 400
 
-        # 2. 발전소 기준 위치 (UTM)
         p_loc = PLANT_BASE_LOC.get(plant_id)
         sx, sy = transformer_to_utm.transform(p_loc['lon'], p_loc['lat'])
         
-        # 3. MCMC 파라미터 설정 (단위: μSv/h 기반)
         bounds = {
             'x': (sx - 4000, sx + 4000),
             'y': (sy - 4000, sy + 4000),
-            'Q': (0.1, 1e7) # μSv/h
+            'Q': (0.1, 1e7)
         }
         meteo = {'wind_speed': ws, 'wind_dir': wd, 'release_height': 80}
         
-        # 4. 분석 엔진 실행
         finder = BayesianSourceFinder(obs, meteo, bounds)
         chain = finder.run(n_iter=8000) 
         
@@ -2046,7 +2111,6 @@ def run_mcmc_api():
             "strength": round(float(est[2]), 4),
             "unit": "μSv/h"
         })
-
     except Exception as e:
         logging.error(f"MCMC API Error: {e}")
         return jsonify({"error": str(e)}), 500
