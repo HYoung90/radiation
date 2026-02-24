@@ -1995,60 +1995,71 @@ def source_tracking():
 
 
 @app.route('/api/run_mcmc', methods=['POST'])
-# @login_required # 필요시 주석 해제하여 로그인한 사용자만 쓰게 할 수 있습니다.
 def run_mcmc_api():
     try:
         data = request.json
-        plant_id = data.get('plant_id')
-        wd = float(data.get('wd', 0))
-        ws = float(data.get('ws', 1.0))
+        plant_id = (data.get('plant_id') or "").upper()
         
-        if not plant_id:
-            return jsonify({"error": "발전소 ID가 필요합니다."}), 400
+        # 1. 현재 기상 상태 확인 (강우 여부 파악)
+        weather = collection.find_one({"genName": plant_id}, sort=[("time", -1)])
+        wd = float(data.get('wd') if data.get('wd') is not None else (weather.get('winddirection', 0) if weather else 0))
+        ws = float(data.get('ws') if data.get('ws') is not None else (weather.get('windspeed', 1.0) if weather else 1.0))
+        is_raining = _safe_float(weather.get('rainfall', 0)) > 0 if weather else False
 
-        # 1. 관측 데이터 준비 (센서 UTM 좌표 + 방사선량)
+        # 2. DB에서 지역별/기상별 에버리지(배경 방사선) 가져오기
+        bg_doc = _latest_regional_avg(plant_id)
+        if bg_doc:
+            # 비가 오면 rain_avg, 안 오면 no_rain_avg 사용 (없으면 기본값 0.11)
+            background_val = _safe_float(bg_doc.get('rain_avg' if is_raining else 'no_rain_avg'), 0.11)
+        else:
+            background_val = 0.11
+        
+        logging.info(f"[{plant_id}] 분석 시작 - 배경 방사선 적용: {background_val} uSv/h (강우: {is_raining})")
+
+        # 3. 관측 데이터 수집 및 배경값 차감 (순수 오염 증가분만 분석)
         obs = get_mcmc_observations(plant_id)
         if not obs:
-            return jsonify({"error": f"{plant_id} 발전소의 유효한 센서(좌표 매칭) 데이터가 없습니다. data/좌표.csv 파일과 DB 데이터를 확인하세요."}), 400
+            return jsonify({"error": "데이터 매칭 실패"}), 400
 
-        # 2. 발전소 기준 좌표 설정 (UTM 변환)
+        # [핵심] 측정값에서 DB 에버리지를 뺌 (결과가 너무 높게 튀는 것 방지)
+        for o in obs:
+            # 측정치에서 배경값을 뺀 값이 0보다 작을 수 없으므로 최소값(1e-6) 처리
+            o['val'] = max(o['val'] - background_val, 1e-6)
+
+        # 4. 발전소 위치 및 탐색 범위 설정
         p_loc = PLANT_BASE_LOC.get(plant_id)
-        if not p_loc:
-            return jsonify({"error": "알 수 없는 발전소입니다."}), 400
-        
         sx, sy = transformer_to_utm.transform(p_loc['lon'], p_loc['lat'])
         
-        # 3. MCMC 환경 설정 (발전소 중심 기준 반경 5km 탐색)
+        # [수정] Q(방출량) 범위를 1e2부터 시작하도록 넓혀서 낮은 농도도 추적 가능하게 함
         bounds = {
-            'x': (sx - 5000, sx + 5000),
-            'y': (sy - 5000, sy + 5000),
-            'Q': (1e7, 1e12) # 배출량 탐색 범위
+            'x': (sx - 4000, sx + 4000), 
+            'y': (sy - 4000, sy + 4000), 
+            'Q': (1e2, 1e12) 
         }
-        meteo = {'wind_speed': ws, 'wind_dir': wd, 'release_height': 100}
+        meteo = {'wind_speed': ws, 'wind_dir': wd, 'release_height': 80}
         
-        # 4. MCMC 엔진 실행
-        # 웹 환경을 고려하여 n_iter를 5000으로 설정 (약 1~2초 내에 완료되도록 속도 최적화)
+        # 5. MCMC 엔진 가동 (5,000 ~ 10,000회 권장)
         finder = BayesianSourceFinder(obs, meteo, bounds)
-        chain = finder.run(n_iter=5000) 
+        chain = finder.run(n_iter=10000) 
         
-        # 5. 결과 산출 및 위경도 역변환 (초기 30%는 Burn-in으로 버림)
         burn_in = int(len(chain) * 0.3)
         est = np.mean(chain[burn_in:], axis=0)
         
-        # UTM -> 위경도로 다시 변환하여 지도에 찍기 위함
+        # 결과 역변환
         est_lon, est_lat = transformer_to_wgs84.transform(est[0], est[1])
         
         return jsonify({
             "lat": est_lat,
             "lon": est_lon,
-            "strength": f"{est[2]:.2e}"
+            "strength": f"{est[2]:.2e}",
+            "background_used": background_val,
+            "is_raining": is_raining
         })
 
     except Exception as e:
-        logging.error(f"MCMC Run Error: {e}")
-        return jsonify({"error": f"MCMC 분석 중 서버 오류가 발생했습니다: {str(e)}"}), 500
-
-
+        logging.error(f"MCMC 분석 오류: {e}")
+        return jsonify({"error": str(e)}), 500
+        
 @app.route('/admin/workers/normalize_checktime', methods=['POST'])
 @login_required
 @admin_required
