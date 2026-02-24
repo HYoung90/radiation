@@ -1983,14 +1983,13 @@ def run_mcmc_api():
         data = request.json
         plant_id = (data.get('plant_id') or "").upper()
         
-        # 1. 기상 정보 및 배경 방사선(배경치) 동적 로드
+        # 1. 기상 정보 및 배경 방사선 로드
         weather = collection.find_one({"genName": plant_id}, sort=[("time", -1)])
         wd = float(data.get('wd') if data.get('wd') is not None else (weather.get('winddirection', 0) if weather else 90))
         ws = float(data.get('ws') if data.get('ws') is not None else (weather.get('windspeed', 2.0) if weather else 2.0))
         is_raining = _safe_float(weather.get('rainfall', 0)) > 0 if weather else False
 
         bg_doc = _latest_regional_avg(plant_id)
-        # 로컬 코드와 동일한 배경 기본값 0.1086 적용
         background_val = _safe_float(bg_doc.get('rain_avg' if is_raining else 'no_rain_avg'), 0.1086)
 
         # 2. 관측 데이터 수집
@@ -1998,7 +1997,7 @@ def run_mcmc_api():
         if not obs: 
             return jsonify({"error": "데이터 매칭 실패"}), 400
 
-        # 3. 탐색 범위 설정 (로컬 PC와 동일하게 설정)
+        # 3. 탐색 범위 설정
         p_loc = PLANT_BASE_LOC.get(plant_id)
         sx, sy = transformer_to_utm.transform(p_loc['lon'], p_loc['lat'])
         
@@ -2009,9 +2008,9 @@ def run_mcmc_api():
         }
         meteo = {'wind_speed': ws, 'wind_dir': wd, 'release_height': 80}
         
-        # 4. MCMC 엔진 가동 (결과 고정 및 물리 로직 실행)
+        # 4. MCMC 엔진 가동 (결과 고정)
         import numpy as np
-        np.random.seed(42)  # [수정] 동일 데이터에 대해 항상 같은 결과 보장
+        np.random.seed(42) 
         
         finder = BayesianSourceFinder(obs, meteo, bounds, background_val)
         chain = finder.run(n_iter=10000) 
@@ -2019,22 +2018,21 @@ def run_mcmc_api():
         burn_in = int(len(chain) * 0.3)
         est = np.mean(chain[burn_in:], axis=0)
         
-        # [핵심 수정] 신호가 너무 낮으면(0.5 미만) 굳이 틀린 좌표를 찍지 않음
-        is_normal = est[2] < 0.5 
+        # [수정] numpy.bool_ 에러 방지를 위해 bool()로 강제 형변환
+        is_normal = bool(est[2] < 0.5) 
         
         if is_normal:
-            # 정상 상태: 좌표를 보내지 않고 강도만 전달
             est_lat, est_lon = None, None
             message = "현재 방사선 수치가 정상 범위 내에 있습니다. 유의미한 누출원이 감지되지 않았습니다."
         else:
-            # 사고 의심: 계산된 역추적 좌표 반환
             est_lon, est_lat = transformer_to_wgs84.transform(est[0], est[1])
             message = "방사선 수치 증가 감지. 추정 발원지 위치를 확인하십시오."
         
+        # 
         return jsonify({
             "lat": est_lat,
             "lon": est_lon,
-            "strength": round(est[2], 4),
+            "strength": round(float(est[2]), 4), # float 형변환 추가
             "background_used": background_val,
             "is_raining": is_raining,
             "is_normal": is_normal,
