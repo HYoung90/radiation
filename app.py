@@ -1928,10 +1928,16 @@ class BayesianSourceFinder:
 
 def get_mcmc_observations(plant_id):
     """
-    MongoDB의 최신 선량 데이터와 data/좌표.csv의 위경도를 결합하여 MCMC 입력 데이터 생성 (스마트 매칭 포함)
+    MongoDB의 최신 선량 데이터와 data/좌표.csv의 위경도를 결합하여 MCMC 입력 데이터 생성
     """
+    # 1. 검색 조건 설정 (영문 코드와 한글 명칭 모두 대응)
+    plant_full_name = genName_mapping.get(plant_id.upper())
+    search_names = [plant_id.upper()]
+    if plant_full_name:
+        search_names.append(plant_full_name)
+
     pipeline = [
-        {"$match": {"genName": plant_id}},
+        {"$match": {"genName": {"$in": search_names}}}, # 스마트 매칭: 영문/한글 모두 검색
         {"$sort": {"time": -1}},
         {"$group": {
             "_id": "$expl",
@@ -1960,25 +1966,26 @@ def get_mcmc_observations(plant_id):
         if val is None or not expl_name:
             continue
             
-        # 스마트 매칭 1단계: "ERMS-" 글자 지우고 매칭
-        clean_name = expl_name.replace("ERMS-", "").strip()
-        match = coord_df[coord_df['측정소'].str.contains(clean_name, na=False, regex=False)]
+        # 스마트 매칭 로직 (공백 및 특수문자 제거 후 비교)
+        clean_expl = re.sub(r'[^0-9a-zA-Zㄱ-ㅎ가-힣]', '', expl_name).replace("ERMS", "")
         
-        # 스마트 매칭 2단계: 그래도 없으면 "(MS-번호)" 패턴만 정규식으로 뽑아서 매칭
-        if match.empty:
-            ms_pattern = re.search(r'\(MS-\d+\)', expl_name)
-            if ms_pattern:
-                keyword = ms_pattern.group()
-                match = coord_df[coord_df['측정소'].str.contains(keyword, na=False, regex=False)]
+        # CSV의 측정소 명칭도 정규화하여 매칭 시도
+        match = coord_df[coord_df['측정소'].apply(lambda x: clean_expl in re.sub(r'[^0-9a-zA-Zㄱ-ㅎ가-힣]', '', str(x)))]
         
         if not match.empty:
-            lat = float(match.iloc[0]['위도'])
-            lon = float(match.iloc[0]['경도'])
-            
-            # 위경도 -> UTM 변환 (미터 단위)
-            ux, uy = transformer_to_utm.transform(lon, lat)
-            observations.append({'x': ux, 'y': uy, 'val': val})
-            
+            try:
+                lat = float(match.iloc[0]['위도'])
+                lon = float(match.iloc[0]['경도'])
+                
+                # 위경도 -> UTM 변환
+                ux, uy = transformer_to_utm.transform(lon, lat)
+                observations.append({'x': ux, 'y': uy, 'val': val})
+            except:
+                continue
+                
+    if not observations:
+        logging.warning(f"데이터 매칭 실패: {plant_id}의 센서 {len(recent_docs)}개 중 좌표를 찾은 항목이 0개입니다.")
+        
     return observations
 
 @app.route('/source_tracking')
