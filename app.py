@@ -1987,10 +1987,10 @@ def run_mcmc_api():
         weather = collection.find_one({"genName": plant_id}, sort=[("time", -1)])
         wd = float(data.get('wd') if data.get('wd') is not None else (weather.get('winddirection', 0) if weather else 90))
         ws = float(data.get('ws') if data.get('ws') is not None else (weather.get('windspeed', 2.0) if weather else 2.0))
-        is_raining = _safe_float(weather.get('rainfall', 0)) > 0 if weather else False
+        is_raining = bool(_safe_float(weather.get('rainfall', 0)) > 0) if weather else False
 
         bg_doc = _latest_regional_avg(plant_id)
-        background_val = _safe_float(bg_doc.get('rain_avg' if is_raining else 'no_rain_avg'), 0.1086)
+        background_val = float(_safe_float(bg_doc.get('rain_avg' if is_raining else 'no_rain_avg'), 0.1086))
 
         # 2. 관측 데이터 수집
         obs = get_mcmc_observations(plant_id)
@@ -2018,31 +2018,34 @@ def run_mcmc_api():
         burn_in = int(len(chain) * 0.3)
         est = np.mean(chain[burn_in:], axis=0)
         
-        # [수정] numpy.bool_ 에러 방지를 위해 bool()로 강제 형변환
-        is_normal = bool(est[2] < 0.5) 
+        # [해결] 모든 결과값을 파이썬 표준 타입(float, bool)으로 변환
+        strength_val = float(est[2])
+        is_normal = bool(strength_val < 0.5) 
         
         if is_normal:
             est_lat, est_lon = None, None
             message = "현재 방사선 수치가 정상 범위 내에 있습니다. 유의미한 누출원이 감지되지 않았습니다."
         else:
-            est_lon, est_lat = transformer_to_wgs84.transform(est[0], est[1])
+            # 사고 시에만 좌표 계산 및 float 변환
+            res_lon, res_lat = transformer_to_wgs84.transform(float(est[0]), float(est[1]))
+            est_lon, est_lat = float(res_lon), float(res_lat)
             message = "방사선 수치 증가 감지. 추정 발원지 위치를 확인하십시오."
         
-        # 
         return jsonify({
             "lat": est_lat,
             "lon": est_lon,
-            "strength": round(float(est[2]), 4), # float 형변환 추가
+            "strength": round(strength_val, 4),
             "background_used": background_val,
             "is_raining": is_raining,
             "is_normal": is_normal,
             "message": message,
-            "sensor_count": len(obs)
+            "sensor_count": int(len(obs))
         })
 
     except Exception as e:
-        logging.error(f"MCMC 분석 오류: {e}")
-        return jsonify({"error": str(e)}), 500
+        import traceback
+        logging.error(f"MCMC 분석 오류 상세: {traceback.format_exc()}")
+        return jsonify({"error": "분석 중 서버 오류가 발생했습니다."}), 500
         
 @app.route('/admin/workers/normalize_checktime', methods=['POST'])
 @login_required
