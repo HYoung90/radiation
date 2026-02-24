@@ -1995,33 +1995,50 @@ def run_mcmc_api():
 
         # 2. 관측 데이터 수집
         obs = get_mcmc_observations(plant_id)
-        if not obs: return jsonify({"error": "데이터 매칭 실패"}), 400
+        if not obs: 
+            return jsonify({"error": "데이터 매칭 실패"}), 400
 
-        # 3. 탐색 범위 설정 (로컬 PC와 동일하게 Q 범위를 0.1 ~ 1,000,000으로 제한)
+        # 3. 탐색 범위 설정 (로컬 PC와 동일하게 설정)
         p_loc = PLANT_BASE_LOC.get(plant_id)
         sx, sy = transformer_to_utm.transform(p_loc['lon'], p_loc['lat'])
         
         bounds = {
             'x': (sx - 3000, sx + 3000), 
             'y': (sy - 3000, sy + 3000), 
-            'Q': (0.1, 1000000.0) # 서버의 광범위한 설정을 로컬 값으로 수정
+            'Q': (0.1, 1000000.0) 
         }
         meteo = {'wind_speed': ws, 'wind_dir': wd, 'release_height': 80}
         
-        # 4. MCMC 엔진 가동 (background_val 인자 전달)
+        # 4. MCMC 엔진 가동 (결과 고정 및 물리 로직 실행)
+        import numpy as np
+        np.random.seed(42)  # [수정] 동일 데이터에 대해 항상 같은 결과 보장
+        
         finder = BayesianSourceFinder(obs, meteo, bounds, background_val)
         chain = finder.run(n_iter=10000) 
         
         burn_in = int(len(chain) * 0.3)
         est = np.mean(chain[burn_in:], axis=0)
-        est_lon, est_lat = transformer_to_wgs84.transform(est[0], est[1])
+        
+        # [핵심 수정] 신호가 너무 낮으면(0.5 미만) 굳이 틀린 좌표를 찍지 않음
+        is_normal = est[2] < 0.5 
+        
+        if is_normal:
+            # 정상 상태: 좌표를 보내지 않고 강도만 전달
+            est_lat, est_lon = None, None
+            message = "현재 방사선 수치가 정상 범위 내에 있습니다. 유의미한 누출원이 감지되지 않았습니다."
+        else:
+            # 사고 의심: 계산된 역추적 좌표 반환
+            est_lon, est_lat = transformer_to_wgs84.transform(est[0], est[1])
+            message = "방사선 수치 증가 감지. 추정 발원지 위치를 확인하십시오."
         
         return jsonify({
             "lat": est_lat,
             "lon": est_lon,
-            "strength": round(est[2], 4), # 읽기 편하게 반올림
+            "strength": round(est[2], 4),
             "background_used": background_val,
             "is_raining": is_raining,
+            "is_normal": is_normal,
+            "message": message,
             "sensor_count": len(obs)
         })
 
